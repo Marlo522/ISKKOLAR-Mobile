@@ -1,69 +1,178 @@
 import React, { useState, useContext } from "react";
-import { View, Text, TextInput, Button, StyleSheet, Alert } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Image,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { getApiErrorMessage, login } from "../services/api";
 import { AuthContext } from "../context/AuthContext";
 
 export default function LoginScreen({ navigation }) {
   const { loginUser } = useContext(AuthContext);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [errors, setErrors] = useState({});
+  const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const validate = () => {
+    const errs = {};
+    if (!form.email.trim()) errs.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = "Invalid email format";
+    if (!form.password.trim()) errs.password = "Password is required";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const handleLogin = async () => {
-    if (!email || !password) return Alert.alert("Error", "Please enter email and password");
+    if (!validate()) return;
 
     setLoading(true);
+    setApiError("");
+
     try {
-      const response = await login(email, password);
+      const response = await login(form.email, form.password);
       if (response.data.success) {
         const { token, ...userData } = response.data.data;
         await loginUser(userData, token);
-        Alert.alert("Success", "Logged in successfully!");
         navigation.replace("Home");
       } else {
-        Alert.alert("Error", response.data.message || "Login failed");
+        setApiError(response.data.message || "Login failed");
       }
     } catch (err) {
-      console.log(err.response?.data || err.message);
-      Alert.alert("Error", getApiErrorMessage(err));
+      setApiError(getApiErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
-      <TextInput
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        style={styles.input}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      <TextInput
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        style={styles.input}
-        secureTextEntry
-      />
-      <Button title={loading ? "Logging in..." : "Login"} onPress={handleLogin} disabled={loading} />
-    </View>
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <View style={styles.logoContainer}>
+          <Image source={require("../../assets/images/logo.png")} style={styles.loginLogo} resizeMode="contain" />
+        </View>
+        <Text style={styles.header}>LOGIN</Text>
+        <Text style={styles.subheader}>Please enter your details to sign in</Text>
+
+        {apiError ? <Text style={styles.apiError}>{apiError}</Text> : null}
+
+        <View style={styles.field}>
+          <Text style={styles.label}>Email</Text>
+          <View style={[styles.inputWrapper, errors.email && styles.inputError]}>
+            <Ionicons name="mail-outline" size={18} color="#999" style={styles.icon} />
+            <TextInput
+              value={form.email}
+              onChangeText={(value) => setForm({ ...form, email: value })}
+              placeholder="Enter your email"
+              style={styles.input}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+          {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.label}>Password</Text>
+          <View style={[styles.inputWrapper, errors.password && styles.inputError]}>
+            <Ionicons name="lock-closed-outline" size={18} color="#999" style={styles.icon} />
+            <TextInput
+              value={form.password}
+              onChangeText={(value) => setForm({ ...form, password: value })}
+              placeholder="Enter your password"
+              style={styles.input}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity
+              onPress={() => setShowPassword((prev) => !prev)}
+              style={styles.eyeButton}
+            >
+              <Ionicons name={showPassword ? "eye" : "eye-off"} size={18} color="#999" />
+            </TouchableOpacity>
+          </View>
+          {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
+        </View>
+
+        <View style={styles.row}>
+          <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
+            <Text style={styles.link}>Forgot Password?</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          <Text style={styles.primaryButtonText}>{loading ? "Logging in..." : "LOGIN"}</Text>
+        </TouchableOpacity>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Don't have an account? </Text>
+          <TouchableOpacity onPress={() => navigation.navigate("Signup")}> 
+            <Text style={styles.footerLink}>Create Account</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 20, backgroundColor: "#ffffff" },
-  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20, textAlign: "center", color: "#111111" },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 10,
-    marginBottom: 15,
-    borderRadius: 5,
-    color: "#111111",
-    backgroundColor: "#ffffff",
+  screen: { flex: 1, backgroundColor: "#f5f5f5" },
+  container: { padding: 24, flexGrow: 1, justifyContent: "center" },
+  logoContainer: { alignItems: "center", marginBottom: 18, marginTop: 10 },
+  loginLogo: { width: 200, height: 200 },
+  header: { fontSize: 28, fontWeight: "700", color: "#3d4076", textAlign: "center", marginBottom: 6 },
+  subheader: { textAlign: "center", color: "#666", marginBottom: 28, fontSize: 14 },
+  apiError: {
+    backgroundColor: "#fee2e2",
+    color: "#dc2626",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+    textAlign: "center",
   },
+  field: { marginBottom: 16 },
+  label: { fontSize: 14, fontWeight: "600", color: "#333", marginBottom: 8 },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+  },
+  icon: { marginRight: 10 },
+  eyeButton: { padding: 8 },
+  inputError: { borderColor: "#dc2626" },
+  errorText: { color: "#dc2626", fontSize: 12, marginTop: 6 },
+  row: { flexDirection: "row", justifyContent: "flex-end", marginBottom: 18 },
+  link: { color: "#5b5f97", fontSize: 13, fontWeight: "600" },
+  primaryButton: {
+    backgroundColor: "#5b5f97",
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  primaryButtonDisabled: { opacity: 0.7 },
+  primaryButtonText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  footer: { flexDirection: "row", justifyContent: "center", marginTop: 20 },
+  footerText: { color: "#666", fontSize: 13 },
+  footerLink: { color: "#5b5f97", fontSize: 13, fontWeight: "600" },
+  input: { flex: 1, height: 48, color: "#111", fontSize: 14 },
 });
