@@ -38,11 +38,19 @@ export default function LoginScreen({ navigation }) {
     setApiError("");
 
     try {
+      // Dev bypass: skip backend auth and go directly to dashboard.
+      if (__DEV__) {
+        const fakeUser = { firstName: "Dev", lastName: "User", email: form.email || "dev@example.com" };
+        await loginUser(fakeUser, "dev-token");
+        navigation.replace("Main");
+        return;
+      }
+
       const response = await login(form.email, form.password);
       if (response.data.success) {
         const { token, ...userData } = response.data.data;
         await loginUser(userData, token);
-        navigation.replace("Home");
+        navigation.replace("Main");
       } else {
         setApiError(response.data.message || "Login failed");
       }
