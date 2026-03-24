@@ -67,7 +67,14 @@ export default function HomeScreen({ navigation }) {
 
             <Text style={styles.cardDescription}>{program.description}</Text>
 
-            <TouchableOpacity style={styles.viewButton} activeOpacity={0.8} onPress={() => navigation.navigate("ProgramDetail", { program: "tertiary" })}>
+            <TouchableOpacity
+              style={styles.viewButton}
+              activeOpacity={0.8}
+              onPress={() => {
+                const routeMap = ["tertiary", "employeeChild", "vocational"];
+                navigation.navigate("ProgramDetail", { program: routeMap[index] });
+              }}
+            >
               <Text style={styles.viewButtonText}>View Details</Text>
             </TouchableOpacity>
           </View>

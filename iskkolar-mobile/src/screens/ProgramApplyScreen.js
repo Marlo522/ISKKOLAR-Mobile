@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import { SafeAreaView, View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert } from "react-native";
+import { SafeAreaView, View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 const infoFields = {
-  scholarshipType: "Manila Scholars",
-  fundType: "KKFI Funded",
+  scholarshipType: "KKFI Employee-Child Education Grant",
+  fundType: "Scrantron Funded",
   incomingFreshman: "No",
   schoolName: "",
   strand: "STEM",
@@ -15,6 +15,14 @@ const infoFields = {
   gradeScale: "1.0 - Scale",
   yearLevel: "3rd",
   term: "1st",
+  secondaryYearGraduated: "2023",
+  tertiaryYearGraduated: "2027",
+  staffId: "",
+  firstName: "",
+  middleName: "",
+  lastName: "",
+  suffix: "--",
+  position: "Human Resource",
   fatherName: "",
   fatherStatus: "Employed",
   fatherOccupation: "",
@@ -25,16 +33,23 @@ const infoFields = {
   motherIncome: "",
 };
 
-export default function ProgramApplyScreen({ navigation }) {
+export default function ProgramApplyScreen({ navigation, route }) {
+  const program = route?.params?.program || "tertiary";
+  const option = route?.params?.option || "Option 1";
   const [step, setStep] = useState(0);
   const [values, setValues] = useState(infoFields);
   const [familyMembers, setFamilyMembers] = useState([]);
   const [uploadText, setUploadText] = useState({ cor: "", gradeReport: "", currentTermGradeReport: "", indigency: "", birthCert: "", incomeFather: "", incomeMother: "", recommendation: "", essay: "" });
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [completeStage, setCompleteStage] = useState("none");
+  const [yearPickerVisible, setYearPickerVisible] = useState(false);
+  const [yearPickerKey, setYearPickerKey] = useState(null);
+
+  const maxStep = program === "employeeChild" ? 2 : 3;
+  const isChildDesignation = program === "employeeChild" && option === "Option 2";
 
   const advance = () => {
-    if (step < 3) setStep((s) => s + 1);
+    if (step < maxStep) setStep((s) => s + 1);
     else submitApplication();
   };
 
@@ -50,19 +65,29 @@ export default function ProgramApplyScreen({ navigation }) {
     setSubmitting(true);
     setTimeout(() => {
       setSubmitting(false);
-      setSubmitted(true);
+      setCompleteStage("preAssessment");
+      setTimeout(() => setCompleteStage("assessment"), 1200);
     }, 1500);
   };
 
   const renderStep = () => {
-    if (submitted) {
+    if (completeStage === "assessment") {
+      return (
+        <View style={styles.centered}>
+          <Ionicons name="checkmark-circle" size={86} color="#4f5fc5" />
+          <Text style={styles.completeText}>Assessment Complete</Text>
+          <TouchableOpacity style={styles.submitBtn} onPress={() => navigation.navigate("HomeMain") }>
+            <Text style={styles.submitBtnText}>Return Home</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (completeStage === "preAssessment") {
       return (
         <View style={styles.centered}>
           <Ionicons name="checkmark-circle" size={86} color="#4f5fc5" />
           <Text style={styles.completeText}>Pre-Assessment Complete</Text>
-          <TouchableOpacity style={styles.submitBtn} onPress={() => navigation.navigate("HomeMain") }>
-            <Text style={styles.submitBtnText}>Done</Text>
-          </TouchableOpacity>
         </View>
       );
     }
@@ -74,6 +99,95 @@ export default function ProgramApplyScreen({ navigation }) {
           <Text style={styles.completeText}>Evaluating Application</Text>
         </View>
       );
+    }
+
+    if (program === "employeeChild") {
+      switch (step) {
+        case 0:
+          return (
+            <View>
+              <Text style={styles.sectionHeader}>Academic Information</Text>
+              {renderDropdown("Scholarship Type", "scholarshipType", ["KKFI Employee-Child Education Grant", "KKFI Staff Grant"])}
+              {renderDropdown("Scholarship Fund Type", "fundType", ["Scrantron Funded", "KKFI Funded"])}
+              {renderYesNo("Incoming Freshman", "incomingFreshman")}
+
+              <Text style={styles.sectionHeader}>Secondary Education</Text>
+              {renderInput("School Name", "schoolName", "Enter School Name")}
+              {renderDropdown("Strand", "strand", ["STEM", "ABM", "HUMMS", "GAS", "Others"])}
+              {values.strand === "Others" && renderInput("Specify Strand", "strand")}
+              {renderYearPicker("Year Graduated", "secondaryYearGraduated")}
+              {renderUpload("Grade Report", "gradeReport")}
+
+              <Text style={styles.sectionHeader}>Current Tertiary Education</Text>
+              {renderInput("University / College Name", "universityName", "Enter School Name")}
+              {renderInput("Program", "program", "Enter Program")}
+              {renderDropdown("Term Type", "termType", ["Semester", "Trimester", "Quarter"])}
+              {renderDropdown("Grade Scale", "gradeScale", ["1.0 - Scale", "4.0 - Scale", "5.0 - Scale"])}
+              
+              <View style={styles.rowTwoCol}>
+                <View style={styles.colHalf}>
+                  {renderDropdown("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th+"])}
+                </View>
+                <View style={styles.colHalf}>
+                  {renderDropdown("Term", "term", ["1st", "2nd", "3rd"])}
+                </View>
+              </View>
+
+              {renderUpload("COR", "cor")}
+              {renderUpload("Current Term Report Card", "currentTermGradeReport")}
+            </View>
+          );
+
+        case 1:
+          return (
+            <View>
+              <Text style={styles.sectionHeader}>Staff Details</Text>
+              {renderInput("Staff ID", "staffId", "Enter Staff ID")}
+              {renderInput("First Name", "firstName", "Enter First Name")}
+              {renderInput("Middle Name (Optional)", "middleName", "Enter Middle Name")}
+              {renderInput("Last Name", "lastName", "Enter Last Name")}
+              {renderDropdown("Suffix (Optional)", "suffix", ["--", "Jr.", "Sr.", "II", "III", "IV"])}
+              {renderDropdown("Position", "position", ["Human Resource", "Finance", "Operations", "Admin", "IT", "Sales", "Others"])}
+              {values.position === "Others" && renderInput("Specify Position", "position", "Enter Position")}
+            </View>
+          );
+
+        case 2:
+          return (
+            <View>
+              <Text style={styles.sectionHeader}>Review Information</Text>
+              {renderReviewCard("Scholarship Information", [
+                { label: "Fund Type", value: values.fundType },
+                { label: "Scholarship Type", value: values.scholarshipType },
+                { label: "Incoming Freshman", value: values.incomingFreshman },
+              ])}
+
+              {renderReviewCard("Secondary Education Information", [
+                { label: "School Name", value: values.schoolName },
+                { label: "Strand", value: values.strand },
+                { label: "Year Graduated", value: values.secondaryYearGraduated },
+              ])}
+
+              {renderReviewCard("Tertiary Education Information", [
+                { label: "School Name", value: values.universityName },
+                { label: "Program", value: values.program },
+                { label: "Year Graduated", value: values.tertiaryYearGraduated },
+              ])}
+
+              {renderReviewCard("Staff Information", [
+                { label: "Staff ID", value: values.staffId },
+                { label: "First Name", value: values.firstName },
+                { label: "Middle Name", value: values.middleName },
+                { label: "Last Name", value: values.lastName },
+                { label: "Suffix", value: values.suffix },
+                { label: "Position", value: values.position },
+              ])}
+            </View>
+          );
+
+        default:
+          return null;
+      }
     }
 
     switch (step) {
@@ -88,15 +202,23 @@ export default function ProgramApplyScreen({ navigation }) {
             {renderInput("School Name", "schoolName")}
             {renderDropdown("Strand", "strand", ["STEM", "ABM", "HUMMS", "GAS", "Others"])}
             {values.strand === "Others" && renderInput("Specify Strand", "strand")}
-            {renderInput("Year Graduated", "yearGraduated")}
+            {renderYearPicker("Year Graduated", "yearGraduated")}
             {renderUpload("Grade Report", "gradeReport")}
             <Text style={styles.sectionHeader}>Current Tertiary Education</Text>
             {renderInput("University / College Name", "universityName")}
             {renderInput("Program", "program")}
-            {renderInput("Term Type", "termType")}
-            {renderInput("Grade Scale", "gradeScale")}
-            {renderDropdown("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th+"])}
-            {renderDropdown("Term", "term", ["1st", "2nd"])}
+            {renderDropdown("Term Type", "termType", ["Semester", "Trimester", "Quarter"])}
+            {renderDropdown("Grade Scale", "gradeScale", ["1.0 - Scale", "4.0 - Scale", "5.0 - Scale"])}
+            
+            <View style={styles.rowTwoCol}>
+              <View style={styles.colHalf}>
+                {renderDropdown("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th+"])}
+              </View>
+              <View style={styles.colHalf}>
+                {renderDropdown("Term", "term", ["1st", "2nd", "3rd"])}
+              </View>
+            </View>
+
             {renderUpload("COR", "cor")}
             {renderUpload("Current Term Grade Report", "currentTermGradeReport")}
           </View>
@@ -217,6 +339,74 @@ export default function ProgramApplyScreen({ navigation }) {
     </View>
   );
 
+  const renderYearPicker = (label, key) => {
+    const currentYear = new Date().getFullYear();
+    const years = Array.from({ length: 50 }, (_, i) => (currentYear - 40 + i).toString());
+
+    return (
+      <>
+        <View style={styles.row}>
+          <Text style={styles.label}>{label}</Text>
+          <TouchableOpacity
+            style={styles.yearPickerInput}
+            onPress={() => {
+              setYearPickerKey(key);
+              setYearPickerVisible(true);
+            }}
+          >
+            <Text style={styles.yearPickerText}>{values[key]}</Text>
+            <Ionicons name="chevron-down" size={20} color="#5b6095" />
+          </TouchableOpacity>
+        </View>
+
+        <Modal
+          visible={yearPickerVisible && yearPickerKey === key}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setYearPickerVisible(false)}
+        >
+          <View style={styles.yearPickerModal}>
+            <View style={styles.yearPickerContent}>
+              <View style={styles.yearPickerHeader}>
+                <Text style={styles.yearPickerTitle}>Select Year</Text>
+                <TouchableOpacity onPress={() => setYearPickerVisible(false)}>
+                  <Ionicons name="close" size={24} color="#4f5fc5" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.yearPickerScroll} showsVerticalScrollIndicator={true}>
+                <View style={styles.yearPickerGrid}>
+                  {years.map((year, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      style={[
+                        styles.yearPickerOption,
+                        values[key] === year && styles.yearPickerOptionActive,
+                      ]}
+                      onPress={() => {
+                        setValues({ ...values, [key]: year });
+                        setYearPickerVisible(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.yearPickerOptionText,
+                          values[key] === year && styles.yearPickerOptionTextActive,
+                        ]}
+                      >
+                        {year}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      </>
+    );
+  };
+
   const renderYesNo = (label, key) => (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
@@ -253,18 +443,32 @@ export default function ProgramApplyScreen({ navigation }) {
     </View>
   );
 
+  const renderReviewCard = (title, fields) => (
+    <View style={styles.reviewCard}>
+      <Text style={styles.reviewCardTitle}>{title}</Text>
+      {fields.map((item, idx) => (
+        <View key={idx} style={styles.reviewRowCardItem}>
+          <Text style={styles.reviewLabel}>{item.label}</Text>
+          <Text style={styles.reviewValueCard}>{item.value || "-"}</Text>
+        </View>
+      ))}
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.progressHeader}>
         <TouchableOpacity onPress={() => (step > 0 ? setStep(step - 1) : navigation.goBack())} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#4c60d1" />
         </TouchableOpacity>
-        <Text style={styles.title}>Tertiary Scholarship Program</Text>
+        <Text style={styles.title}>
+          {program === "employeeChild" ? "KKFI Employee-Child Education Grant" : "Tertiary Scholarship Program"}
+        </Text>
         <View style={styles.empty} />
       </View>
 
       <View style={styles.progressBarRow}>
-        {[...Array(4)].map((_, idx) => (
+        {[...Array(maxStep + 1)].map((_, idx) => (
           <View
             key={idx}
             style={[
@@ -279,9 +483,9 @@ export default function ProgramApplyScreen({ navigation }) {
         {renderStep()}
       </ScrollView>
 
-      {!submitting && !submitted && (
+      {!submitting && completeStage === "none" && (
         <TouchableOpacity style={styles.nextBtn} onPress={advance}>
-          <Text style={styles.nextBtnText}>{step < 5 ? "Next Step →" : "Submit Application"}</Text>
+          <Text style={styles.nextBtnText}>{step < maxStep ? "Next Step →" : "Submit Application"}</Text>
         </TouchableOpacity>
       )}
     </SafeAreaView>
@@ -312,6 +516,10 @@ const styles = StyleSheet.create({
   reviewRow: { padding: 10, borderColor: "#dbe2f6", borderWidth: 1, borderRadius: 10, marginBottom: 8, backgroundColor: "#fff" },
   reviewLabel: { color: "#6b72aa", fontSize: 13, fontWeight: "700" },
   reviewValue: { color: "#2d3a7c", fontSize: 14, marginTop: 2 },
+  reviewCard: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#dbe2f6", borderRadius: 14, padding: 12, marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  reviewCardTitle: { fontSize: 16, fontWeight: "900", color: "#3d4fa0", marginBottom: 8 },
+  reviewRowCardItem: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
+  reviewValueCard: { fontSize: 14, color: "#233873", fontWeight: "700" },
   dropdownWrapper: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   dropdownOption: { paddingVertical: 8, paddingHorizontal: 9, borderWidth: 1, borderColor: "#d7def8", borderRadius: 10, marginRight: 8, marginBottom: 8, backgroundColor: "#fff" },
   dropdownOptionActive: { backgroundColor: "#4f5fc5", borderColor: "#4f5fc5" },
@@ -322,6 +530,21 @@ const styles = StyleSheet.create({
   yesNoBtnActive: { borderColor: "#4f5fc5", backgroundColor: "#4f5fc5" },
   yesNoText: { color: "#5b6096", fontWeight: "700" },
   yesNoTextActive: { color: "#fff" },
+  rowTwoCol: { flexDirection: "row", gap: 10, marginBottom: 10 },
+  colHalf: { flex: 1 },
+  yearPickerWrapper: { marginTop: 2 },
+  yearPickerInput: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: "#d7def8", borderRadius: 10, paddingHorizontal: 12, paddingVertical: Platform.OS === "ios" ? 12 : 10, backgroundColor: "#ffffff" },
+  yearPickerText: { color: "#2f427f", fontSize: 16, fontWeight: "600" },
+  yearPickerModal: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  yearPickerContent: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "80%", paddingTop: 16 },
+  yearPickerHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "#e4e8f8" },
+  yearPickerTitle: { fontSize: 18, fontWeight: "800", color: "#3d4fa0" },
+  yearPickerScroll: { paddingHorizontal: 16, paddingVertical: 12 },
+  yearPickerGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
+  yearPickerOption: { width: "30%", paddingVertical: 12, marginBottom: 8, borderRadius: 10, borderWidth: 1, borderColor: "#d7def8", backgroundColor: "#f8f9ff", alignItems: "center" },
+  yearPickerOptionActive: { backgroundColor: "#4f5fc5", borderColor: "#4f5fc5" },
+  yearPickerOptionText: { fontSize: 16, fontWeight: "700", color: "#4f5fc5" },
+  yearPickerOptionTextActive: { color: "#fff" },
   nextBtn: { margin: 14, backgroundColor: "#4f5fc5", borderRadius: 12, paddingVertical: 14, alignItems: "center" },
   nextBtnText: { color: "#fff", fontSize: 16, fontWeight: "800" },
   centered: { alignItems: "center", justifyContent: "center", marginTop: 120 },
