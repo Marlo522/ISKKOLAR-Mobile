@@ -6,6 +6,8 @@ import SplashScreen from "../screens/SplashScreen";
 import LoginScreen from "../screens/LoginScreen";
 import SignupScreen from "../screens/SignupScreen";
 import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
+import RoleSelectionScreen from "../screens/RoleSelectionScreen";
+import ScholarTabs from "./ScholarTabs";
 import MainTabs from "./MainTabs";
 import { AuthProvider } from "../context/AuthContext";
 
@@ -20,6 +22,8 @@ export default function AppNavigator() {
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           <Stack.Screen name="Signup" component={SignupScreen} />
+          <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
+          <Stack.Screen name="ScholarTabs" component={ScholarTabs} />
           <Stack.Screen name="Main" component={MainTabs} />
         </Stack.Navigator>
       </NavigationContainer>

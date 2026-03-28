@@ -42,7 +42,7 @@ export default function LoginScreen({ navigation }) {
       if (__DEV__) {
         const fakeUser = { firstName: "Dev", lastName: "User", email: form.email || "dev@example.com" };
         await loginUser(fakeUser, "dev-token");
-        navigation.replace("Main");
+        navigation.replace("RoleSelection");
         return;
       }
 
@@ -50,7 +50,7 @@ export default function LoginScreen({ navigation }) {
       if (response.data.success) {
         const { token, ...userData } = response.data.data;
         await loginUser(userData, token);
-        navigation.replace("Main");
+        navigation.replace("RoleSelection");
       } else {
         setApiError(response.data.message || "Login failed");
       }
