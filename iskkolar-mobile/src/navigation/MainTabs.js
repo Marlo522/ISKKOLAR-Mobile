@@ -7,6 +7,7 @@ import ProgramDetailScreen from "../screens/ProgramDetailScreen";
 import ProgramApplyScreen from "../screens/ProgramApplyScreen";
 import ApplicationScreen from "../screens/ApplicationScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import NotificationsScreen from "../screens/NotificationsScreen";
 
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
@@ -17,6 +18,7 @@ function HomeStackScreen() {
       <HomeStack.Screen name="HomeMain" component={HomeScreen} />
       <HomeStack.Screen name="ProgramDetail" component={ProgramDetailScreen} />
       <HomeStack.Screen name="ProgramApply" component={ProgramApplyScreen} />
+      <HomeStack.Screen name="Notifications" component={NotificationsScreen} />
     </HomeStack.Navigator>
   );
 }

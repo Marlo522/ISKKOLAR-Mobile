@@ -58,7 +58,7 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.userSubtitle}>Hello,</Text>
           <Text style={styles.userTitle}>Dominic</Text>
         </View>
-        <TouchableOpacity style={styles.iconBubble} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.iconBubble} activeOpacity={0.8} onPress={() => navigation.navigate("Notifications")}>
           <Ionicons name="notifications-outline" size={24} color="#1d2e57" />
           <View style={styles.notifyDot} />
         </TouchableOpacity>
