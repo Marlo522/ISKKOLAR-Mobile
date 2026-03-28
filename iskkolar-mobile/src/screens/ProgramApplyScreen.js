@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { SafeAreaView, View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert, Modal } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { SafeAreaView, View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert, Modal, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 const infoFields = {
@@ -31,6 +31,12 @@ const infoFields = {
   motherStatus: "Employed",
   motherOccupation: "",
   motherIncome: "",
+  vocationalSchoolName: "",
+  vocationalProgram: "",
+  courseDuration: "5",
+  completionDate: "May 22, 2026",
+  scholarshipType: "TESDA",
+  fundType: "KKFI Funded",
 };
 
 export default function ProgramApplyScreen({ navigation, route }) {
@@ -44,6 +50,50 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const [completeStage, setCompleteStage] = useState("none");
   const [yearPickerVisible, setYearPickerVisible] = useState(false);
   const [yearPickerKey, setYearPickerKey] = useState(null);
+  const [selectVisible, setSelectVisible] = useState(false);
+  const [selectKey, setSelectKey] = useState(null);
+
+  const spinAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.5)).current;
+  const stepAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    stepAnim.setValue(0);
+    Animated.timing(stepAnim, {
+      toValue: 1,
+      duration: 350,
+      useNativeDriver: true,
+    }).start();
+  }, [step, completeStage, submitting]);
+
+  useEffect(() => {
+    if (submitting) {
+      spinAnim.setValue(0);
+      Animated.loop(
+        Animated.timing(spinAnim, {
+          toValue: 1,
+          duration: 1200,
+          useNativeDriver: true,
+        })
+      ).start();
+    }
+  }, [submitting, spinAnim]);
+
+  useEffect(() => {
+    if (completeStage === "preAssessment") {
+      scaleAnim.setValue(0.5);
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 4,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [completeStage, scaleAnim]);
+
+  const spin = spinAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
 
   const maxStep = program === "employeeChild" ? 2 : 3;
   const isChildDesignation = program === "employeeChild" && option === "Option 2";
@@ -66,7 +116,6 @@ export default function ProgramApplyScreen({ navigation, route }) {
     setTimeout(() => {
       setSubmitting(false);
       setCompleteStage("preAssessment");
-      setTimeout(() => setCompleteStage("assessment"), 1200);
     }, 1500);
   };
 
@@ -76,7 +125,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
         <View style={styles.centered}>
           <Ionicons name="checkmark-circle" size={86} color="#4f5fc5" />
           <Text style={styles.completeText}>Assessment Complete</Text>
-          <TouchableOpacity style={styles.submitBtn} onPress={() => navigation.navigate("HomeMain") }>
+          <TouchableOpacity style={styles.submitBtn} onPress={() => navigation.navigate("HomeMain")}>
             <Text style={styles.submitBtnText}>Return Home</Text>
           </TouchableOpacity>
         </View>
@@ -86,8 +135,16 @@ export default function ProgramApplyScreen({ navigation, route }) {
     if (completeStage === "preAssessment") {
       return (
         <View style={styles.centered}>
-          <Ionicons name="checkmark-circle" size={86} color="#4f5fc5" />
-          <Text style={styles.completeText}>Pre-Assessment Complete</Text>
+          <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+            <Ionicons name="checkmark-circle" size={120} color="#29d0a5" />
+          </Animated.View>
+          <Text style={[styles.completeText, { marginTop: 8 }]}>Submission Successful!</Text>
+          <Text style={{ textAlign: "center", color: "#6b72aa", paddingHorizontal: 30, marginBottom: 30, fontSize: 16, lineHeight: 22 }}>
+            Your application has been pre-assessed and forwarded securely. Please wait for further announcements.
+          </Text>
+          <TouchableOpacity style={styles.submitBtn} onPress={() => navigation.navigate("HomeMain")}>
+            <Text style={styles.submitBtnText}>Return Home</Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -95,8 +152,13 @@ export default function ProgramApplyScreen({ navigation, route }) {
     if (submitting) {
       return (
         <View style={styles.centered}>
-          <Ionicons name="refresh" size={86} color="#4f5fc5" style={{ transform: [{ rotate: "0deg" }] }} />
-          <Text style={styles.completeText}>Evaluating Application</Text>
+          <Animated.View style={{ transform: [{ rotate: spin }] }}>
+            <Ionicons name="sync-circle" size={110} color="#4f5fc5" />
+          </Animated.View>
+          <Text style={styles.completeText}>Evaluating Application...</Text>
+          <Text style={{ textAlign: "center", color: "#848baf", paddingHorizontal: 40, fontSize: 15 }}>
+            Please hold on while we securely process your documents.
+          </Text>
         </View>
       );
     }
@@ -107,29 +169,36 @@ export default function ProgramApplyScreen({ navigation, route }) {
           return (
             <View>
               <Text style={styles.sectionHeader}>Academic Information</Text>
-              {renderDropdown("Scholarship Type", "scholarshipType", ["KKFI Employee-Child Education Grant", "KKFI Staff Grant"])}
-              {renderDropdown("Scholarship Fund Type", "fundType", ["Scrantron Funded", "KKFI Funded"])}
+              {renderSelect("Scholarship Type", "scholarshipType", ["KKFI Employee-Child Education Grant", "KKFI Staff Grant"])}
+              {renderSelect("Scholarship Fund Type", "fundType", ["Scrantron Funded", "KKFI Funded"])}
               {renderYesNo("Incoming Freshman", "incomingFreshman")}
 
-              <Text style={styles.sectionHeader}>Secondary Education</Text>
+              <Text style={styles.sectionHeader}>| Secondary Education</Text>
               {renderInput("School Name", "schoolName", "Enter School Name")}
-              {renderDropdown("Strand", "strand", ["STEM", "ABM", "HUMMS", "GAS", "Others"])}
-              {values.strand === "Others" && renderInput("Specify Strand", "strand")}
-              {renderYearPicker("Year Graduated", "secondaryYearGraduated")}
-              {renderUpload("Grade Report", "gradeReport")}
-
-              <Text style={styles.sectionHeader}>Current Tertiary Education</Text>
-              {renderInput("University / College Name", "universityName", "Enter School Name")}
-              {renderInput("Program", "program", "Enter Program")}
-              {renderDropdown("Term Type", "termType", ["Semester", "Trimester", "Quarter"])}
-              {renderDropdown("Grade Scale", "gradeScale", ["1.0 - Scale", "4.0 - Scale", "5.0 - Scale"])}
               
               <View style={styles.rowTwoCol}>
                 <View style={styles.colHalf}>
-                  {renderDropdown("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th+"])}
+                  {renderSelect("Strand", "strand", ["STEM", "ABM", "HUMMS", "GAS", "Others"])}
                 </View>
                 <View style={styles.colHalf}>
-                  {renderDropdown("Term", "term", ["1st", "2nd", "3rd"])}
+                  {renderYearPicker("Year Graduated", "secondaryYearGraduated")}
+                </View>
+              </View>
+              {values.strand === "Others" && renderInput("Specify Strand", "strand")}
+              {renderUpload("Grade Report", "gradeReport")}
+
+              <Text style={styles.sectionHeader}>| Current Tertiary Education</Text>
+              {renderInput("University / College Name", "universityName", "Enter School Name")}
+              {renderInput("Program", "program", "Enter Program")}
+              {renderSelect("Term Type", "termType", ["Semester", "Trimester", "Quarter"])}
+              {renderSelect("Grade Scale", "gradeScale", ["1.0 - Scale", "4.0 - Scale", "5.0 - Scale"])}
+
+              <View style={styles.rowTwoCol}>
+                <View style={styles.colHalf}>
+                  {renderSelect("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th+"])}
+                </View>
+                <View style={styles.colHalf}>
+                  {renderSelect("Term", "term", ["1st", "2nd", "3rd"])}
                 </View>
               </View>
 
@@ -141,13 +210,13 @@ export default function ProgramApplyScreen({ navigation, route }) {
         case 1:
           return (
             <View>
-              <Text style={styles.sectionHeader}>Staff Details</Text>
+              <Text style={styles.sectionHeader}>| Staff Details</Text>
               {renderInput("Staff ID", "staffId", "Enter Staff ID")}
               {renderInput("First Name", "firstName", "Enter First Name")}
               {renderInput("Middle Name (Optional)", "middleName", "Enter Middle Name")}
               {renderInput("Last Name", "lastName", "Enter Last Name")}
-              {renderDropdown("Suffix (Optional)", "suffix", ["--", "Jr.", "Sr.", "II", "III", "IV"])}
-              {renderDropdown("Position", "position", ["Human Resource", "Finance", "Operations", "Admin", "IT", "Sales", "Others"])}
+              {renderSelect("Suffix (Optional)", "suffix", ["--", "Jr.", "Sr.", "II", "III", "IV"])}
+              {renderSelect("Position", "position", ["Human Resource", "Finance", "Operations", "Admin", "IT", "Sales", "Others"])}
               {values.position === "Others" && renderInput("Specify Position", "position", "Enter Position")}
             </View>
           );
@@ -155,26 +224,30 @@ export default function ProgramApplyScreen({ navigation, route }) {
         case 2:
           return (
             <View>
-              <Text style={styles.sectionHeader}>Review Information</Text>
-              {renderReviewCard("Scholarship Information", [
+              <Text style={{ fontSize: 18, fontWeight: "600", color: "#5b6095", marginBottom: 16 }}>Review Information</Text>
+              
+              {renderReviewCard("| Scholarship Information", [
                 { label: "Fund Type", value: values.fundType },
                 { label: "Scholarship Type", value: values.scholarshipType },
                 { label: "Incoming Freshman", value: values.incomingFreshman },
               ])}
 
-              {renderReviewCard("Secondary Education Information", [
+              {renderReviewCard("| Secondary Education Information", [
                 { label: "School Name", value: values.schoolName },
                 { label: "Strand", value: values.strand },
                 { label: "Year Graduated", value: values.secondaryYearGraduated },
               ])}
 
-              {renderReviewCard("Tertiary Education Information", [
+              {renderReviewCard("| Tertiary Education Information", [
                 { label: "School Name", value: values.universityName },
                 { label: "Program", value: values.program },
-                { label: "Year Graduated", value: values.tertiaryYearGraduated },
+                { label: "Term Type", value: values.termType },
+                { label: "Grade Scale", value: values.gradeScale },
+                { label: "Year Level", value: values.yearLevel },
+                { label: "Term", value: values.term },
               ])}
 
-              {renderReviewCard("Staff Information", [
+              {renderReviewCard("| Staff Information", [
                 { label: "Staff ID", value: values.staffId },
                 { label: "First Name", value: values.firstName },
                 { label: "Middle Name", value: values.middleName },
@@ -182,9 +255,174 @@ export default function ProgramApplyScreen({ navigation, route }) {
                 { label: "Suffix", value: values.suffix },
                 { label: "Position", value: values.position },
               ])}
+
+              {renderReviewCard("| Supporting Documents", [
+                { label: "Grade Report (Sec)", icon: "checkmark-circle-outline" },
+                { label: "COR", icon: "checkmark-circle-outline" },
+                { label: "Current Term Report Card", icon: "checkmark-circle-outline" },
+              ])}
             </View>
           );
 
+        default:
+          return null;
+      }
+    }
+
+    if (program === "vocational") {
+      switch (step) {
+        case 0:
+          return (
+            <View>
+              <Text style={styles.sectionHeader}>Academic Information</Text>
+              {renderSelect("Scholarship type", "scholarshipType", ["TESDA", "CHED", "Others"])}
+              {renderSelect("Scholarship Fund type", "fundType", ["KKFI Funded", "Scrantron Funded"])}
+              
+              <Text style={styles.sectionHeader}>|Secondary Education</Text>
+              {renderInput("School Name", "schoolName", "Enter School Name")}
+              
+              <View style={styles.rowTwoCol}>
+                <View style={styles.colHalf}>
+                  {renderSelect("Strand", "strand", ["STEM", "ABM", "HUMMS", "GAS", "Others"])}
+                </View>
+                <View style={styles.colHalf}>
+                  {renderYearPicker("Year Graduated", "yearGraduated")}
+                </View>
+              </View>
+              {values.strand === "Others" && renderInput("Specify Strand", "strand")}
+
+              {renderUpload("Report Card", "gradeReport")}
+
+              <Text style={styles.sectionHeader}>|Vocational/Technical Education</Text>
+              {renderInput("School Name", "vocationalSchoolName", "Enter School Name")}
+              {renderInput("Program", "vocationalProgram", "Enter School Name")}
+              
+              <View style={styles.rowTwoCol}>
+                <View style={styles.colHalf}>
+                  {renderSelect("Course Duration (months)", "courseDuration", ["3", "5", "6", "12"])}
+                </View>
+                <View style={styles.colHalf}>
+                  {renderSelect("Completion Date", "completionDate", ["May 22, 2026", "Dec 15, 2026"])}
+                </View>
+              </View>
+
+              {renderUpload("COR", "cor")}
+            </View>
+          );
+
+        case 1:
+          return (
+            <View>
+              <Text style={{ fontSize: 18, fontWeight: "600", color: "#5b6095", marginBottom: 16 }}>Family Information</Text>
+              <Text style={styles.sectionHeader}>| Parents Information</Text>
+              {renderInput("Father's Name", "fatherName", "Enter Father's Name")}
+              {renderSelect("Employment Status", "fatherStatus", ["Employed", "Self-employed", "Business Owner", "Unemployed", "Student", "Retired", "OFW", "Others"])}
+              {values.fatherStatus === "Others" && renderInput("Specify Employment Status", "fatherStatus", "Enter Status")}
+              {renderInput("Occupation", "fatherOccupation", "Enter Occupation")}
+              {renderInput("Monthly Income", "fatherIncome", "Enter Monthly Income")}
+              
+              {renderInput("Mother's Name", "motherName", "Enter Mother's Name")}
+              {renderSelect("Employment Status", "motherStatus", ["Employed", "Self-employed", "Business Owner", "Unemployed", "Student", "Retired", "OFW", "Others"])}
+              {values.motherStatus === "Others" && renderInput("Specify Employment Status", "motherStatus", "Enter Status")}
+              {renderInput("Occupation", "motherOccupation", "Enter Occupation")}
+              {renderInput("Monthly Income", "motherIncome", "Enter Monthly Income")}
+              
+              <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", marginTop: 20, marginBottom: 10 }} onPress={addFamilyMember}>
+                <Ionicons name="add-circle-outline" size={24} color="#33428b" style={{ marginRight: 6 }} />
+                <Text style={{ color: "#33428b", fontWeight: "700", fontSize: 16 }}>Add Family Member</Text>
+              </TouchableOpacity>
+
+              {familyMembers.map((member, idx) => (
+                <View key={idx} style={{ marginTop: 10 }}>
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Name</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={member.name}
+                      placeholder="Enter Guardian's Name"
+                      onChangeText={(text) => updateFamilyMember(idx, "name", text)}
+                    />
+                  </View>
+                  
+                  {renderMemberSelect("Relationship to Applicant", "relationship", idx, ["Sibling", "Nephew", "Niece", "Grandparent", "Aunt", "Uncle", "Others"])}
+
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Occupation</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={member.occupation}
+                      placeholder="Enter Occupation"
+                      onChangeText={(text) => updateFamilyMember(idx, "occupation", text)}
+                    />
+                  </View>
+
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Monthly Income</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={member.income}
+                      placeholder="Enter Monthly Income"
+                      onChangeText={(text) => updateFamilyMember(idx, "income", text)}
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
+          );
+
+        case 2:
+          return (
+            <View>
+              <Text style={{ fontSize: 18, fontWeight: "600", color: "#5b6095", marginBottom: 16 }}>Supporting Documents</Text>
+              <Text style={styles.sectionHeader}>| Supporting Documents</Text>
+              {renderUpload("Barangay Certificate (Applicant)", "barangayCert")}
+              {renderUpload("Birth Certificate (Applicant)", "birthCert")}
+              {renderUpload("Income Certificate (Father)", "incomeFather")}
+              {renderUpload("Income Certificate (Mother)", "incomeMother")}
+              {renderUpload("Income Certificate (Guardian)", "incomeGuardian")}
+            </View>
+          );
+
+        case 3:
+          return (
+            <View>
+              <Text style={{ fontSize: 18, fontWeight: "600", color: "#5b6095", marginBottom: 16 }}>Review Information</Text>
+              
+              {renderReviewCard("| Scholarship Information", [
+                { label: "Scholarship type", value: values.scholarshipType },
+                { label: "Scholarship Fund type", value: values.fundType },
+              ])}
+
+              {renderReviewCard("| Secondary Education Information", [
+                { label: "School Name", value: values.schoolName },
+                { label: "Strand", value: values.strand },
+                { label: "Year Graduated", value: values.yearGraduated },
+              ])}
+
+              {renderReviewCard("| Vocational/Technical Education", [
+                { label: "School Name", value: values.vocationalSchoolName },
+                { label: "Program", value: values.vocationalProgram },
+                { label: "Course Duration (in months)", value: values.courseDuration },
+                { label: "Completion Date", value: values.completionDate },
+              ])}
+
+              {renderReviewCard("| Parents Information", [
+                { label: "Father's Name", value: values.fatherName },
+                { label: "Occupation", value: values.fatherOccupation },
+                { label: "Monthly Income", value: values.fatherIncome },
+                { label: "Mother's Name", value: values.motherName },
+                { label: "Occupation", value: values.motherOccupation },
+                { label: "Monthly Income", value: values.motherIncome },
+              ])}
+
+              {renderReviewCard("| Supporting Documents", [
+                { label: "Barangay Certificate (Applicant)", icon: "checkmark-circle-outline" },
+                { label: "Birth Certificate (Applicant)", icon: "checkmark-circle-outline" },
+                { label: "Income Certificate (Father)", icon: "checkmark-circle-outline" },
+                { label: "Income Certificate (Mother)", icon: "checkmark-circle-outline" },
+              ])}
+            </View>
+          );
         default:
           return null;
       }
@@ -195,27 +433,36 @@ export default function ProgramApplyScreen({ navigation, route }) {
         return (
           <View>
             <Text style={styles.sectionHeader}>Academic Information</Text>
-            {renderInput("Scholarship type", "scholarshipType")}
-            {renderInput("Scholarship Fund type", "fundType")}
+            {renderSelect("Scholarship Type", "scholarshipType", ["Tertiary Scholarship Program", "CHED Scholarship", "DOST Scholarship", "Others"])}
+            {renderSelect("Scholarship Fund Type", "fundType", ["KKFI Funded", "Scrantron Funded"])}
             {renderYesNo("Incoming Freshman", "incomingFreshman")}
-            <Text style={styles.sectionHeader}>Secondary Education</Text>
-            {renderInput("School Name", "schoolName")}
-            {renderDropdown("Strand", "strand", ["STEM", "ABM", "HUMMS", "GAS", "Others"])}
-            {values.strand === "Others" && renderInput("Specify Strand", "strand")}
-            {renderYearPicker("Year Graduated", "yearGraduated")}
-            {renderUpload("Grade Report", "gradeReport")}
-            <Text style={styles.sectionHeader}>Current Tertiary Education</Text>
-            {renderInput("University / College Name", "universityName")}
-            {renderInput("Program", "program")}
-            {renderDropdown("Term Type", "termType", ["Semester", "Trimester", "Quarter"])}
-            {renderDropdown("Grade Scale", "gradeScale", ["1.0 - Scale", "4.0 - Scale", "5.0 - Scale"])}
+            
+            <Text style={styles.sectionHeader}>| Secondary Education</Text>
+            {renderInput("School Name", "schoolName", "Enter School Name")}
             
             <View style={styles.rowTwoCol}>
               <View style={styles.colHalf}>
-                {renderDropdown("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th+"])}
+                {renderSelect("Strand", "strand", ["STEM", "ABM", "HUMMS", "GAS", "Others"])}
               </View>
               <View style={styles.colHalf}>
-                {renderDropdown("Term", "term", ["1st", "2nd", "3rd"])}
+                {renderYearPicker("Year Graduated", "yearGraduated")}
+              </View>
+            </View>
+            {values.strand === "Others" && renderInput("Specify Strand", "strand")}
+
+            {renderUpload("Grade Report", "gradeReport")}
+            <Text style={styles.sectionHeader}>| Current Tertiary Education</Text>
+            {renderInput("University / College Name", "universityName", "Enter School Name")}
+            {renderInput("Program", "program")}
+            {renderSelect("Term Type", "termType", ["Semester", "Trimester", "Quarter"])}
+            {renderSelect("Grade Scale", "gradeScale", ["1.0 - Scale", "4.0 - Scale", "5.0 - Scale"])}
+
+            <View style={styles.rowTwoCol}>
+              <View style={styles.colHalf}>
+                {renderSelect("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th+"])}
+              </View>
+              <View style={styles.colHalf}>
+                {renderSelect("Term", "term", ["1st", "2nd", "3rd"])}
               </View>
             </View>
 
@@ -228,56 +475,75 @@ export default function ProgramApplyScreen({ navigation, route }) {
         return (
           <View>
             <Text style={styles.sectionHeader}>Family Information</Text>
-            {renderInput("Father's Name", "fatherName")}
-            {renderDropdown("Father Employment Status", "fatherStatus", ["Employed — Full-time", "Employed — Part-time", "Self-employed", "Business Owner", "Unemployed", "Student", "Retired", "OFW", "Others"])}
-            {values.fatherStatus === "Others" && renderInput("Specify Father Status", "fatherStatus")}
-            {renderInput("Occupation", "fatherOccupation")}
-            {renderInput("Monthly Income", "fatherIncome")}
-            {renderInput("Mother's Name", "motherName")}
-            {renderDropdown("Mother Employment Status", "motherStatus", ["Employed — Full-time", "Employed — Part-time", "Self-employed", "Business Owner", "Unemployed", "Student", "Retired", "OFW", "Others"])}
-            {values.motherStatus === "Others" && renderInput("Specify Mother Status", "motherStatus")}
-            {renderInput("Occupation", "motherOccupation")}
-            {renderInput("Monthly Income", "motherIncome")}
-            <TouchableOpacity style={styles.addItemBtn} onPress={addFamilyMember}>
-              <Text style={styles.addItemBtnText}>+ Add Family Member</Text>
-            </TouchableOpacity>
+            
+            <Text style={styles.sectionHeader}>| Parents Information</Text>
+            {renderInput("Father's Name", "fatherName", "Enter Father's Name")}
+            {renderSelect("Employment Status", "fatherStatus", ["Employed — Full-time", "Employed — Part-time", "Self-employed", "Business Owner", "Unemployed", "Student", "Retired", "OFW", "Others"])}
+            {values.fatherStatus === "Others" && renderInput("Specify Status", "fatherStatus")}
+            {renderInput("Occupation", "fatherOccupation", "Enter Occupation")}
+            {renderInput("Monthly Income", "fatherIncome", "Enter Monthly Income")}
 
-            {familyMembers.map((member, idx) => (
-              <View key={idx} style={styles.memberCard}>
-                <Text style={styles.memberTitle}>Family Member {idx + 1}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={member.name}
-                  placeholder="Name"
-                  onChangeText={(text) => updateFamilyMember(idx, "name", text)}
-                />
-                <TextInput
-                  style={styles.input}
-                  value={member.relationship}
-                  placeholder="Relationship to Applicant"
-                  onChangeText={(text) => updateFamilyMember(idx, "relationship", text)}
-                />
-                <TextInput
-                  style={styles.input}
-                  value={member.occupation}
-                  placeholder="Occupation"
-                  onChangeText={(text) => updateFamilyMember(idx, "occupation", text)}
-                />
-                <TextInput
-                  style={styles.input}
-                  value={member.income}
-                  placeholder="Monthly Income"
-                  onChangeText={(text) => updateFamilyMember(idx, "income", text)}
-                />
-              </View>
-            ))}
+            <View style={{ marginTop: 12 }}>
+              {renderInput("Mother's Name", "motherName", "Enter Mother's Name")}
+              {renderSelect("Employment Status", "motherStatus", ["Employed — Full-time", "Employed — Part-time", "Self-employed", "Business Owner", "Unemployed", "Student", "Retired", "OFW", "Others"])}
+              {values.motherStatus === "Others" && renderInput("Specify Status", "motherStatus")}
+              {renderInput("Occupation", "motherOccupation", "Enter Occupation")}
+              {renderInput("Monthly Income", "motherIncome", "Enter Monthly Income")}
+            </View>
+
+            <View style={{ marginTop: 24 }}>
+              <TouchableOpacity onPress={addFamilyMember} style={{ flexDirection: "row", alignItems: "center" }}>
+                <Ionicons name="add-circle-outline" size={20} color="#4c60d1" style={{ marginRight: 6 }} />
+                <Text style={{ color: "#4c60d1", fontWeight: "700", fontSize: 15 }}>Add Family Member</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ marginTop: 16 }}>
+              {familyMembers.map((member, idx) => (
+                <View key={idx} style={styles.memberCard}>
+                  <Text style={styles.memberTitle}>Family Member {idx + 1}</Text>
+                  
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Name</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={member.name}
+                      placeholder="Enter Member's Name"
+                      onChangeText={(text) => updateFamilyMember(idx, "name", text)}
+                    />
+                  </View>
+
+                  {renderMemberSelect("Relationship to Applicant", "relationship", idx, ["Sibling", "Grandparent", "Aunt/Uncle", "Guardian", "Cousin", "Others"])}
+                  
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Occupation</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={member.occupation}
+                      placeholder="Enter Occupation"
+                      onChangeText={(text) => updateFamilyMember(idx, "occupation", text)}
+                    />
+                  </View>
+
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Monthly Income</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={member.income}
+                      placeholder="Enter Monthly Income"
+                      onChangeText={(text) => updateFamilyMember(idx, "income", text)}
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
           </View>
         );
 
       case 2:
         return (
           <View>
-            <Text style={styles.sectionHeader}>Supporting Documents</Text>
+            <Text style={styles.sectionHeader}>| Supporting Documents</Text>
             {renderUpload("Certificate of Indigency Form (Applicant)", "indigency")}
             {renderUpload("Birth Certificate (Applicant)", "birthCert")}
             {renderUpload("Income Certificate (Father)", "incomeFather")}
@@ -290,19 +556,46 @@ export default function ProgramApplyScreen({ navigation, route }) {
       case 3:
         return (
           <View>
-            <Text style={styles.sectionHeader}>Review Information</Text>
-            {renderReview("Scholarship type", values.scholarshipType)}
-            {renderReview("Scholarship Fund type", values.fundType)}
-            {renderReview("Incoming Freshman", values.incomingFreshman)}
-            {renderReview("School Name", values.schoolName)}
-            {renderReview("Strand", values.strand)}
-            {renderReview("Year Graduated", values.yearGraduated)}
-            {renderReview("University", values.universityName)}
-            {renderReview("Program", values.program)}
-            {renderReview("Year Level", values.yearLevel)}
-            {renderReview("Father's Name", values.fatherName)}
-            {renderReview("Mother's Name", values.motherName)}
-            {renderReview("Supporting Documents", "See uploads above")}
+            <Text style={{ fontSize: 18, fontWeight: "600", color: "#5b6095", marginBottom: 16 }}>Review Information</Text>
+            
+            {renderReviewCard("| Scholarship Information", [
+              { label: "Scholarship type", value: values.scholarshipType },
+              { label: "Scholarship Fund type", value: values.fundType },
+              { label: "Incoming Freshman", value: values.incomingFreshman },
+            ])}
+
+            {renderReviewCard("| Secondary Education Information", [
+              { label: "School Name", value: values.schoolName },
+              { label: "Strand", value: values.strand },
+              { label: "Year Graduated", value: values.yearGraduated },
+            ])}
+
+            {renderReviewCard("| Current Tertiary Education", [
+              { label: "University / College Name", value: values.universityName },
+              { label: "Program", value: values.program },
+              { label: "Term Type", value: values.termType },
+              { label: "Grade Scale", value: values.gradeScale },
+              { label: "Year Level", value: values.yearLevel },
+              { label: "Term", value: values.term },
+            ])}
+
+            {renderReviewCard("| Parents Information", [
+              { label: "Father's Name", value: values.fatherName },
+              { label: "Occupation", value: values.fatherOccupation },
+              { label: "Monthly Income", value: values.fatherIncome },
+              { label: "Mother's Name", value: values.motherName },
+              { label: "Occupation", value: values.motherOccupation },
+              { label: "Monthly Income", value: values.motherIncome },
+            ])}
+
+            {renderReviewCard("| Supporting Documents", [
+              { label: "Certificate of Indigency Form", icon: "checkmark-circle-outline" },
+              { label: "Birth Certificate (Applicant)", icon: "checkmark-circle-outline" },
+              { label: "Income Certificate (Father)", icon: "checkmark-circle-outline" },
+              { label: "Income Certificate (Mother)", icon: "checkmark-circle-outline" },
+              { label: "Recommendation Letter Form", icon: "checkmark-circle-outline" },
+              { label: "Essay", icon: "checkmark-circle-outline" },
+            ])}
           </View>
         );
       default:
@@ -311,7 +604,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   };
 
   const renderInput = (label, key, placeholder = null) => (
-    <View style={styles.row}> 
+    <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
         value={values[key]}
@@ -322,27 +615,72 @@ export default function ProgramApplyScreen({ navigation, route }) {
     </View>
   );
 
-  const renderDropdown = (label, key, options) => (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.dropdownWrapper}>
-        {options.map((opt) => (
-          <TouchableOpacity
-            key={opt}
-            style={[styles.dropdownOption, values[key] === opt && styles.dropdownOptionActive]}
-            onPress={() => setValues({ ...values, [key]: opt })}
-          >
-            <Text style={[styles.dropdownText, values[key] === opt && styles.dropdownTextActive]}>{opt}</Text>
-          </TouchableOpacity>
-        ))}
+  const renderSelect = (label, key, options) => (
+    <>
+      <View style={styles.row}>
+        <Text style={styles.label}>{label}</Text>
+        <TouchableOpacity
+          style={styles.yearPickerInput}
+          onPress={() => {
+            setSelectKey(key);
+            setSelectVisible(true);
+          }}
+        >
+          <Text style={styles.yearPickerText}>{values[key] || "Select"}</Text>
+          <Ionicons name="chevron-down" size={20} color="#5b6095" />
+        </TouchableOpacity>
       </View>
-    </View>
+
+      <Modal
+        visible={selectVisible && selectKey === key}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectVisible(false)}
+      >
+        <View style={styles.yearPickerModal}>
+          <View style={styles.yearPickerContent}>
+            <View style={styles.yearPickerHeader}>
+              <Text style={styles.yearPickerTitle}>Select Option</Text>
+              <TouchableOpacity onPress={() => setSelectVisible(false)}>
+                <Ionicons name="close" size={24} color="#4f5fc5" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.yearPickerScroll} showsVerticalScrollIndicator={true}>
+              <View style={{ flexDirection: "column", paddingBottom: 20 }}>
+                {options.map((opt, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[
+                      styles.yearPickerOption,
+                      { width: "100%", marginBottom: 8, paddingVertical: 14 },
+                      values[key] === opt && styles.yearPickerOptionActive,
+                    ]}
+                    onPress={() => {
+                      setValues({ ...values, [key]: opt });
+                      setSelectVisible(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.yearPickerOptionText,
+                        values[key] === opt && styles.yearPickerOptionTextActive,
+                      ]}
+                    >
+                      {opt}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 
-  const renderYearPicker = (label, key) => {
-    const currentYear = new Date().getFullYear();
-    const years = Array.from({ length: 50 }, (_, i) => (currentYear - 40 + i).toString());
-
+  const renderMemberSelect = (label, fieldKey, idx, options) => {
+    const modalKey = `member_${fieldKey}_${idx}`;
     return (
       <>
         <View style={styles.row}>
@@ -350,51 +688,52 @@ export default function ProgramApplyScreen({ navigation, route }) {
           <TouchableOpacity
             style={styles.yearPickerInput}
             onPress={() => {
-              setYearPickerKey(key);
-              setYearPickerVisible(true);
+              setSelectKey(modalKey);
+              setSelectVisible(true);
             }}
           >
-            <Text style={styles.yearPickerText}>{values[key]}</Text>
+            <Text style={styles.yearPickerText}>{familyMembers[idx]?.[fieldKey] || "Select"}</Text>
             <Ionicons name="chevron-down" size={20} color="#5b6095" />
           </TouchableOpacity>
         </View>
 
         <Modal
-          visible={yearPickerVisible && yearPickerKey === key}
+          visible={selectVisible && selectKey === modalKey}
           transparent
           animationType="slide"
-          onRequestClose={() => setYearPickerVisible(false)}
+          onRequestClose={() => setSelectVisible(false)}
         >
           <View style={styles.yearPickerModal}>
             <View style={styles.yearPickerContent}>
               <View style={styles.yearPickerHeader}>
-                <Text style={styles.yearPickerTitle}>Select Year</Text>
-                <TouchableOpacity onPress={() => setYearPickerVisible(false)}>
+                <Text style={styles.yearPickerTitle}>Select Option</Text>
+                <TouchableOpacity onPress={() => setSelectVisible(false)}>
                   <Ionicons name="close" size={24} color="#4f5fc5" />
                 </TouchableOpacity>
               </View>
 
               <ScrollView style={styles.yearPickerScroll} showsVerticalScrollIndicator={true}>
-                <View style={styles.yearPickerGrid}>
-                  {years.map((year, idx) => (
+                <View style={{ flexDirection: "column", paddingBottom: 20 }}>
+                  {options.map((opt, optIdx) => (
                     <TouchableOpacity
-                      key={idx}
+                      key={optIdx}
                       style={[
                         styles.yearPickerOption,
-                        values[key] === year && styles.yearPickerOptionActive,
+                        { width: "100%", marginBottom: 8, paddingVertical: 14 },
+                        familyMembers[idx]?.[fieldKey] === opt && styles.yearPickerOptionActive,
                       ]}
                       onPress={() => {
-                        setValues({ ...values, [key]: year });
-                        setYearPickerVisible(false);
+                        updateFamilyMember(idx, fieldKey, opt);
+                        setSelectVisible(false);
                       }}
                     >
                       <Text
                         style={[
                           styles.yearPickerOptionText,
-                          values[key] === year && styles.yearPickerOptionTextActive,
+                          familyMembers[idx]?.[fieldKey] === opt && styles.yearPickerOptionTextActive,
                         ]}
                       >
-                        {year}
+                        {opt}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -404,6 +743,25 @@ export default function ProgramApplyScreen({ navigation, route }) {
           </View>
         </Modal>
       </>
+    );
+  };
+
+  const renderYearPicker = (label, key) => {
+    return (
+      <View style={styles.row}>
+        <Text style={styles.label}>{label}</Text>
+        <View style={styles.yearPickerInput}>
+          <TextInput
+            style={{ flex: 1, color: "#2f427f", fontSize: 16, fontWeight: "600" }}
+            value={values[key]}
+            placeholder="YYYY"
+            keyboardType="numeric"
+            maxLength={4}
+            onChangeText={(text) => setValues({ ...values, [key]: text })}
+          />
+          <Ionicons name="calendar-outline" size={20} color="#5b6095" />
+        </View>
+      </View>
     );
   };
 
@@ -445,11 +803,17 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
   const renderReviewCard = (title, fields) => (
     <View style={styles.reviewCard}>
-      <Text style={styles.reviewCardTitle}>{title}</Text>
+      <View style={{ borderBottomWidth: 1, borderBottomColor: "#eef0ff", paddingBottom: 8, marginBottom: 10 }}>
+        <Text style={styles.reviewCardTitle}>{title}</Text>
+      </View>
       {fields.map((item, idx) => (
         <View key={idx} style={styles.reviewRowCardItem}>
           <Text style={styles.reviewLabel}>{item.label}</Text>
-          <Text style={styles.reviewValueCard}>{item.value || "-"}</Text>
+          {item.icon ? (
+            <Ionicons name={item.icon} size={20} color="#2dd1a3" />
+          ) : (
+            <Text style={styles.reviewValueCard}>{item.value || "-"}</Text>
+          )}
         </View>
       ))}
     </View>
@@ -462,7 +826,11 @@ export default function ProgramApplyScreen({ navigation, route }) {
           <Ionicons name="arrow-back" size={22} color="#4c60d1" />
         </TouchableOpacity>
         <Text style={styles.title}>
-          {program === "employeeChild" ? "KKFI Employee-Child Education Grant" : "Tertiary Scholarship Program"}
+          {program === "employeeChild" 
+            ? "KKFI Employee-Child Education Grant" 
+            : program === "vocational" 
+            ? "VOCATIONAL AND TECHNOLOGY SCHOLARSHIP" 
+            : "Tertiary Scholarship Program"}
         </Text>
         <View style={styles.empty} />
       </View>
@@ -480,7 +848,9 @@ export default function ProgramApplyScreen({ navigation, route }) {
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 120 }}>
-        {renderStep()}
+        <Animated.View style={{ opacity: stepAnim, transform: [{ translateY: stepAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+          {renderStep()}
+        </Animated.View>
       </ScrollView>
 
       {!submitting && completeStage === "none" && (
