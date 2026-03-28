@@ -1,5 +1,5 @@
-import React, { useContext } from "react";
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import React, { useContext, useEffect, useRef } from "react";
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
 
@@ -30,22 +30,44 @@ const programs = [
 export default function HomeScreen({ navigation }) {
   const { user } = useContext(AuthContext);
 
+  const headerAnim = useRef(new Animated.Value(0)).current;
+  const cardsAnim = useRef(programs.map(() => new Animated.Value(0))).current;
+
+  useEffect(() => {
+    Animated.timing(headerAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+
+    const animations = cardsAnim.map((anim) =>
+      Animated.spring(anim, {
+        toValue: 1,
+        friction: 6,
+        tension: 40,
+        useNativeDriver: true,
+      })
+    );
+    Animated.stagger(150, animations).start();
+  }, [headerAnim, cardsAnim]);
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.headerRow}>
+      <Animated.View style={[styles.headerRow, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
         <View>
-          <Text style={styles.userTitle}>{user?.firstName ? `${user.firstName} ${user.lastName || ""}` : "Dominic Madla"}</Text>
-          <Text style={styles.userSubtitle}>Applicant</Text>
+          <Text style={styles.userSubtitle}>Hello,</Text>
+          <Text style={styles.userTitle}>Dominic</Text>
         </View>
-        <View style={styles.iconBubble}>
-          <Ionicons name="notifications-outline" size={22} color="#4c60d1" />
-        </View>
-      </View>
+        <TouchableOpacity style={styles.iconBubble} activeOpacity={0.8}>
+          <Ionicons name="notifications-outline" size={24} color="#1d2e57" />
+          <View style={styles.notifyDot} />
+        </TouchableOpacity>
+      </Animated.View>
 
       <Text style={styles.sectionTitle}>Programs</Text>
       <ScrollView contentContainerStyle={[styles.cardsContainer, { paddingBottom: 120 }]}>
         {programs.map((program, index) => (
-          <View key={index} style={styles.card}>
+          <Animated.View key={index} style={[styles.card, { opacity: cardsAnim[index], transform: [{ translateY: cardsAnim[index].interpolate({ inputRange: [0, 1], outputRange: [50, 0] }) }] }]}>
             <View style={styles.cardHeader}>
               <View style={styles.programIconCircle}>
                 <Ionicons name={program.icon} size={18} color="#fff" />
@@ -77,7 +99,7 @@ export default function HomeScreen({ navigation }) {
             >
               <Text style={styles.viewButtonText}>View Details</Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         ))}
       </ScrollView>
     </SafeAreaView>
@@ -85,23 +107,24 @@ export default function HomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#e5e8ff", padding: 16 },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  userTitle: { fontSize: 24, fontWeight: "900", color: "#1a1a1a" },
-  userSubtitle: { fontSize: 14, color: "#5b5f97", marginTop: 2 },
-  iconBubble: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3 },
-  sectionTitle: { fontSize: 22, fontWeight: "800", color: "#1d2e57", marginBottom: 10 },
+  container: { flex: 1, backgroundColor: "#f6f8fb", padding: 18 },
+  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24, marginTop: 8 },
+  userSubtitle: { fontSize: 16, color: "#7a82a0", fontWeight: "600", marginBottom: 2 },
+  userTitle: { fontSize: 32, fontWeight: "900", color: "#131b3e", letterSpacing: -0.5 },
+  iconBubble: { width: 50, height: 50, borderRadius: 25, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 4 },
+  notifyDot: { position: "absolute", top: 14, right: 14, width: 10, height: 10, backgroundColor: "#e94e4e", borderRadius: 5, borderWidth: 2, borderColor: "#fff" },
+  sectionTitle: { fontSize: 22, fontWeight: "800", color: "#1d2e57", marginBottom: 16 },
   cardsContainer: { paddingBottom: 20 },
-  card: { backgroundColor: "#fff", borderRadius: 16, marginBottom: 16, overflow: "hidden", borderWidth: 1, borderColor: "#dbe0f5", shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3 },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 12, backgroundColor: "#5562d8" },
-  programIconCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#3248b1", justifyContent: "center", alignItems: "center" },
-  openBadge: { backgroundColor: "rgba(255,255,255,0.25)", color: "#fff", fontWeight: "700", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4, fontSize: 12 },
-  cardTitle: { fontSize: 18, fontWeight: "800", color: "#1f2e57", marginTop: 14, marginHorizontal: 14 },
-  cardAmount: { fontSize: 14, fontWeight: "700", color: "#5562d8", marginTop: 4, marginHorizontal: 14 },
-  metaRow: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: 12, marginTop: 10 },
-  metaChip: { flexDirection: "row", alignItems: "center", backgroundColor: "#eef0ff", borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4, marginRight: 8, marginBottom: 6 },
-  metaText: { marginLeft: 4, fontSize: 11, color: "#3b4f9b", fontWeight: "600" },
-  cardDescription: { marginHorizontal: 14, marginTop: 10, marginBottom: 14, color: "#6873a6", fontSize: 13, lineHeight: 18 },
-  viewButton: { marginHorizontal: 14, marginBottom: 16, backgroundColor: "#4d61d8", borderRadius: 12, paddingVertical: 12, alignItems: "center" },
-  viewButtonText: { color: "#fff", fontWeight: "800", fontSize: 15 },
+  card: { backgroundColor: "#fff", borderRadius: 18, marginBottom: 22, borderWidth: 1, borderColor: "#dce1f0", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 2 },
+  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 16, backgroundColor: "#5562d8", borderTopLeftRadius: 17, borderTopRightRadius: 17 },
+  programIconCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#3a47b1", justifyContent: "center", alignItems: "center" },
+  openBadge: { backgroundColor: "rgba(255, 255, 255, 0.25)", color: "#fff", fontWeight: "800", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5, fontSize: 11 },
+  cardTitle: { fontSize: 20, fontWeight: "900", color: "#131b3e", marginTop: 20, marginHorizontal: 18, lineHeight: 26 },
+  cardAmount: { fontSize: 15, fontWeight: "800", color: "#2ecb9b", marginTop: 8, marginHorizontal: 18 },
+  metaRow: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: 16, marginTop: 14 },
+  metaChip: { flexDirection: "row", alignItems: "center", backgroundColor: "#f5f7fa", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, marginRight: 8, marginBottom: 8 },
+  metaText: { marginLeft: 6, fontSize: 11, color: "#6e7798", fontWeight: "700" },
+  cardDescription: { marginHorizontal: 18, marginTop: 8, marginBottom: 20, color: "#6873a6", fontSize: 14, lineHeight: 22 },
+  viewButton: { marginHorizontal: 18, marginBottom: 18, backgroundColor: "#1e2646", borderRadius: 16, paddingVertical: 14, alignItems: "center" },
+  viewButtonText: { color: "#fff", fontWeight: "800", fontSize: 16 },
 });
