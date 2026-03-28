@@ -164,7 +164,7 @@ export default function ProgramDetailScreen({ navigation, route }) {
         ))}
       </View>
 
-      <TouchableOpacity style={[styles.applyBtn, { flexDirection: "row", paddingHorizontal: 16, justifyContent: "center" }]} onPress={() => navigation.navigate("ProgramApply", { program: "vocational" }) }>
+      <TouchableOpacity style={[styles.applyBtn, { flexDirection: "row", paddingHorizontal: 16, justifyContent: "center" }]} onPress={() => navigation.navigate("ProgramApply", { program: "vocational" })}>
         <Ionicons name="document" size={20} color="#fff" style={{ marginRight: 12 }} />
         <View style={{ flex: 1 }}>
           <Text style={styles.applyBtnText}>Apply Now!</Text>
@@ -236,7 +236,7 @@ export default function ProgramDetailScreen({ navigation, route }) {
         ))}
       </View>
 
-      <TouchableOpacity style={[styles.applyBtn, { flexDirection: "row", paddingHorizontal: 16, justifyContent: "center" }]} onPress={() => navigation.navigate("ProgramApply") }>
+      <TouchableOpacity style={[styles.applyBtn, { flexDirection: "row", paddingHorizontal: 16, justifyContent: "center" }]} onPress={() => navigation.navigate("ProgramApply")}>
         <Ionicons name="document" size={20} color="#fff" style={{ marginRight: 12 }} />
         <View style={{ flex: 1 }}>
           <Text style={styles.applyBtnText}>Apply Now!</Text>
@@ -256,11 +256,11 @@ export default function ProgramDetailScreen({ navigation, route }) {
           {program === "employeeChild"
             ? "KKFI Employee-Child Education Grant"
             : program === "vocational"
-            ? "VOCATIONAL AND TECHNOLOGY SCHOLARSHIP"
-            : "Tertiary Scholarship Program"}
+              ? "VOCATIONAL AND TECHNOLOGY SCHOLARSHIP"
+              : "Tertiary Scholarship Program"}
         </Text>
-        <TouchableOpacity style={styles.bellBtn}>
-          <Ionicons name="notifications-outline" size={22} color="#4c60d1" />
+        <TouchableOpacity style={styles.bellBtn} onPress={() => navigation.navigate("Notifications")}>
+          <Ionicons name="notifications-outline" size={22} color="#131b3e" />
         </TouchableOpacity>
       </View>
 
@@ -268,8 +268,8 @@ export default function ProgramDetailScreen({ navigation, route }) {
         {program === "employeeChild"
           ? renderEmployeeChildContent()
           : program === "vocational"
-          ? renderVocationalContent()
-          : renderTertiaryContent()}
+            ? renderVocationalContent()
+            : renderTertiaryContent()}
       </ScrollView>
     </SafeAreaView>
   );
