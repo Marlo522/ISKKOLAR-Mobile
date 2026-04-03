@@ -1,5 +1,5 @@
-import React, { useState, useContext } from "react";
-import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from "react-native";
+import React, { useState, useContext, useEffect, useRef } from "react";
+import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Animated, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
 
@@ -17,6 +17,27 @@ export default function ProfileScreen({ navigation }) {
     citizenship: user?.citizenship ?? "Filipino",
   });
   const [passwords, setPasswords] = useState({ current: "", newPassword: "", confirm: "" });
+
+  // Mount animation
+  const slideAnim = useRef(new Animated.Value(20)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    slideAnim.setValue(20);
+    fadeAnim.setValue(0);
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      })
+    ]).start();
+  }, []);
 
   const onLogout = async () => {
     await logoutUser();
@@ -43,118 +64,158 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.container} contentContainerStyle={[styles.contentContainer, { paddingBottom: 120 }]}>
-      <View style={styles.headerRow}>
-        <View>
-          <Text style={styles.nameText}>{form.firstName} {form.lastName}</Text>
-          <Text style={styles.roleText}>Applicant</Text>
-        </View>
-        <TouchableOpacity onPress={() => navigation.navigate("Application")} style={styles.iconBubble}>
-          <Ionicons name="notifications-outline" size={22} color="#4c60d1" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.tabRow}>
-        {['Profile', 'Password'].map((label) => (
-          <TouchableOpacity key={label} onPress={() => setActiveTab(label)} style={[styles.tabButton, activeTab === label && styles.tabActive]}>
-            <Text style={[styles.tabText, activeTab === label && styles.tabTextActive]}>{label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {activeTab === 'Profile' ? (
-        <View style={styles.sectionCard}>
-          <View style={styles.profilePicCircle}>
-            <Ionicons name="person-circle" size={84} color="#fff" />
+      {/* Top Profile Header like Financial Records / Activities */}
+      <View style={styles.landingHeaderTop}>
+        <View style={styles.profileRow}>
+          <View style={styles.userIconWrapper}>
+            <Ionicons name="person-outline" size={24} color="#5b6095" />
           </View>
-
-          <Text style={styles.sectionTitle}>Personal Information</Text>
-          {[
-            { label: 'First Name', key: 'firstName' },
-            { label: 'Middle Name', key: 'middleName' },
-            { label: 'Last Name', key: 'lastName' },
-            { label: 'Email', key: 'email' },
-            { label: 'Birthday', key: 'birthday' },
-            { label: 'Gender', key: 'gender' },
-            { label: 'Civil Status', key: 'civilStatus' },
-            { label: 'Citizenship', key: 'citizenship' },
-          ].map((item) => (
-            <View style={styles.formRow} key={item.key}>
-              <Text style={styles.formLabel}>{item.label}</Text>
-              <TextInput
-                value={form[item.key]}
-                onChangeText={(value) => setForm({ ...form, [item.key]: value })}
-                style={styles.formInput}
-              />
+          <View style={styles.headerTextCol}>
+            <Text style={styles.userName}>{form.firstName} {form.lastName}</Text>
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleText}>{user?.role || "Active Scholar"}</Text>
             </View>
-          ))}
-
-          <TouchableOpacity style={[styles.primaryButton, { marginTop: 16 }]} onPress={updateProfile}>
-            <Text style={styles.primaryButtonText}>Update Profile</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.secondaryButton, { marginTop: 10 }]} onPress={onLogout}>
-            <Text style={styles.secondaryButtonText}>Sign Out</Text>
+          </View>
+          <TouchableOpacity onPress={() => navigation.navigate("Notifications")} style={styles.bellBtnLanding} activeOpacity={0.8}>
+            <Ionicons name="notifications-outline" size={22} color="#5b6095" />
           </TouchableOpacity>
         </View>
-      ) : (
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Change Password</Text>
+      </View>
 
-          <Text style={styles.formLabel}>Current Password</Text>
-          <TextInput
-            value={passwords.current}
-            secureTextEntry
-            onChangeText={(value) => setPasswords({ ...passwords, current: value })}
-            style={styles.formInput}
-          />
-
-          <Text style={styles.formLabel}>New Password</Text>
-          <TextInput
-            value={passwords.newPassword}
-            secureTextEntry
-            onChangeText={(value) => setPasswords({ ...passwords, newPassword: value })}
-            style={styles.formInput}
-          />
-
-          <Text style={styles.formLabel}>Confirm New Password</Text>
-          <TextInput
-            value={passwords.confirm}
-            secureTextEntry
-            onChangeText={(value) => setPasswords({ ...passwords, confirm: value })}
-            style={styles.formInput}
-          />
-
-          <TouchableOpacity style={styles.primaryButton} onPress={updatePassword}>
-            <Text style={styles.primaryButtonText}>Update Password</Text>
-          </TouchableOpacity>
+      <Animated.ScrollView 
+        contentContainerStyle={{ paddingBottom: 80 }}
+        showsVerticalScrollIndicator={false}
+        style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
+      >
+        <View style={styles.tabContainer}>
+          <View style={styles.tabRow}>
+            {['Profile', 'Password'].map((label) => (
+              <TouchableOpacity 
+                key={label} 
+                onPress={() => setActiveTab(label)} 
+                style={[styles.tabButton, activeTab === label && styles.tabActive]}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.tabText, activeTab === label && styles.tabTextActive]}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
-      )}
-      </ScrollView>
+
+        {activeTab === 'Profile' ? (
+          <View style={styles.sectionCard}>
+            <View style={styles.profilePicCircle}>
+              <Ionicons name="person" size={54} color="#fff" />
+              <View style={styles.cameraIconBadge}>
+                <Ionicons name="camera" size={16} color="#fff" />
+              </View>
+            </View>
+
+            <Text style={styles.sectionTitleHeader}>| Personal Information</Text>
+            
+            <View style={styles.formContainer}>
+              {[
+                { label: 'First Name', key: 'firstName' },
+                { label: 'Middle Name', key: 'middleName' },
+                { label: 'Last Name', key: 'lastName' },
+                { label: 'Email', key: 'email' },
+                { label: 'Birthday', key: 'birthday' },
+                { label: 'Gender', key: 'gender' },
+                { label: 'Civil Status', key: 'civilStatus' },
+                { label: 'Citizenship', key: 'citizenship' },
+              ].map((item) => (
+                <View style={styles.formRow} key={item.key}>
+                  <Text style={styles.formLabel}>{item.label}</Text>
+                  <TextInput
+                    value={form[item.key]}
+                    onChangeText={(value) => setForm({ ...form, [item.key]: value })}
+                    style={styles.formInput}
+                  />
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity style={styles.primaryButton} onPress={updateProfile} activeOpacity={0.8}>
+              <Text style={styles.primaryButtonText}>Update Profile</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.secondaryButton} onPress={onLogout} activeOpacity={0.8}>
+              <Text style={styles.secondaryButtonText}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitleHeader}>| Change Password</Text>
+
+            <View style={styles.formContainer}>
+              <View style={styles.formRow}>
+                <Text style={styles.formLabel}>Current Password</Text>
+                <TextInput
+                  value={passwords.current}
+                  secureTextEntry
+                  onChangeText={(value) => setPasswords({ ...passwords, current: value })}
+                  style={styles.formInput}
+                />
+              </View>
+
+              <View style={styles.formRow}>
+                <Text style={styles.formLabel}>New Password</Text>
+                <TextInput
+                  value={passwords.newPassword}
+                  secureTextEntry
+                  onChangeText={(value) => setPasswords({ ...passwords, newPassword: value })}
+                  style={styles.formInput}
+                />
+              </View>
+
+              <View style={styles.formRow}>
+                <Text style={styles.formLabel}>Confirm New Password</Text>
+                <TextInput
+                  value={passwords.confirm}
+                  secureTextEntry
+                  onChangeText={(value) => setPasswords({ ...passwords, confirm: value })}
+                  style={styles.formInput}
+                />
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.primaryButton} onPress={updatePassword} activeOpacity={0.8}>
+              <Text style={styles.primaryButtonText}>Update Password</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f4f5ff" },
-  contentContainer: { padding: 16, paddingBottom: 24 },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  nameText: { fontSize: 24, fontWeight: "900", color: "#1b2260" },
-  roleText: { fontSize: 14, color: "#5d6193", marginTop: 2 },
-  iconBubble: { width: 44, height: 44, borderRadius: 12, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
-  tabRow: { flexDirection: "row", marginBottom: 14, borderBottomWidth: 1.4, borderColor: "#d3d7ee" },
-  tabButton: { flex: 1, paddingVertical: 10, alignItems: "center", borderBottomWidth: 3, borderColor: "transparent" },
-  tabActive: { borderColor: "#4f5fc5" },
-  tabText: { color: "#747ab5", fontWeight: "700" },
-  tabTextActive: { color: "#3f4da9" },
-  sectionCard: { backgroundColor: "#fff", borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "#e3e6f8", shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  profilePicCircle: { width: 88, height: 88, borderRadius: 44, backgroundColor: "#4f5fc5", justifyContent: "center", alignItems: "center", alignSelf: "center", marginBottom: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: "800", color: "#3f4da9", marginBottom: 14, textAlign: "center" },
-  formRow: { marginBottom: 12 },
-  formLabel: { fontWeight: "700", color: "#5563a8", marginBottom: 4 },
-  formInput: { borderWidth: 1, borderColor: "#d5d9ef", borderRadius: 10, backgroundColor: "#f8faff", padding: 10, fontSize: 14, color: "#41466f" },
-  primaryButton: { backgroundColor: "#4f5fc5", borderRadius: 12, paddingVertical: 14, alignItems: "center", marginTop: 10, shadowColor: "#000", shadowOpacity: 0.14, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
-  primaryButtonText: { color: "#fff", fontWeight: "800", fontSize: 15 },
-  secondaryButton: { borderColor: "#de2a37", borderWidth: 1.5, borderRadius: 12, paddingVertical: 14, alignItems: "center" },
-  secondaryButtonText: { color: "#de2a37", fontWeight: "800", fontSize: 15 },
+  container: { flex: 1, backgroundColor: "#f8f9fc" },
+  landingHeaderTop: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#e4e8f8", backgroundColor: "#fff" },
+  profileRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  userIconWrapper: { width: 50, height: 50, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#e8eAFD', justifyContent: 'center', alignItems: 'center', marginRight: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+  headerTextCol: { flex: 1 },
+  userName: { fontSize: 20, fontWeight: '900', color: '#080d19', letterSpacing: -0.3, marginBottom: 4 },
+  roleBadge: { backgroundColor: '#daf3e1', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  roleText: { fontSize: 11, color: '#00562b', fontWeight: '800' },
+  bellBtnLanding: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#e8eaff', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+  content: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
+  tabContainer: { backgroundColor: '#fff', borderRadius: 14, padding: 4, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 2, marginBottom: 16, borderWidth: 1, borderColor: '#e4e8f6' },
+  tabRow: { flexDirection: "row" },
+  tabButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 10 },
+  tabActive: { backgroundColor: "#5b61a7" },
+  tabText: { color: "#7f88a3", fontWeight: "700", fontSize: 14 },
+  tabTextActive: { color: "#fff", fontWeight: "800" },
+  sectionCard: { backgroundColor: "#fff", borderRadius: 16, padding: 20, borderWidth: 1, borderColor: "#e4e8f6", shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  profilePicCircle: { width: 96, height: 96, borderRadius: 48, backgroundColor: "#5b61a7", justifyContent: "center", alignItems: "center", alignSelf: "center", marginBottom: 24, borderWidth: 4, borderColor: '#eff1fa' },
+  cameraIconBadge: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#29d0a5', width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff' },
+  sectionTitleHeader: { fontSize: 18, fontWeight: "900", color: "#4f5fc5", marginBottom: 16 },
+  formContainer: { marginBottom: 8 },
+  formRow: { marginBottom: 16 },
+  formLabel: { fontWeight: "600", color: "#1c2131", fontSize: 13, marginBottom: 8 },
+  formInput: { borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, paddingHorizontal: 16, paddingVertical: Platform.OS === "ios" ? 14 : 12, backgroundColor: "#ffffff", color: "#555", fontSize: 15 },
+  primaryButton: { backgroundColor: "#5b61a7", borderRadius: 14, paddingVertical: 16, alignItems: "center", shadowColor: "#2d3a7c", shadowOpacity: 0.2, shadowOffset: { width: 0, height: 4 }, shadowRadius: 6, elevation: 4 },
+  primaryButtonText: { color: "#fff", fontWeight: "800", fontSize: 16 },
+  secondaryButton: { backgroundColor: "#fff", borderColor: "#f9e0e0", borderWidth: 2, borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 12 },
+  secondaryButtonText: { color: "#de3a47", fontWeight: "800", fontSize: 16 },
 });

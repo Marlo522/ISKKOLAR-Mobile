@@ -9,6 +9,10 @@ import ActivitiesScreen from "../screens/ActivitiesScreen";
 import ApplicationScreen from "../screens/ApplicationScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
+import ScholarshipRenewalScreen from "../screens/ScholarshipRenewalScreen";
+import ExamAssistanceScreen from "../screens/ExamAssistanceScreen";
+import GradeComplianceScreen from "../screens/GradeComplianceScreen";
+import FinancialRecordsScreen from "../screens/FinancialRecordsScreen";
 
 const Tab = createBottomTabNavigator();
 const DashboardStack = createNativeStackNavigator();
@@ -19,6 +23,10 @@ function ScholarDashboardStackScreen() {
     <DashboardStack.Navigator screenOptions={{ headerShown: false }}>
       <DashboardStack.Screen name="ScholarDashboardMain" component={ScholarDashboardScreen} />
       <DashboardStack.Screen name="Notifications" component={NotificationsScreen} />
+      <DashboardStack.Screen name="ScholarshipRenewal" component={ScholarshipRenewalScreen} />
+      <DashboardStack.Screen name="ExamAssistance" component={ExamAssistanceScreen} />
+      <DashboardStack.Screen name="GradeCompliance" component={GradeComplianceScreen} />
+      <DashboardStack.Screen name="FinancialRecords" component={FinancialRecordsScreen} />
     </DashboardStack.Navigator>
   );
 }

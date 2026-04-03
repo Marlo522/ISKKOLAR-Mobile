@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ScholarDashboardScreen({ navigation }) {
@@ -37,6 +37,25 @@ export default function ScholarDashboardScreen({ navigation }) {
       bgColor: "#e7f6ea"
     }
   ];
+  const slideAnim = useRef(new Animated.Value(20)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    slideAnim.setValue(20);
+    fadeAnim.setValue(0);
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      })
+    ]).start();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -55,7 +74,11 @@ export default function ScholarDashboardScreen({ navigation }) {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <Animated.ScrollView 
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+      >
         <View style={styles.heroCard}>
           <View style={styles.heroHeaderRow}>
             <Text style={styles.heroStatusText}>Scholarship Status</Text>
@@ -86,7 +109,22 @@ export default function ScholarDashboardScreen({ navigation }) {
 
         <View style={styles.grid}>
           {quickActions.map((action) => (
-            <TouchableOpacity key={action.id} style={styles.gridItem} activeOpacity={0.8}>
+            <TouchableOpacity 
+              key={action.id} 
+              style={styles.gridItem} 
+              activeOpacity={0.8}
+              onPress={() => {
+                if (action.title === "Renew scholarship") {
+                  navigation.navigate("ScholarshipRenewal");
+                } else if (action.id === 2 || action.title === "Exam Assistance") {
+                  navigation.navigate("ExamAssistance");
+                } else if (action.id === 3 || action.title === "Grade Compliance") {
+                  navigation.navigate("GradeCompliance");
+                } else if (action.id === 4 || action.title === "Financial Records") {
+                  navigation.navigate("FinancialRecords");
+                }
+              }}
+            >
               <View style={[styles.gridIconFrame, { backgroundColor: action.bgColor }]}>
                 <Ionicons name={action.icon} size={32} color={action.iconColor} />
               </View>
@@ -95,7 +133,7 @@ export default function ScholarDashboardScreen({ navigation }) {
             </TouchableOpacity>
           ))}
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }
