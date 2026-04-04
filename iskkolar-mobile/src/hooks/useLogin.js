@@ -42,6 +42,18 @@ export const useLogin = (navigation) => {
     return {};
   };
 
+  const resolveAllowedRole = (rawRole) => {
+    const value = String(rawRole || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[_-]+/g, " ");
+
+    if (!value) return "";
+    if (value.includes("scholar")) return "scholar";
+    if (value.includes("applicant")) return "applicant";
+    return "";
+  };
+
   // ─── HANDLE LOGIN ────────────────────────────────────────────
   const handleLogin = async () => {
     setLoading(true);
@@ -51,16 +63,46 @@ export const useLogin = (navigation) => {
     try {
       const response = await loginRequest(form.email.trim(), form.password);
 
-      if (response?.success && response?.data?.token) {
-        const { token, ...userData } = response.data;
+      const payload = response?.data || response || {};
+      const token = payload.token || payload.accessToken || payload.jwt;
+      const profile = payload.user || payload.account || payload.profile || payload;
+      const normalizedRole = resolveAllowedRole(
+        profile?.role ||
+        profile?.userType ||
+        profile?.accountType ||
+        payload?.role ||
+        payload?.userType ||
+        payload?.accountType
+      );
+
+      if (token) {
+        const userData = { ...profile, role: normalizedRole };
+
+        // Only applicant and scholar roles are allowed in this mobile client.
+        if (normalizedRole !== "applicant" && normalizedRole !== "scholar") {
+          setApiError("Invalid account. Only applicant or scholar accounts can log in.");
+          return;
+        }
+
+        // AuthContext.loginUser expects (userData, jwt).
         await loginUser(userData, token);
-        navigation.replace("Main");
-        return;
+
+        switch (normalizedRole) {
+          case "applicant":
+            navigation.replace("Main");
+            break;
+          case "scholar":
+            navigation.replace("ScholarTabs");
+            break;
+          default:
+            setApiError("Login failed. Unrecognized account role.");
+        }
+      } else {
+        const mappedErrors = normalizeServerErrors(response?.errors);
+        if (Object.keys(mappedErrors).length > 0) setErrors(mappedErrors);
+        setApiError(response?.message || "Login failed");
       }
 
-      const mappedErrors = normalizeServerErrors(response?.errors);
-      if (Object.keys(mappedErrors).length > 0) setErrors(mappedErrors);
-      setApiError(response?.message || "Login failed");
     } catch (err) {
       // Map field-level errors from backend
       const mappedErrors = normalizeServerErrors(err?.errors || err?.response?.data?.errors);

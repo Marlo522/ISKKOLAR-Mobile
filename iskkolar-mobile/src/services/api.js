@@ -7,19 +7,24 @@ import Constants from 'expo-constants';
 // iOS simulator: localhost works fine
 const expoHost = Constants.expoConfig?.hostUri?.split(':')?.[0];
 const BASE_URL = __DEV__
-  ? `http://${expoHost || '192.168.1.11'}:5000/api`
+  ? `http://${expoHost || '192.168.1.3'}:5000/api`
   : 'https://your-production-url.com/api';
 
 // ─── CORE FETCH WRAPPER ───────────────────────────────────────
 const api = async (endpoint, options = {}) => {
   const token = await AsyncStorage.getItem('token');
+  const isAuthEndpoint =
+    endpoint.startsWith('/auth/login') ||
+    endpoint.startsWith('/auth/signup') ||
+    endpoint.startsWith('/auth/forgot-password') ||
+    endpoint.startsWith('/auth/reset-password');
 
   const isFormData = options.body instanceof FormData;
 
   const headers = {
     // Don't set Content-Type for FormData — fetch sets it automatically with boundary
     ...(!isFormData && { 'Content-Type': 'application/json' }),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(token && !isAuthEndpoint ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
 
