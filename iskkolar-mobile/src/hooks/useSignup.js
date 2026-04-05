@@ -3,7 +3,7 @@ import { validateSignupStep, registerUser } from '../services/authService';
 
 // ─── CONSTANTS ───────────────────────────────────────────────
 export const GENDER_OPTIONS = ['Male', 'Female', 'Prefer not to say'];
-export const CITIZENSHIP_OPTIONS = ['Filipino', 'Canadian', 'Others'];
+export const CITIZENSHIP_OPTIONS = ['Filipino', 'Others'];
 export const CIVIL_STATUS_OPTIONS = ['Single', 'Married'];
 
 export const STEP_TITLES = [
@@ -142,9 +142,84 @@ export const useSignup = (navigation) => {
   const [form, setForm] = useState(INITIAL_FORM);
   const [errors, setErrors] = useState({});
 
+  // ─── PSGC ADDRESS STATE ───
+  const [addressData, setAddressData] = useState({
+    provinces: [],
+    cities: [],
+    barangays: [],
+  });
+
+  // Fetch initial provinces + explicit addition of NCR on mount
+  const fetchProvinces = async () => {
+    try {
+      const res = await fetch('https://psgc.gitlab.io/api/provinces.json');
+      const data = await res.json();
+      // Add NCR since it's classified as a Region but acts as a Province in typical forms
+      data.push({ code: '130000000', name: 'Metro Manila (NCR)', isNcr: true });
+      // Sort alphabetically
+      data.sort((a, b) => a.name.localeCompare(b.name));
+      setAddressData(prev => ({ ...prev, provinces: data }));
+    } catch (e) {
+      console.error("Error fetching provinces:", e);
+    }
+  };
+
+  const fetchCities = async (provinceCode, isNcr = false) => {
+    try {
+      const url = isNcr
+        ? `https://psgc.gitlab.io/api/regions/${provinceCode}/cities-municipalities.json`
+        : `https://psgc.gitlab.io/api/provinces/${provinceCode}/cities-municipalities.json`;
+      const res = await fetch(url);
+      const data = await res.json();
+      data.sort((a, b) => a.name.localeCompare(b.name));
+      setAddressData(prev => ({ ...prev, cities: data, barangays: [] }));
+    } catch (e) {
+      console.error("Error fetching cities:", e);
+    }
+  };
+
+  const fetchBarangays = async (cityCode) => {
+    try {
+      const res = await fetch(`https://psgc.gitlab.io/api/cities-municipalities/${cityCode}/barangays.json`);
+      let data = await res.json();
+      if (!data || data.length === 0) {
+        // Fallback for independent cities/districts that use /cities instead of /cities-municipalities
+        const res2 = await fetch(`https://psgc.gitlab.io/api/cities/${cityCode}/barangays.json`);
+        data = await res2.json();
+      }
+      if (data) {
+        data.sort((a, b) => a.name.localeCompare(b.name));
+        setAddressData(prev => ({ ...prev, barangays: data }));
+      }
+    } catch (e) {
+      console.error("Error fetching barangays:", e);
+    }
+  };
+
   // Update a single field
   const updateField = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      let newState = { ...prev, [field]: value };
+
+      // Cascade resets for address picks
+      if (field === 'province') {
+        newState.city = '';
+        newState.barangay = '';
+        
+        // Find the province/NCR object to fetch its cities
+        const prov = addressData.provinces.find(p => p.name === value);
+        if (prov) fetchCities(prov.code, prov.isNcr);
+      } else if (field === 'city') {
+        newState.barangay = '';
+        
+        // Find the city object to fetch its barangays
+        const city = addressData.cities.find(c => c.name === value);
+        if (city) fetchBarangays(city.code);
+      }
+
+      return newState;
+    });
+
     // Clear that field's error on change
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
@@ -224,6 +299,7 @@ export const useSignup = (navigation) => {
     loading,
     form,
     errors,
+    addressData,
 
     // Actions
     updateField,
@@ -231,6 +307,7 @@ export const useSignup = (navigation) => {
     backStep,
     handleRegister,
     formatDate,
+    fetchProvinces,
 
     // Constants (re-exported so screen doesn't need to import them separately)
     GENDER_OPTIONS,
