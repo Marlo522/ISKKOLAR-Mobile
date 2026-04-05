@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import * as ImagePicker from "expo-image-picker";
 import {
   View,
   Text,
@@ -11,10 +12,22 @@ import {
   Image,
   Modal,
   Pressable,
+  Animated,
+  Easing,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useSignup } from "../hooks/useSignup";
+
+const GENDER_OPTIONS = ["Male", "Female", "Prefer not to say"];
+const CIVIL_STATUS_OPTIONS = ["Single", "Married"];
+const CITIZENSHIP_OPTIONS = ["Filipino", "Others"];
+const STEP_TITLES = [
+  "Account Setup",
+  "Personal Details",
+  "Contact & Background",
+  "Review Information",
+];
 
 // ─── PASSWORD STRENGTH METER ─────────────────────────────────
 function PasswordStrengthMeter({ password }) {
@@ -57,6 +70,13 @@ function PasswordStrengthMeter({ password }) {
 // ─── PICKER MODAL ────────────────────────────────────────────
 function PickerModal({ visible, title, options, selected, onSelect, onClose }) {
   return (
+    <Modal visible={visible} transparent animationType="slide">
+      <View style={modalStyles.yearPickerModal}>
+        <View style={modalStyles.yearPickerContent}>
+          <View style={modalStyles.yearPickerHeader}>
+            <Text style={modalStyles.yearPickerTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close" size={24} color="#4f5fc5" />
     <Modal visible={visible} transparent animationType="fade">
       <View style={modalStyles.overlay}>
         <View style={modalStyles.modal}>
@@ -79,8 +99,34 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose }) {
                 {option}
               </Text>
             </TouchableOpacity>
-          ))}
-          <Pressable style={modalStyles.closeArea} onPress={onClose} />
+          </View>
+          <ScrollView style={modalStyles.yearPickerScroll} showsVerticalScrollIndicator={true}>
+            <View style={{ flexDirection: "column", paddingBottom: 20 }}>
+              {options.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={[
+                    modalStyles.yearPickerOption,
+                    { width: "100%", marginBottom: 8, paddingVertical: 14 },
+                    option === selected ? modalStyles.yearPickerOptionActive : null,
+                  ]}
+                  onPress={() => {
+                    onSelect(option);
+                    onClose();
+                  }}
+                >
+                  <Text
+                    style={[
+                      modalStyles.yearPickerOptionText,
+                      option === selected ? modalStyles.yearPickerOptionTextActive : null,
+                    ]}
+                  >
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -174,10 +220,71 @@ export default function SignupScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
+
+  const stepFade = useRef(new Animated.Value(1)).current;
+  const stepSlide = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    stepFade.setValue(0);
+    stepSlide.setValue(10);
+    Animated.timing(stepFade, {
+      toValue: 1,
+      duration: 350,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(stepSlide, {
+      toValue: 0,
+      duration: 350,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  }, [step]);
+
+  const [form, setForm] = useState({
+    profilePhoto: null,
+    email: "",
+    password: "",
+    confirmPassword: "",
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    suffix: "",
+    birthday: "",
+    gender: "",
+    civilStatus: "",
+    citizenship: "",
+    otherCitizenship: "",
+    mobile: "",
+    facebook: "",
+    street: "",
+    barangay: "",
+    city: "",
+    province: "",
+    country: "",
+    zip: "",
   const [pickerConfig, setPickerConfig] = useState({
     visible: false, title: "", options: [], field: "",
   });
 
+  const setProfilePhoto = async () => {
+    if (form.profilePhoto) {
+      setForm((prev) => ({ ...prev, profilePhoto: null }));
+      return;
+    }
+
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setForm((prev) => ({
+        ...prev,
+        profilePhoto: { uri: result.assets[0].uri },
+      }));
+    }
   const openPicker = (title, options, field) => {
     setPickerConfig({ visible: true, title, options, field });
   };
@@ -388,6 +495,12 @@ export default function SignupScreen({ navigation }) {
         <View style={[styles.field, styles.flex1]}>
           <Text style={styles.label}>Civil Status</Text>
           <TouchableOpacity
+            style={styles.inputWrapper}
+            onPress={() =>
+              showPicker("Select status", CIVIL_STATUS_OPTIONS, form.civilStatus, (value) =>
+                setForm({ ...form, civilStatus: value })
+              )
+            }
             style={[styles.inputWrapper, errors.civilStatus && styles.inputError]}
             onPress={() => openPicker("Select civil status", CIVIL_STATUS_OPTIONS, "civilStatus")}
           >
@@ -402,6 +515,16 @@ export default function SignupScreen({ navigation }) {
         <View style={[styles.field, styles.flex1, styles.ml12]}>
           <Text style={styles.label}>Citizenship</Text>
           <TouchableOpacity
+            style={styles.inputWrapper}
+            onPress={() =>
+              showPicker("Select citizenship", CITIZENSHIP_OPTIONS, form.citizenship, (value) =>
+                setForm({
+                  ...form,
+                  citizenship: value,
+                  otherCitizenship: value !== "Others" ? "" : form.otherCitizenship,
+                })
+              )
+            }
             style={[styles.inputWrapper, errors.citizenship && styles.inputError]}
             onPress={() => openPicker("Select citizenship", CITIZENSHIP_OPTIONS, "citizenship")}
           >
@@ -413,6 +536,18 @@ export default function SignupScreen({ navigation }) {
           {errors.citizenship ? <Text style={styles.errorText}>{errors.citizenship}</Text> : null}
         </View>
       </View>
+
+      {form.citizenship === "Others" && (
+        <View style={styles.field}>
+          <Text style={styles.label}>Please specify citizenship</Text>
+          <TextInput
+            value={form.otherCitizenship}
+            onChangeText={(value) => setForm({ ...form, otherCitizenship: value })}
+            placeholder="Enter citizenship"
+            style={styles.input}
+          />
+        </View>
+      )}
     </>
   );
 
@@ -559,6 +694,16 @@ export default function SignupScreen({ navigation }) {
 
         <View style={styles.reviewSection}>
           <Text style={styles.reviewHeading}>Personal Information</Text>
+          <Text style={styles.reviewTextSmall}>First Name: {form.firstName || "-"}</Text>
+          <Text style={styles.reviewTextSmall}>Middle Name: {form.middleName || "-"}</Text>
+          <Text style={styles.reviewTextSmall}>Last Name: {form.lastName || "-"}</Text>
+          <Text style={styles.reviewTextSmall}>Suffix: {form.suffix || "-"}</Text>
+          <Text style={styles.reviewTextSmall}>Birthday: {form.birthday || "-"}</Text>
+          <Text style={styles.reviewTextSmall}>Gender: {form.gender || "-"}</Text>
+          <Text style={styles.reviewTextSmall}>Civil Status: {form.civilStatus || "-"}</Text>
+          <Text style={styles.reviewTextSmall}>
+            Citizenship: {form.citizenship === "Others" ? form.otherCitizenship : form.citizenship || "-"}
+          </Text>
           {[
             ["First Name", form.firstName],
             ["Middle Name", form.middleName],
@@ -650,6 +795,10 @@ export default function SignupScreen({ navigation }) {
         </View>
       </View>
 
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <Animated.View style={[styles.card, { opacity: stepFade, transform: [{ translateY: stepSlide }] }]}>
+          {renderStepContent()}
+        </Animated.View>
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
@@ -694,14 +843,42 @@ export default function SignupScreen({ navigation }) {
 
 // ─── STYLES (unchanged from your original) ───────────────────
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#f5f5f5" },
+  screen: { flex: 1, backgroundColor: "#f8f9fc" },
   headerContainer: {
-    backgroundColor: "#5b5f97",
-    paddingTop: Platform.OS === "ios" ? 50 : 32,
-    paddingBottom: 24,
-    paddingHorizontal: 16,
+    backgroundColor: "#5b61a7",
+    paddingTop: Platform.OS === "ios" ? 60 : 40,
+    paddingBottom: 40,
+    paddingHorizontal: 24,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  title: { fontSize: 32, fontWeight: "900", color: "#fff", letterSpacing: -0.5 },
+  subtitle: { fontSize: 15, color: "rgba(255,255,255,0.85)", marginTop: 6, fontWeight: "500" },
+  stepsRow: {
+    flexDirection: "row",
+    marginTop: 24,
+    gap: 8,
+  },
+  stepDot: {
+    height: 6,
+    borderRadius: 4,
+    flex: 1,
+    marginRight: 6,
+  },
     width: 38, height: 38, borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.2)",
     justifyContent: "center", alignItems: "center", marginBottom: 14,
@@ -711,9 +888,45 @@ const styles = StyleSheet.create({
   stepsRow: { flexDirection: "row", marginTop: 18, gap: 10 },
   stepDot: { width: 40, height: 6, borderRadius: 4, marginRight: 6 },
   stepDotActive: { backgroundColor: "#fff" },
-  stepDotInactive: { backgroundColor: "rgba(255,255,255,0.35)" },
-  container: { padding: 18, paddingBottom: 32 },
+  stepDotInactive: { backgroundColor: "rgba(255,255,255,0.3)" },
+  container: { padding: 20, paddingBottom: 40 },
   card: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 24,
+    marginTop: 12,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#eff1f8",
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#4f5fc5",
+    marginBottom: 16,
+  },
+  sectionSubtitle: { fontSize: 13, color: "#7f88a3", marginBottom: 16, fontWeight: "600" },
+  field: { marginBottom: 18 },
+  photoRow: { flexDirection: "row", alignItems: "center", marginBottom: 24 },
+  avatarWrapper: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "#eff1f8",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 20,
+    borderWidth: 2,
+    borderColor: "#fff",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
     backgroundColor: "#fff", borderRadius: 18, padding: 18,
     marginTop: -28, marginBottom: 18,
     shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 18,
@@ -728,14 +941,29 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(91,95,151,0.15)",
     justifyContent: "center", alignItems: "center", marginRight: 16,
   },
-  avatar: { width: 68, height: 68, borderRadius: 16 },
+  avatar: { width: 86, height: 86, borderRadius: 43 },
   uploadButton: {
+    flex: 1,
+    borderRadius: 14,
+    backgroundColor: "#eef1fc",
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#dbe2f6",
     flex: 1, borderRadius: 14, backgroundColor: "#5b5f97",
     paddingVertical: 12, alignItems: "center", justifyContent: "center",
   },
-  uploadButtonText: { color: "#fff", fontWeight: "600" },
-  label: { fontSize: 14, fontWeight: "600", color: "#333", marginBottom: 8 },
+  uploadButtonText: { color: "#4f5fc5", fontWeight: "800", fontSize: 14 },
+  label: { fontSize: 13, fontWeight: "700", color: "#1c2131", marginBottom: 8 },
   inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#a9b1c0",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingHorizontal: 16,
     flexDirection: "row", alignItems: "center",
     borderWidth: 1, borderColor: "#e0e0e0",
     backgroundColor: "#fff", borderRadius: 12, paddingHorizontal: 12,
@@ -746,9 +974,12 @@ const styles = StyleSheet.create({
     borderRadius: 12, paddingHorizontal: 12,
     height: 48, color: "#111", fontSize: 14,
   },
-  input: { flex: 1, height: 48, color: "#111", fontSize: 14 },
-  icon: { marginRight: 10 },
+  input: { flex: 1, height: Platform.OS === "ios" ? 54 : 50, color: "#111", fontSize: 15 },
+  icon: { marginRight: 12 },
   eyeButton: { padding: 8 },
+  inputError: { borderColor: "#dc2626", backgroundColor: "#fffcfc" },
+  hintText: { fontSize: 12, color: "#7f88a3", marginTop: 6, fontWeight: "500" },
+  errorText: { color: "#dc2626", fontSize: 12, marginTop: 6, fontWeight: "600" },
   inputError: { borderColor: "#dc2626" },
   hintText: { fontSize: 12, color: "#666", marginTop: 6 },
   errorText: { color: "#dc2626", fontSize: 12, marginTop: 6 },
@@ -760,19 +991,49 @@ const styles = StyleSheet.create({
   generalErrorText: { color: "#dc2626", fontSize: 13 },
   rowFields: { flexDirection: "row" },
   flex1: { flex: 1 },
-  ml12: { marginLeft: 12 },
+  ml12: { marginLeft: 16 },
   primaryButton: {
+    backgroundColor: "#5b61a7",
+    paddingVertical: 18,
+    borderRadius: 14,
+    alignItems: "center",
+    shadowColor: "#2d3a7c",
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 4,
     backgroundColor: "#5b5f97", paddingVertical: 14,
     borderRadius: 14, alignItems: "center",
   },
-  primaryButtonDisabled: { opacity: 0.7 },
-  primaryButtonText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  primaryButtonDisabled: { opacity: 0.7, shadowOpacity: 0 },
+  primaryButtonText: { color: "#fff", fontWeight: "800", fontSize: 16, letterSpacing: 0.5 },
   reviewCard: {
+    backgroundColor: "#fbfbff",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#eff1f8",
+    marginTop: 6,
     backgroundColor: "#fff", borderRadius: 16, padding: 16,
     borderWidth: 1, borderColor: "rgba(0,0,0,0.05)", marginTop: 10,
   },
-  reviewRow: { flexDirection: "row", alignItems: "center", marginBottom: 18 },
+  reviewRow: { flexDirection: "row", alignItems: "center", marginBottom: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#eff1f8" },
   reviewAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#eff1f8",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  reviewAvatarImage: { width: 60, height: 60, borderRadius: 30 },
+  reviewInfo: { flex: 1 },
+  reviewTitle: { fontSize: 15, fontWeight: "900", color: "#111" },
+  reviewText: { fontSize: 13, color: "#7a82a0", marginTop: 4, fontWeight: "500" },
+  reviewSection: { marginTop: 16 },
+  reviewHeading: { fontSize: 14, fontWeight: "900", color: "#4f5fc5", marginBottom: 12 },
+  reviewTextSmall: { fontSize: 13, color: "#222", marginBottom: 8, fontWeight: "600" },
     width: 60, height: 60, borderRadius: 18,
     backgroundColor: "rgba(91,95,151,0.15)",
     justifyContent: "center", alignItems: "center", marginRight: 12,
@@ -784,9 +1045,21 @@ const styles = StyleSheet.create({
   reviewHeading: { fontSize: 14, fontWeight: "700", color: "#3d4076", marginBottom: 8 },
   reviewTextSmall: { fontSize: 12, color: "#333", marginBottom: 4 },
   successContainer: { alignItems: "center", paddingVertical: 40 },
-  successTitle: { fontSize: 32, fontWeight: "800", color: "#3d4076", marginBottom: 12 },
-  successSubtitle: { fontSize: 15, color: "#666", marginBottom: 26, textAlign: "center" },
+  successTitle: { fontSize: 32, fontWeight: "900", color: "#4f5ec4", marginBottom: 12, textAlign: "center" },
+  successSubtitle: { fontSize: 15, color: "#6e7798", marginBottom: 32, textAlign: "center", fontWeight: "500", lineHeight: 22 },
   successBadge: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "#29d0a5",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 40,
+    shadowColor: "#29d0a5",
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
     width: 160, height: 160, borderRadius: 100,
     backgroundColor: "#5b5f97",
     justifyContent: "center", alignItems: "center", marginBottom: 30,
@@ -817,6 +1090,15 @@ const modalStyles = StyleSheet.create({
     borderRadius: 12, backgroundColor: "rgba(91,95,151,0.12)", marginLeft: 8,
   },
   modalButtonText: { color: "#3d4076", fontWeight: "700" },
+  yearPickerModal: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  yearPickerContent: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "80%", paddingTop: 16 },
+  yearPickerHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "#e4e8f8" },
+  yearPickerTitle: { fontSize: 18, fontWeight: "800", color: "#3d4fa0" },
+  yearPickerScroll: { paddingHorizontal: 16, paddingVertical: 12 },
+  yearPickerOption: { paddingVertical: 12, marginBottom: 8, borderRadius: 10, borderWidth: 1, borderColor: "#d7def8", backgroundColor: "#f8f9ff", alignItems: "center" },
+  yearPickerOptionActive: { backgroundColor: "#4f5fc5", borderColor: "#4f5fc5" },
+  yearPickerOptionText: { fontSize: 16, fontWeight: "700", color: "#4f5fc5" },
+  yearPickerOptionTextActive: { color: "#fff" },
 });
 
 const strengthStyles = StyleSheet.create({
