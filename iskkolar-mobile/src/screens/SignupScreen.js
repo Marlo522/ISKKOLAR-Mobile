@@ -16,6 +16,8 @@ import {
   Easing,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import { useSignup } from "../hooks/useSignup";
 
 const GENDER_OPTIONS = ["Male", "Female", "Prefer not to say"];
 const CIVIL_STATUS_OPTIONS = ["Single", "Married"];
@@ -27,39 +29,45 @@ const STEP_TITLES = [
   "Review Information",
 ];
 
+// ─── PASSWORD STRENGTH METER ─────────────────────────────────
 function PasswordStrengthMeter({ password }) {
   const getStrength = () => {
     if (!password) return { level: 0, label: "", color: "#ccc" };
-    
     let score = 0;
     if (password.length >= 8) score++;
     if (/[a-z]/i.test(password)) score++;
     if (/[0-9]/.test(password)) score++;
     if (/[^a-z0-9]/i.test(password)) score++;
-    
     if (score === 0) return { level: 0, label: "", color: "#ccc" };
     if (score === 1) return { level: 1, label: "Weak", color: "#dc2626" };
     if (score === 2) return { level: 2, label: "Fair", color: "#f59e0b" };
     if (score === 3) return { level: 3, label: "Good", color: "#3b82f6" };
     return { level: 4, label: "Strong", color: "#10b981" };
   };
-
   const strength = getStrength();
-  
   return (
     <View style={strengthStyles.container}>
       <View style={strengthStyles.barContainer}>
-        <View style={[strengthStyles.bar, strengthStyles.bar1, strength.level >= 1 ? { backgroundColor: strength.color } : {}]} />
-        <View style={[strengthStyles.bar, strengthStyles.bar2, strength.level >= 2 ? { backgroundColor: strength.color } : {}]} />
-        <View style={[strengthStyles.bar, strengthStyles.bar3, strength.level >= 3 ? { backgroundColor: strength.color } : {}]} />
-        <View style={[strengthStyles.bar, strengthStyles.bar4, strength.level >= 4 ? { backgroundColor: strength.color } : {}]} />
+        {[1, 2, 3, 4].map((n) => (
+          <View
+            key={n}
+            style={[
+              strengthStyles.bar,
+              strength.level >= n ? { backgroundColor: strength.color } : {},
+            ]}
+          />
+        ))}
       </View>
-      {strength.label ? <Text style={[strengthStyles.label, { color: strength.color }]}>{strength.label}</Text> : null}
+      {strength.label ? (
+        <Text style={[strengthStyles.label, { color: strength.color }]}>
+          {strength.label}
+        </Text>
+      ) : null}
     </View>
   );
 }
 
-
+// ─── PICKER MODAL ────────────────────────────────────────────
 function PickerModal({ visible, title, options, selected, onSelect, onClose }) {
   return (
     <Modal visible={visible} transparent animationType="slide">
@@ -69,6 +77,27 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose }) {
             <Text style={modalStyles.yearPickerTitle}>{title}</Text>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={24} color="#4f5fc5" />
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={modalStyles.overlay}>
+        <View style={modalStyles.modal}>
+          <Text style={modalStyles.modalTitle}>{title}</Text>
+          {options.map((option) => (
+            <TouchableOpacity
+              key={option}
+              style={[
+                modalStyles.option,
+                option === selected ? modalStyles.optionSelected : null,
+              ]}
+              onPress={() => { onSelect(option); onClose(); }}
+            >
+              <Text
+                style={[
+                  modalStyles.optionText,
+                  option === selected ? modalStyles.optionTextSelected : null,
+                ]}
+              >
+                {option}
+              </Text>
             </TouchableOpacity>
           </View>
           <ScrollView style={modalStyles.yearPickerScroll} showsVerticalScrollIndicator={true}>
@@ -104,119 +133,71 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose }) {
   );
 }
 
+// ─── DATE PICKER MODAL ───────────────────────────────────────
 function DatePickerModal({ visible, date, onConfirm, onClose }) {
   const [year, setYear] = useState(date.getFullYear());
   const [month, setMonth] = useState(date.getMonth());
   const [day, setDay] = useState(date.getDate());
 
   const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  const years = [];
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const currentYear = new Date().getFullYear();
-  for (let y = currentYear; y >= currentYear - 80; y -= 1) years.push(y);
-
-  const handleConfirm = () => {
-    const picked = new Date(year, month, day);
-    onConfirm(picked);
-    onClose();
-  };
+  const years = Array.from({ length: 81 }, (_, i) => currentYear - i);
 
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={modalStyles.overlay}>
         <View style={modalStyles.dateModal}>
           <Text style={modalStyles.modalTitle}>Pick your birthday</Text>
-
           <View style={modalStyles.pickerRow}>
             <ScrollView style={modalStyles.pickerColumn}>
               {Array.from({ length: daysInMonth(year, month) }, (_, i) => i + 1).map((d) => (
                 <TouchableOpacity
                   key={d}
-                  style={[
-                    modalStyles.option,
-                    d === day ? modalStyles.optionSelected : null,
-                  ]}
+                  style={[modalStyles.option, d === day ? modalStyles.optionSelected : null]}
                   onPress={() => setDay(d)}
                 >
-                  <Text
-                    style={[
-                      modalStyles.optionText,
-                      d === day ? modalStyles.optionTextSelected : null,
-                    ]}
-                  >
+                  <Text style={[modalStyles.optionText, d === day ? modalStyles.optionTextSelected : null]}>
                     {d}
                   </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
-
             <ScrollView style={modalStyles.pickerColumn}>
               {months.map((m, idx) => (
                 <TouchableOpacity
                   key={m}
-                  style={[
-                    modalStyles.option,
-                    idx === month ? modalStyles.optionSelected : null,
-                  ]}
-                  onPress={() => {
-                    setMonth(idx);
-                    const max = daysInMonth(year, idx);
-                    if (day > max) setDay(max);
-                  }}
+                  style={[modalStyles.option, idx === month ? modalStyles.optionSelected : null]}
+                  onPress={() => { setMonth(idx); const max = daysInMonth(year, idx); if (day > max) setDay(max); }}
                 >
-                  <Text
-                    style={[
-                      modalStyles.optionText,
-                      idx === month ? modalStyles.optionTextSelected : null,
-                    ]}
-                  >
+                  <Text style={[modalStyles.optionText, idx === month ? modalStyles.optionTextSelected : null]}>
                     {m}
                   </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
-
             <ScrollView style={modalStyles.pickerColumn}>
               {years.map((y) => (
                 <TouchableOpacity
                   key={y}
-                  style={[
-                    modalStyles.option,
-                    y === year ? modalStyles.optionSelected : null,
-                  ]}
+                  style={[modalStyles.option, y === year ? modalStyles.optionSelected : null]}
                   onPress={() => setYear(y)}
                 >
-                  <Text
-                    style={[
-                      modalStyles.optionText,
-                      y === year ? modalStyles.optionTextSelected : null,
-                    ]}
-                  >
+                  <Text style={[modalStyles.optionText, y === year ? modalStyles.optionTextSelected : null]}>
                     {y}
                   </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
-
           <View style={modalStyles.buttonRow}>
             <TouchableOpacity style={modalStyles.modalButton} onPress={onClose}>
               <Text style={modalStyles.modalButtonText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={modalStyles.modalButton} onPress={handleConfirm}>
+            <TouchableOpacity
+              style={modalStyles.modalButton}
+              onPress={() => { onConfirm(new Date(year, month, day)); onClose(); }}
+            >
               <Text style={modalStyles.modalButtonText}>Select</Text>
             </TouchableOpacity>
           </View>
@@ -226,15 +207,18 @@ function DatePickerModal({ visible, date, onConfirm, onClose }) {
   );
 }
 
+// ─── MAIN SCREEN ─────────────────────────────────────────────
 export default function SignupScreen({ navigation }) {
-  const [step, setStep] = useState(0);
-  const [loading, setLoading] = useState(false);
+  // All logic lives in the hook
+  const {
+    step, loading, form, errors,
+    updateField, nextStep, backStep, handleRegister, formatDate,
+    GENDER_OPTIONS, CITIZENSHIP_OPTIONS, CIVIL_STATUS_OPTIONS, STEP_TITLES,
+  } = useSignup(navigation);
+
+  // Local UI-only state (modals don't belong in the hook)
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [pickerVisible, setPickerVisible] = useState(false);
-  const [pickerTitle, setPickerTitle] = useState("");
-  const [pickerOptions, setPickerOptions] = useState([]);
-  const [pickerValue, setPickerValue] = useState("");
   const [datePickerVisible, setDatePickerVisible] = useState(false);
 
   const stepFade = useRef(new Animated.Value(1)).current;
@@ -278,8 +262,9 @@ export default function SignupScreen({ navigation }) {
     province: "",
     country: "",
     zip: "",
+  const [pickerConfig, setPickerConfig] = useState({
+    visible: false, title: "", options: [], field: "",
   });
-  const [errors, setErrors] = useState({});
 
   const setProfilePhoto = async () => {
     if (form.profilePhoto) {
@@ -300,76 +285,45 @@ export default function SignupScreen({ navigation }) {
         profilePhoto: { uri: result.assets[0].uri },
       }));
     }
+  const openPicker = (title, options, field) => {
+    setPickerConfig({ visible: true, title, options, field });
   };
+  const closePicker = () => setPickerConfig((p) => ({ ...p, visible: false }));
 
-  const showPicker = (title, options, value, onSelect) => {
-    setPickerTitle(title);
-    setPickerOptions(options);
-    setPickerValue(value);
-    setPickerOnSelect(() => (v) => {
-      setPickerValue(v);
-      onSelect(v);
+  const pickProfilePhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
     });
-    setPickerVisible(true);
+
+    if (result.canceled) return;
+
+    const asset = result.assets?.[0];
+    if (!asset?.uri) return;
+
+    updateField("profilePhoto", {
+      uri: asset.uri,
+      fileName: asset.fileName || `profile-photo-${Date.now()}.jpg`,
+      mimeType: asset.mimeType || "image/jpeg",
+      fileSize: asset.fileSize,
+    });
   };
 
-  const [pickerOnSelect, setPickerOnSelect] = useState(() => () => {});
-
-  const formatDate = (iso) => {
-    if (!iso) return "";
-    const d = new Date(iso);
-    return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
-  };
-
-  const validateStep = () => {
-    const errs = {};
-
-    if (step === 0) {
-      if (!form.email.trim()) errs.email = "Email is required";
-      else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = "Invalid email";
-      if (!form.password.trim()) errs.password = "Password is required";
-      if (!form.confirmPassword.trim()) errs.confirmPassword = "Confirm password";
-      if (form.password && form.confirmPassword && form.password !== form.confirmPassword)
-        errs.confirmPassword = "Passwords must match";
-    }
-
-    if (step === 1) {
-      if (!form.firstName.trim()) errs.firstName = "First name required";
-      if (!form.lastName.trim()) errs.lastName = "Last name required";
-      if (!form.birthday.trim()) errs.birthday = "Birthday required";
-    }
-
-    if (step === 2) {
-      if (!form.mobile.trim()) errs.mobile = "Mobile number required";
-      if (!form.street.trim()) errs.street = "Street required";
-      if (!form.city.trim()) errs.city = "City required";
-    }
-
-    setErrors(errs);
-    return Object.keys(errs).length > 0;
-  };
-
-  const nextStep = () => {
-    if (validateStep()) return;
-    setStep((s) => Math.min(s + 1, 4));
-  };
-
-  const backStep = () => {
-    if (step === 0) return navigation.goBack();
-    setStep((s) => Math.max(s - 1, 0));
-  };
-
-  const handleRegister = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setStep(4);
-    }, 900);
-  };
-
+  // ─── STEP 0: Account Setup ───────────────────────────────
   const renderStep0 = () => (
     <>
       <Text style={styles.sectionTitle}>Create your login credentials</Text>
+
+      {/* General error (e.g. email already registered) */}
+      {errors.general ? (
+        <View style={styles.generalError}>
+          <Text style={styles.generalErrorText}>{errors.general}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.field}>
         <Text style={styles.label}>Email</Text>
@@ -377,7 +331,7 @@ export default function SignupScreen({ navigation }) {
           <Ionicons name="mail-outline" size={18} color="#999" style={styles.icon} />
           <TextInput
             value={form.email}
-            onChangeText={(value) => setForm({ ...form, email: value })}
+            onChangeText={(v) => updateField("email", v)}
             placeholder="Email"
             style={styles.input}
             keyboardType="email-address"
@@ -393,16 +347,13 @@ export default function SignupScreen({ navigation }) {
           <Ionicons name="lock-closed-outline" size={18} color="#999" style={styles.icon} />
           <TextInput
             value={form.password}
-            onChangeText={(value) => setForm({ ...form, password: value })}
+            onChangeText={(v) => updateField("password", v)}
             placeholder="Password"
             style={styles.input}
             secureTextEntry={!showPassword}
             autoCapitalize="none"
           />
-          <TouchableOpacity
-            onPress={() => setShowPassword((v) => !v)}
-            style={styles.eyeButton}
-          >
+          <TouchableOpacity onPress={() => setShowPassword((v) => !v)} style={styles.eyeButton}>
             <Ionicons name={showPassword ? "eye" : "eye-off"} size={18} color="#999" />
           </TouchableOpacity>
         </View>
@@ -417,16 +368,13 @@ export default function SignupScreen({ navigation }) {
           <Ionicons name="lock-closed-outline" size={18} color="#999" style={styles.icon} />
           <TextInput
             value={form.confirmPassword}
-            onChangeText={(value) => setForm({ ...form, confirmPassword: value })}
+            onChangeText={(v) => updateField("confirmPassword", v)}
             placeholder="Confirm Password"
             style={styles.input}
             secureTextEntry={!showConfirmPassword}
             autoCapitalize="none"
           />
-          <TouchableOpacity
-            onPress={() => setShowConfirmPassword((v) => !v)}
-            style={styles.eyeButton}
-          >
+          <TouchableOpacity onPress={() => setShowConfirmPassword((v) => !v)} style={styles.eyeButton}>
             <Ionicons name={showConfirmPassword ? "eye" : "eye-off"} size={18} color="#999" />
           </TouchableOpacity>
         </View>
@@ -435,20 +383,35 @@ export default function SignupScreen({ navigation }) {
     </>
   );
 
+  // ─── STEP 1: Personal Details ────────────────────────────
   const renderStep1 = () => (
     <>
       <Text style={styles.sectionTitle}>Provide your personal details</Text>
 
+      {errors.general ? (
+        <View style={styles.generalError}>
+          <Text style={styles.generalErrorText}>{errors.general}</Text>
+        </View>
+      ) : null}
+
+      {/* Profile Photo — replace this TouchableOpacity with your image picker */}
       <View style={styles.photoRow}>
         <View style={styles.avatarWrapper}>
           <Image
-            source={form.profilePhoto || require("../../assets/images/logo.png")}
+            source={
+              form.profilePhoto?.uri
+                ? { uri: form.profilePhoto.uri }
+                : require("../../assets/images/logo.png")
+            }
             style={styles.avatar}
           />
         </View>
-        <TouchableOpacity style={styles.uploadButton} onPress={setProfilePhoto}>
+        <TouchableOpacity
+          style={styles.uploadButton}
+          onPress={pickProfilePhoto}
+        >
           <Text style={styles.uploadButtonText}>
-            {form.profilePhoto ? "Remove Photo" : "Add Profile Photo"}
+            {form.profilePhoto?.uri ? "Change Photo" : "Add Profile Photo"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -457,9 +420,9 @@ export default function SignupScreen({ navigation }) {
         <Text style={styles.label}>First Name</Text>
         <TextInput
           value={form.firstName}
-          onChangeText={(value) => setForm({ ...form, firstName: value })}
+          onChangeText={(v) => updateField("firstName", v)}
           placeholder="Enter first name"
-          style={styles.input}
+          style={[styles.input, styles.standaloneInput, errors.firstName && styles.inputError]}
         />
         {errors.firstName ? <Text style={styles.errorText}>{errors.firstName}</Text> : null}
       </View>
@@ -468,9 +431,9 @@ export default function SignupScreen({ navigation }) {
         <Text style={styles.label}>Middle Name (Optional)</Text>
         <TextInput
           value={form.middleName}
-          onChangeText={(value) => setForm({ ...form, middleName: value })}
+          onChangeText={(v) => updateField("middleName", v)}
           placeholder="Enter middle name"
-          style={styles.input}
+          style={[styles.input, styles.standaloneInput]}
         />
       </View>
 
@@ -479,9 +442,9 @@ export default function SignupScreen({ navigation }) {
           <Text style={styles.label}>Last Name</Text>
           <TextInput
             value={form.lastName}
-            onChangeText={(value) => setForm({ ...form, lastName: value })}
+            onChangeText={(v) => updateField("lastName", v)}
             placeholder="Last name"
-            style={styles.input}
+            style={[styles.input, styles.standaloneInput, errors.lastName && styles.inputError]}
           />
           {errors.lastName ? <Text style={styles.errorText}>{errors.lastName}</Text> : null}
         </View>
@@ -489,13 +452,14 @@ export default function SignupScreen({ navigation }) {
           <Text style={styles.label}>Suffix (Optional)</Text>
           <TextInput
             value={form.suffix}
-            onChangeText={(value) => setForm({ ...form, suffix: value })}
+            onChangeText={(v) => updateField("suffix", v)}
             placeholder="--"
-            style={styles.input}
+            style={[styles.input, styles.standaloneInput]}
           />
         </View>
       </View>
 
+      {/* Birthday + Gender row */}
       <View style={styles.rowFields}>
         <View style={[styles.field, styles.flex1]}>
           <Text style={styles.label}>Birthday</Text>
@@ -514,21 +478,19 @@ export default function SignupScreen({ navigation }) {
         <View style={[styles.field, styles.flex1, styles.ml12]}>
           <Text style={styles.label}>Gender</Text>
           <TouchableOpacity
-            style={styles.inputWrapper}
-            onPress={() =>
-              showPicker("Select gender", GENDER_OPTIONS, form.gender, (value) =>
-                setForm({ ...form, gender: value })
-              )
-            }
+            style={[styles.inputWrapper, errors.gender && styles.inputError]}
+            onPress={() => openPicker("Select gender", GENDER_OPTIONS, "gender")}
           >
             <Text style={[styles.input, { paddingVertical: 14 }]}>
               {form.gender || "Select gender"}
             </Text>
             <Ionicons name="chevron-down" size={18} color="#999" />
           </TouchableOpacity>
+          {errors.gender ? <Text style={styles.errorText}>{errors.gender}</Text> : null}
         </View>
       </View>
 
+      {/* Civil Status + Citizenship row */}
       <View style={styles.rowFields}>
         <View style={[styles.field, styles.flex1]}>
           <Text style={styles.label}>Civil Status</Text>
@@ -539,12 +501,15 @@ export default function SignupScreen({ navigation }) {
                 setForm({ ...form, civilStatus: value })
               )
             }
+            style={[styles.inputWrapper, errors.civilStatus && styles.inputError]}
+            onPress={() => openPicker("Select civil status", CIVIL_STATUS_OPTIONS, "civilStatus")}
           >
             <Text style={[styles.input, { paddingVertical: 14 }]}>
               {form.civilStatus || "Select status"}
             </Text>
             <Ionicons name="chevron-down" size={18} color="#999" />
           </TouchableOpacity>
+          {errors.civilStatus ? <Text style={styles.errorText}>{errors.civilStatus}</Text> : null}
         </View>
 
         <View style={[styles.field, styles.flex1, styles.ml12]}>
@@ -560,12 +525,15 @@ export default function SignupScreen({ navigation }) {
                 })
               )
             }
+            style={[styles.inputWrapper, errors.citizenship && styles.inputError]}
+            onPress={() => openPicker("Select citizenship", CITIZENSHIP_OPTIONS, "citizenship")}
           >
             <Text style={[styles.input, { paddingVertical: 14 }]}>
               {form.citizenship || "Select citizenship"}
             </Text>
             <Ionicons name="chevron-down" size={18} color="#999" />
           </TouchableOpacity>
+          {errors.citizenship ? <Text style={styles.errorText}>{errors.citizenship}</Text> : null}
         </View>
       </View>
 
@@ -583,17 +551,24 @@ export default function SignupScreen({ navigation }) {
     </>
   );
 
+  // ─── STEP 2: Contact & Background ───────────────────────
   const renderStep2 = () => (
     <>
       <Text style={styles.sectionTitle}>Provide your contact & background</Text>
+
+      {errors.general ? (
+        <View style={styles.generalError}>
+          <Text style={styles.generalErrorText}>{errors.general}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.field}>
         <Text style={styles.label}>Mobile Number</Text>
         <TextInput
           value={form.mobile}
-          onChangeText={(value) => setForm({ ...form, mobile: value.replace(/[^0-9]/g, "") })}
-          placeholder="Enter mobile number"
-          style={styles.input}
+          onChangeText={(v) => updateField("mobile", v.replace(/[^0-9]/g, ""))}
+          placeholder="09XXXXXXXXX"
+          style={[styles.input, styles.standaloneInput, errors.mobile && styles.inputError]}
           keyboardType="phone-pad"
         />
         {errors.mobile ? <Text style={styles.errorText}>{errors.mobile}</Text> : null}
@@ -603,10 +578,13 @@ export default function SignupScreen({ navigation }) {
         <Text style={styles.label}>Facebook</Text>
         <TextInput
           value={form.facebook}
-          onChangeText={(value) => setForm({ ...form, facebook: value })}
-          placeholder="Enter Facebook link"
-          style={styles.input}
+          onChangeText={(v) => updateField("facebook", v)}
+          placeholder="https://facebook.com/yourprofile"
+          style={[styles.input, styles.standaloneInput, errors.facebook && styles.inputError]}
+          autoCapitalize="none"
+          keyboardType="url"
         />
+        {errors.facebook ? <Text style={styles.errorText}>{errors.facebook}</Text> : null}
       </View>
 
       <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Address Information</Text>
@@ -615,9 +593,9 @@ export default function SignupScreen({ navigation }) {
         <Text style={styles.label}>Street / Unit</Text>
         <TextInput
           value={form.street}
-          onChangeText={(value) => setForm({ ...form, street: value })}
+          onChangeText={(v) => updateField("street", v)}
           placeholder="Street / Unit"
-          style={styles.input}
+          style={[styles.input, styles.standaloneInput, errors.street && styles.inputError]}
         />
         {errors.street ? <Text style={styles.errorText}>{errors.street}</Text> : null}
       </View>
@@ -627,19 +605,21 @@ export default function SignupScreen({ navigation }) {
           <Text style={styles.label}>Barangay</Text>
           <TextInput
             value={form.barangay}
-            onChangeText={(value) => setForm({ ...form, barangay: value })}
+            onChangeText={(v) => updateField("barangay", v)}
             placeholder="Barangay"
-            style={styles.input}
+            style={[styles.input, styles.standaloneInput, errors.barangay && styles.inputError]}
           />
+          {errors.barangay ? <Text style={styles.errorText}>{errors.barangay}</Text> : null}
         </View>
         <View style={[styles.field, styles.flex1, styles.ml12]}>
           <Text style={styles.label}>City</Text>
           <TextInput
             value={form.city}
-            onChangeText={(value) => setForm({ ...form, city: value })}
+            onChangeText={(v) => updateField("city", v)}
             placeholder="City"
-            style={styles.input}
+            style={[styles.input, styles.standaloneInput, errors.city && styles.inputError]}
           />
+          {errors.city ? <Text style={styles.errorText}>{errors.city}</Text> : null}
         </View>
       </View>
 
@@ -648,19 +628,21 @@ export default function SignupScreen({ navigation }) {
           <Text style={styles.label}>Province</Text>
           <TextInput
             value={form.province}
-            onChangeText={(value) => setForm({ ...form, province: value })}
+            onChangeText={(v) => updateField("province", v)}
             placeholder="Province"
-            style={styles.input}
+            style={[styles.input, styles.standaloneInput, errors.province && styles.inputError]}
           />
+          {errors.province ? <Text style={styles.errorText}>{errors.province}</Text> : null}
         </View>
         <View style={[styles.field, styles.flex1, styles.ml12]}>
           <Text style={styles.label}>Country</Text>
           <TextInput
             value={form.country}
-            onChangeText={(value) => setForm({ ...form, country: value })}
+            onChangeText={(v) => updateField("country", v)}
             placeholder="Country"
-            style={styles.input}
+            style={[styles.input, styles.standaloneInput, errors.country && styles.inputError]}
           />
+          {errors.country ? <Text style={styles.errorText}>{errors.country}</Text> : null}
         </View>
       </View>
 
@@ -668,30 +650,45 @@ export default function SignupScreen({ navigation }) {
         <Text style={styles.label}>Zip Code</Text>
         <TextInput
           value={form.zip}
-          onChangeText={(value) => setForm({ ...form, zip: value })}
+          onChangeText={(v) => updateField("zip", v)}
           placeholder="Zip Code"
-          style={styles.input}
+          style={[styles.input, styles.standaloneInput, errors.zip && styles.inputError]}
+          keyboardType="number-pad"
         />
+        {errors.zip ? <Text style={styles.errorText}>{errors.zip}</Text> : null}
       </View>
     </>
   );
 
+  // ─── STEP 3: Review ──────────────────────────────────────
   const renderStep3 = () => (
     <>
       <Text style={styles.sectionTitle}>Review Information</Text>
-      <Text style={styles.sectionSubtitle}>Check your details</Text>
+      <Text style={styles.sectionSubtitle}>Check your details before submitting</Text>
+
+      {errors.general ? (
+        <View style={styles.generalError}>
+          <Text style={styles.generalErrorText}>{errors.general}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.reviewCard}>
         <View style={styles.reviewRow}>
           <View style={styles.reviewAvatar}>
             <Image
-              source={form.profilePhoto || require("../../assets/images/logo.png")}
+              source={
+                form.profilePhoto?.uri
+                  ? { uri: form.profilePhoto.uri }
+                  : require("../../assets/images/logo.png")
+              }
               style={styles.reviewAvatarImage}
             />
           </View>
-          <View style={styles.reviewInfo}>
-            <Text style={styles.reviewTitle}>Profile Photo</Text>
-            <Text style={styles.reviewText}>Uploaded image</Text>
+          <View>
+            <Text style={styles.reviewTitle}>
+              {form.firstName} {form.lastName}
+            </Text>
+            <Text style={styles.reviewText}>{form.email}</Text>
           </View>
         </View>
 
@@ -707,33 +704,59 @@ export default function SignupScreen({ navigation }) {
           <Text style={styles.reviewTextSmall}>
             Citizenship: {form.citizenship === "Others" ? form.otherCitizenship : form.citizenship || "-"}
           </Text>
+          {[
+            ["First Name", form.firstName],
+            ["Middle Name", form.middleName],
+            ["Last Name", form.lastName],
+            ["Suffix", form.suffix],
+            ["Birthday", form.birthday],
+            ["Gender", form.gender],
+            ["Civil Status", form.civilStatus],
+            ["Citizenship", form.citizenship],
+          ].map(([label, value]) => (
+            <Text key={label} style={styles.reviewTextSmall}>
+              {label}: {value || "-"}
+            </Text>
+          ))}
         </View>
 
         <View style={styles.reviewSection}>
           <Text style={styles.reviewHeading}>Contact Information</Text>
-          <Text style={styles.reviewTextSmall}>Mobile: {form.mobile || "-"}</Text>
-          <Text style={styles.reviewTextSmall}>Email: {form.email || "-"}</Text>
-          <Text style={styles.reviewTextSmall}>Facebook: {form.facebook || "-"}</Text>
-          <Text style={styles.reviewTextSmall}>Street: {form.street || "-"}</Text>
-          <Text style={styles.reviewTextSmall}>Barangay: {form.barangay || "-"}</Text>
-          <Text style={styles.reviewTextSmall}>City: {form.city || "-"}</Text>
-          <Text style={styles.reviewTextSmall}>Province: {form.province || "-"}</Text>
-          <Text style={styles.reviewTextSmall}>Country: {form.country || "-"}</Text>
-          <Text style={styles.reviewTextSmall}>Zip Code: {form.zip || "-"}</Text>
+          {[
+            ["Mobile", form.mobile],
+            ["Email", form.email],
+            ["Facebook", form.facebook],
+            ["Street", form.street],
+            ["Barangay", form.barangay],
+            ["City", form.city],
+            ["Province", form.province],
+            ["Country", form.country],
+            ["Zip Code", form.zip],
+          ].map(([label, value]) => (
+            <Text key={label} style={styles.reviewTextSmall}>
+              {label}: {value || "-"}
+            </Text>
+          ))}
         </View>
       </View>
     </>
   );
 
+  // ─── STEP 4: Success ─────────────────────────────────────
   const renderStep4 = () => (
     <View style={styles.successContainer}>
       <Text style={styles.successTitle}>Success!</Text>
-      <Text style={styles.successSubtitle}>We sent a verification link to your email</Text>
+      <Text style={styles.successSubtitle}>
+        We sent a verification link to {form.email}
+      </Text>
       <View style={styles.successBadge}>
         <Ionicons name="checkmark" size={72} color="#fff" />
       </View>
-      <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate("Login")}> 
-        <Text style={styles.primaryButtonText}>Continue</Text>
+      <TouchableOpacity
+        style={styles.primaryButton}
+        onPress={() => navigation.navigate("Login")}
+      >
+        <Text style={styles.primaryButtonText}>Go to Login</Text>
       </TouchableOpacity>
     </View>
   );
@@ -752,6 +775,7 @@ export default function SignupScreen({ navigation }) {
       style={styles.screen}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
+      {/* Header */}
       <View style={styles.headerContainer}>
         <TouchableOpacity style={styles.backButton} onPress={backStep}>
           <Ionicons name="arrow-back" size={20} color="#fff" />
@@ -775,6 +799,12 @@ export default function SignupScreen({ navigation }) {
         <Animated.View style={[styles.card, { opacity: stepFade, transform: [{ translateY: stepSlide }] }]}>
           {renderStepContent()}
         </Animated.View>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.card}>{renderStepContent()}</View>
+
         {step < 4 ? (
           <TouchableOpacity
             style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
@@ -782,31 +812,36 @@ export default function SignupScreen({ navigation }) {
             disabled={loading}
           >
             <Text style={styles.primaryButtonText}>
-              {step === 3 ? (loading ? "Registering..." : "Register Account") : "Next Step →"}
+              {step === 3
+                ? loading ? "Registering..." : "Register Account"
+                : loading ? "Validating..." : "Next Step →"}
             </Text>
           </TouchableOpacity>
         ) : null}
       </ScrollView>
 
+      {/* Picker Modal — single instance, reused for all pickers */}
       <PickerModal
-        visible={pickerVisible}
-        title={pickerTitle}
-        options={pickerOptions}
-        selected={pickerValue}
-        onSelect={(value) => pickerOnSelect(value)}
-        onClose={() => setPickerVisible(false)}
+        visible={pickerConfig.visible}
+        title={pickerConfig.title}
+        options={pickerConfig.options}
+        selected={form[pickerConfig.field]}
+        onSelect={(value) => updateField(pickerConfig.field, value)}
+        onClose={closePicker}
       />
 
+      {/* Date Picker Modal */}
       <DatePickerModal
         visible={datePickerVisible}
         date={new Date()}
-        onConfirm={(date) => setForm({ ...form, birthday: formatDate(date.toISOString()) })}
+        onConfirm={(date) => updateField("birthday", formatDate(date))}
         onClose={() => setDatePickerVisible(false)}
       />
     </KeyboardAvoidingView>
   );
 }
 
+// ─── STYLES (unchanged from your original) ───────────────────
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f8f9fc" },
   headerContainer: {
@@ -844,6 +879,14 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 6,
   },
+    width: 38, height: 38, borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center", alignItems: "center", marginBottom: 14,
+  },
+  title: { fontSize: 28, fontWeight: "700", color: "#fff" },
+  subtitle: { fontSize: 14, color: "rgba(255,255,255,0.75)", marginTop: 6 },
+  stepsRow: { flexDirection: "row", marginTop: 18, gap: 10 },
+  stepDot: { width: 40, height: 6, borderRadius: 4, marginRight: 6 },
   stepDotActive: { backgroundColor: "#fff" },
   stepDotInactive: { backgroundColor: "rgba(255,255,255,0.3)" },
   container: { padding: 20, paddingBottom: 40 },
@@ -884,6 +927,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 2,
+    backgroundColor: "#fff", borderRadius: 18, padding: 18,
+    marginTop: -28, marginBottom: 18,
+    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 }, elevation: 5,
+  },
+  sectionTitle: { fontSize: 18, fontWeight: "700", color: "#3d4076", marginBottom: 12 },
+  sectionSubtitle: { fontSize: 13, color: "#667084", marginBottom: 14 },
+  field: { marginBottom: 16 },
+  photoRow: { flexDirection: "row", alignItems: "center", marginBottom: 18 },
+  avatarWrapper: {
+    width: 82, height: 82, borderRadius: 18,
+    backgroundColor: "rgba(91,95,151,0.15)",
+    justifyContent: "center", alignItems: "center", marginRight: 16,
   },
   avatar: { width: 86, height: 86, borderRadius: 43 },
   uploadButton: {
@@ -895,6 +951,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "#dbe2f6",
+    flex: 1, borderRadius: 14, backgroundColor: "#5b5f97",
+    paddingVertical: 12, alignItems: "center", justifyContent: "center",
   },
   uploadButtonText: { color: "#4f5fc5", fontWeight: "800", fontSize: 14 },
   label: { fontSize: 13, fontWeight: "700", color: "#1c2131", marginBottom: 8 },
@@ -906,6 +964,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 12,
     paddingHorizontal: 16,
+    flexDirection: "row", alignItems: "center",
+    borderWidth: 1, borderColor: "#e0e0e0",
+    backgroundColor: "#fff", borderRadius: 12, paddingHorizontal: 12,
+  },
+  // For TextInputs that don't use inputWrapper (standalone)
+  standaloneInput: {
+    borderWidth: 1, borderColor: "#e0e0e0",
+    borderRadius: 12, paddingHorizontal: 12,
+    height: 48, color: "#111", fontSize: 14,
   },
   input: { flex: 1, height: Platform.OS === "ios" ? 54 : 50, color: "#111", fontSize: 15 },
   icon: { marginRight: 12 },
@@ -913,6 +980,15 @@ const styles = StyleSheet.create({
   inputError: { borderColor: "#dc2626", backgroundColor: "#fffcfc" },
   hintText: { fontSize: 12, color: "#7f88a3", marginTop: 6, fontWeight: "500" },
   errorText: { color: "#dc2626", fontSize: 12, marginTop: 6, fontWeight: "600" },
+  inputError: { borderColor: "#dc2626" },
+  hintText: { fontSize: 12, color: "#666", marginTop: 6 },
+  errorText: { color: "#dc2626", fontSize: 12, marginTop: 6 },
+  generalError: {
+    backgroundColor: "#fef2f2", borderRadius: 10,
+    padding: 12, marginBottom: 14,
+    borderWidth: 1, borderColor: "#fecaca",
+  },
+  generalErrorText: { color: "#dc2626", fontSize: 13 },
   rowFields: { flexDirection: "row" },
   flex1: { flex: 1 },
   ml12: { marginLeft: 16 },
@@ -926,6 +1002,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     shadowRadius: 12,
     elevation: 4,
+    backgroundColor: "#5b5f97", paddingVertical: 14,
+    borderRadius: 14, alignItems: "center",
   },
   primaryButtonDisabled: { opacity: 0.7, shadowOpacity: 0 },
   primaryButtonText: { color: "#fff", fontWeight: "800", fontSize: 16, letterSpacing: 0.5 },
@@ -936,6 +1014,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#eff1f8",
     marginTop: 6,
+    backgroundColor: "#fff", borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: "rgba(0,0,0,0.05)", marginTop: 10,
   },
   reviewRow: { flexDirection: "row", alignItems: "center", marginBottom: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#eff1f8" },
   reviewAvatar: {
@@ -954,6 +1034,16 @@ const styles = StyleSheet.create({
   reviewSection: { marginTop: 16 },
   reviewHeading: { fontSize: 14, fontWeight: "900", color: "#4f5fc5", marginBottom: 12 },
   reviewTextSmall: { fontSize: 13, color: "#222", marginBottom: 8, fontWeight: "600" },
+    width: 60, height: 60, borderRadius: 18,
+    backgroundColor: "rgba(91,95,151,0.15)",
+    justifyContent: "center", alignItems: "center", marginRight: 12,
+  },
+  reviewAvatarImage: { width: 46, height: 46, borderRadius: 12 },
+  reviewTitle: { fontSize: 13, fontWeight: "700", color: "#3d4076" },
+  reviewText: { fontSize: 13, color: "#333", marginTop: 4 },
+  reviewSection: { marginTop: 14 },
+  reviewHeading: { fontSize: 14, fontWeight: "700", color: "#3d4076", marginBottom: 8 },
+  reviewTextSmall: { fontSize: 12, color: "#333", marginBottom: 4 },
   successContainer: { alignItems: "center", paddingVertical: 40 },
   successTitle: { fontSize: 32, fontWeight: "900", color: "#4f5ec4", marginBottom: 12, textAlign: "center" },
   successSubtitle: { fontSize: 15, color: "#6e7798", marginBottom: 32, textAlign: "center", fontWeight: "500", lineHeight: 22 },
@@ -970,55 +1060,34 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
     elevation: 4,
+    width: 160, height: 160, borderRadius: 100,
+    backgroundColor: "#5b5f97",
+    justifyContent: "center", alignItems: "center", marginBottom: 30,
   },
 });
 
 const modalStyles = StyleSheet.create({
   overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
+    flex: 1, backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "center", alignItems: "center", padding: 24,
   },
   modal: {
-    width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 16,
-    maxHeight: "85%",
+    width: "100%", backgroundColor: "#fff",
+    borderRadius: 18, padding: 16, maxHeight: "85%",
   },
-  dateModal: {
-    width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 16,
-  },
+  dateModal: { width: "100%", backgroundColor: "#fff", borderRadius: 18, padding: 16 },
   modalTitle: { fontSize: 16, fontWeight: "700", marginBottom: 12, color: "#3d4076" },
-  option: {
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    marginBottom: 6,
-  },
+  option: { paddingVertical: 12, paddingHorizontal: 12, borderRadius: 14, marginBottom: 6 },
   optionSelected: { backgroundColor: "rgba(91,95,151,0.12)" },
   optionText: { fontSize: 14, color: "#333" },
   optionTextSelected: { fontWeight: "700", color: "#3d4076" },
-  closeArea: {
-    marginTop: 8,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  closeArea: { marginTop: 8, height: 40, alignItems: "center", justifyContent: "center" },
   pickerRow: { flexDirection: "row", justifyContent: "space-between" },
   pickerColumn: { width: "30%", maxHeight: 260 },
   buttonRow: { flexDirection: "row", justifyContent: "flex-end", marginTop: 14 },
   modalButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: "rgba(91,95,151,0.12)",
-    marginLeft: 8,
+    paddingVertical: 10, paddingHorizontal: 14,
+    borderRadius: 12, backgroundColor: "rgba(91,95,151,0.12)", marginLeft: 8,
   },
   modalButtonText: { color: "#3d4076", fontWeight: "700" },
   yearPickerModal: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
@@ -1035,10 +1104,6 @@ const modalStyles = StyleSheet.create({
 const strengthStyles = StyleSheet.create({
   container: { marginTop: 8, alignItems: "flex-start" },
   barContainer: { flexDirection: "row", gap: 4 },
-  bar: { height: 4, borderRadius: 2, flex: 1, backgroundColor: "#e0e0e0" },
-  bar1: { width: "23%" },
-  bar2: { width: "23%" },
-  bar3: { width: "23%" },
-  bar4: { width: "23%" },
+  bar: { height: 4, width: "23%", borderRadius: 2, backgroundColor: "#e0e0e0" },
   label: { fontSize: 12, fontWeight: "600", marginTop: 6 },
 });
