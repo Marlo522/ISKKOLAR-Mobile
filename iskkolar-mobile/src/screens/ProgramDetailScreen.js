@@ -5,9 +5,9 @@ import { Ionicons } from "@expo/vector-icons";
 const eligibility = [
   "Filipino Citizen",
   "Incoming or Current College Student",
-  "GWA 85% or 2.25 Above",
-  "Public State University",
-  "Family income should not exceed Thirty Thousand Pesos",
+  "GWA 85% and above",
+  "Public University / State University",
+  "Family income should not exceed Thirty Thousand Pesos (₱30,000) monthly",
 ];
 
 const forms = [
