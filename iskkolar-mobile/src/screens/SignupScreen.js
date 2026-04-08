@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import * as ImagePicker from "expo-image-picker";
 import {
   View,
   Text,
@@ -19,7 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useSignup } from "../hooks/useSignup";
 
-const GENDER_OPTIONS = ["Male", "Female", "Prefer not to say"];
+const GENDER_OPTIONS = ["Male", "Female"];
 const CIVIL_STATUS_OPTIONS = ["Single", "Married"];
 const CITIZENSHIP_OPTIONS = ["Filipino", "Others"];
 const STEP_TITLES = [
@@ -77,27 +76,6 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose }) {
             <Text style={modalStyles.yearPickerTitle}>{title}</Text>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={24} color="#4f5fc5" />
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={modalStyles.overlay}>
-        <View style={modalStyles.modal}>
-          <Text style={modalStyles.modalTitle}>{title}</Text>
-          {options.map((option) => (
-            <TouchableOpacity
-              key={option}
-              style={[
-                modalStyles.option,
-                option === selected ? modalStyles.optionSelected : null,
-              ]}
-              onPress={() => { onSelect(option); onClose(); }}
-            >
-              <Text
-                style={[
-                  modalStyles.optionText,
-                  option === selected ? modalStyles.optionTextSelected : null,
-                ]}
-              >
-                {option}
-              </Text>
             </TouchableOpacity>
           </View>
           <ScrollView style={modalStyles.yearPickerScroll} showsVerticalScrollIndicator={true}>
@@ -211,10 +189,16 @@ function DatePickerModal({ visible, date, onConfirm, onClose }) {
 export default function SignupScreen({ navigation }) {
   // All logic lives in the hook
   const {
-    step, loading, form, errors,
-    updateField, nextStep, backStep, handleRegister, formatDate,
+    step, loading, form, errors, addressData,
+    updateField, nextStep, backStep, handleRegister, formatDate, fetchProvinces,
     GENDER_OPTIONS, CITIZENSHIP_OPTIONS, CIVIL_STATUS_OPTIONS, STEP_TITLES,
   } = useSignup(navigation);
+
+  useEffect(() => {
+    if (step === 2 && addressData.provinces.length === 0) {
+      fetchProvinces();
+    }
+  }, [step]);
 
   // Local UI-only state (modals don't belong in the hook)
   const [showPassword, setShowPassword] = useState(false);
@@ -240,51 +224,10 @@ export default function SignupScreen({ navigation }) {
     }).start();
   }, [step]);
 
-  const [form, setForm] = useState({
-    profilePhoto: null,
-    email: "",
-    password: "",
-    confirmPassword: "",
-    firstName: "",
-    middleName: "",
-    lastName: "",
-    suffix: "",
-    birthday: "",
-    gender: "",
-    civilStatus: "",
-    citizenship: "",
-    otherCitizenship: "",
-    mobile: "",
-    facebook: "",
-    street: "",
-    barangay: "",
-    city: "",
-    province: "",
-    country: "",
-    zip: "",
   const [pickerConfig, setPickerConfig] = useState({
     visible: false, title: "", options: [], field: "",
   });
 
-  const setProfilePhoto = async () => {
-    if (form.profilePhoto) {
-      setForm((prev) => ({ ...prev, profilePhoto: null }));
-      return;
-    }
-
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      setForm((prev) => ({
-        ...prev,
-        profilePhoto: { uri: result.assets[0].uri },
-      }));
-    }
   const openPicker = (title, options, field) => {
     setPickerConfig({ visible: true, title, options, field });
   };
@@ -406,14 +349,26 @@ export default function SignupScreen({ navigation }) {
             style={styles.avatar}
           />
         </View>
-        <TouchableOpacity
-          style={styles.uploadButton}
-          onPress={pickProfilePhoto}
-        >
-          <Text style={styles.uploadButtonText}>
-            {form.profilePhoto?.uri ? "Change Photo" : "Add Profile Photo"}
-          </Text>
-        </TouchableOpacity>
+        <View style={{ flex: 1, gap: 10 }}>
+          <TouchableOpacity
+            style={styles.uploadButton}
+            onPress={pickProfilePhoto}
+          >
+            <Text style={styles.uploadButtonText}>
+              {form.profilePhoto?.uri ? "Change Photo" : "Add Profile Photo"}
+            </Text>
+          </TouchableOpacity>
+          {form.profilePhoto?.uri && (
+            <TouchableOpacity
+              style={[styles.uploadButton, { backgroundColor: "#fee2e2", borderWidth: 0 }]}
+              onPress={() => updateField("profilePhoto", null)}
+            >
+              <Text style={[styles.uploadButtonText, { color: "#ef4444" }]}>
+                Remove Photo
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <View style={styles.field}>
@@ -495,12 +450,6 @@ export default function SignupScreen({ navigation }) {
         <View style={[styles.field, styles.flex1]}>
           <Text style={styles.label}>Civil Status</Text>
           <TouchableOpacity
-            style={styles.inputWrapper}
-            onPress={() =>
-              showPicker("Select status", CIVIL_STATUS_OPTIONS, form.civilStatus, (value) =>
-                setForm({ ...form, civilStatus: value })
-              )
-            }
             style={[styles.inputWrapper, errors.civilStatus && styles.inputError]}
             onPress={() => openPicker("Select civil status", CIVIL_STATUS_OPTIONS, "civilStatus")}
           >
@@ -515,16 +464,6 @@ export default function SignupScreen({ navigation }) {
         <View style={[styles.field, styles.flex1, styles.ml12]}>
           <Text style={styles.label}>Citizenship</Text>
           <TouchableOpacity
-            style={styles.inputWrapper}
-            onPress={() =>
-              showPicker("Select citizenship", CITIZENSHIP_OPTIONS, form.citizenship, (value) =>
-                setForm({
-                  ...form,
-                  citizenship: value,
-                  otherCitizenship: value !== "Others" ? "" : form.otherCitizenship,
-                })
-              )
-            }
             style={[styles.inputWrapper, errors.citizenship && styles.inputError]}
             onPress={() => openPicker("Select citizenship", CITIZENSHIP_OPTIONS, "citizenship")}
           >
@@ -538,14 +477,8 @@ export default function SignupScreen({ navigation }) {
       </View>
 
       {form.citizenship === "Others" && (
-        <View style={styles.field}>
-          <Text style={styles.label}>Please specify citizenship</Text>
-          <TextInput
-            value={form.otherCitizenship}
-            onChangeText={(value) => setForm({ ...form, otherCitizenship: value })}
-            placeholder="Enter citizenship"
-            style={styles.input}
-          />
+        <View style={styles.generalError}>
+          <Text style={styles.generalErrorText}>You must be a Filipino citizen to apply for an ISKKOLAR scholarship.</Text>
         </View>
       )}
     </>
@@ -600,49 +533,58 @@ export default function SignupScreen({ navigation }) {
         {errors.street ? <Text style={styles.errorText}>{errors.street}</Text> : null}
       </View>
 
+      <View style={styles.field}>
+        <Text style={styles.label}>Province</Text>
+        <TouchableOpacity
+          style={[styles.inputWrapper, errors.province && styles.inputError]}
+          onPress={() => openPicker("Select province", addressData.provinces.map(p => p.name), "province")}
+        >
+          <Text style={[styles.input, { paddingVertical: 14, color: form.province ? '#111' : '#999' }]}>
+            {form.province || "Select province"}
+          </Text>
+          <Ionicons name="chevron-down" size={18} color="#999" />
+        </TouchableOpacity>
+        {errors.province ? <Text style={styles.errorText}>{errors.province}</Text> : null}
+      </View>
+
       <View style={styles.rowFields}>
         <View style={[styles.field, styles.flex1]}>
-          <Text style={styles.label}>Barangay</Text>
-          <TextInput
-            value={form.barangay}
-            onChangeText={(v) => updateField("barangay", v)}
-            placeholder="Barangay"
-            style={[styles.input, styles.standaloneInput, errors.barangay && styles.inputError]}
-          />
-          {errors.barangay ? <Text style={styles.errorText}>{errors.barangay}</Text> : null}
-        </View>
-        <View style={[styles.field, styles.flex1, styles.ml12]}>
-          <Text style={styles.label}>City</Text>
-          <TextInput
-            value={form.city}
-            onChangeText={(v) => updateField("city", v)}
-            placeholder="City"
-            style={[styles.input, styles.standaloneInput, errors.city && styles.inputError]}
-          />
+          <Text style={styles.label}>City/Municipality</Text>
+          <TouchableOpacity
+            style={[styles.inputWrapper, errors.city && styles.inputError]}
+            onPress={() => openPicker("Select city", addressData.cities.map(c => c.name), "city")}
+          >
+            <Text style={[styles.input, { paddingVertical: 14, color: form.city ? '#111' : '#999' }]}>
+              {form.city || "Select city"}
+            </Text>
+            <Ionicons name="chevron-down" size={18} color="#999" />
+          </TouchableOpacity>
           {errors.city ? <Text style={styles.errorText}>{errors.city}</Text> : null}
+        </View>
+
+        <View style={[styles.field, styles.flex1, styles.ml12]}>
+          <Text style={styles.label}>Barangay</Text>
+          <TouchableOpacity
+            style={[styles.inputWrapper, errors.barangay && styles.inputError]}
+            onPress={() => openPicker("Select barangay", addressData.barangays.map(b => b.name), "barangay")}
+          >
+            <Text style={[styles.input, { paddingVertical: 14, color: form.barangay ? '#111' : '#999' }]}>
+              {form.barangay || "Select barangay"}
+            </Text>
+            <Ionicons name="chevron-down" size={18} color="#999" />
+          </TouchableOpacity>
+          {errors.barangay ? <Text style={styles.errorText}>{errors.barangay}</Text> : null}
         </View>
       </View>
 
       <View style={styles.rowFields}>
         <View style={[styles.field, styles.flex1]}>
-          <Text style={styles.label}>Province</Text>
-          <TextInput
-            value={form.province}
-            onChangeText={(v) => updateField("province", v)}
-            placeholder="Province"
-            style={[styles.input, styles.standaloneInput, errors.province && styles.inputError]}
-          />
-          {errors.province ? <Text style={styles.errorText}>{errors.province}</Text> : null}
-        </View>
-        <View style={[styles.field, styles.flex1, styles.ml12]}>
           <Text style={styles.label}>Country</Text>
           <TextInput
-            value={form.country}
-            onChangeText={(v) => updateField("country", v)}
-            placeholder="Country"
-            style={[styles.input, styles.standaloneInput, errors.country && styles.inputError]}
+            value="Philippines"
+            editable={false}
+            style={[styles.input, styles.standaloneInput, { backgroundColor: '#f0f0f0', color: '#666' }]}
           />
-          {errors.country ? <Text style={styles.errorText}>{errors.country}</Text> : null}
         </View>
       </View>
 
@@ -799,17 +741,15 @@ export default function SignupScreen({ navigation }) {
         <Animated.View style={[styles.card, { opacity: stepFade, transform: [{ translateY: stepSlide }] }]}>
           {renderStepContent()}
         </Animated.View>
-      <ScrollView
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.card}>{renderStepContent()}</View>
 
         {step < 4 ? (
           <TouchableOpacity
-            style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
+            style={[
+              styles.primaryButton,
+              (loading || (step === 1 && form.citizenship === "Others")) && styles.primaryButtonDisabled
+            ]}
             onPress={step === 3 ? handleRegister : nextStep}
-            disabled={loading}
+            disabled={loading || (step === 1 && form.citizenship === "Others")}
           >
             <Text style={styles.primaryButtonText}>
               {step === 3
@@ -858,27 +798,6 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  title: { fontSize: 32, fontWeight: "900", color: "#fff", letterSpacing: -0.5 },
-  subtitle: { fontSize: 15, color: "rgba(255,255,255,0.85)", marginTop: 6, fontWeight: "500" },
-  stepsRow: {
-    flexDirection: "row",
-    marginTop: 24,
-    gap: 8,
-  },
-  stepDot: {
-    height: 6,
-    borderRadius: 4,
-    flex: 1,
-    marginRight: 6,
-  },
     width: 38, height: 38, borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.2)",
     justifyContent: "center", alignItems: "center", marginBottom: 14,
@@ -904,34 +823,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#eff1f8",
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "900",
-    color: "#4f5fc5",
-    marginBottom: 16,
-  },
-  sectionSubtitle: { fontSize: 13, color: "#7f88a3", marginBottom: 16, fontWeight: "600" },
-  field: { marginBottom: 18 },
-  photoRow: { flexDirection: "row", alignItems: "center", marginBottom: 24 },
-  avatarWrapper: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: "#eff1f8",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 20,
-    borderWidth: 2,
-    borderColor: "#fff",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-    backgroundColor: "#fff", borderRadius: 18, padding: 18,
-    marginTop: -28, marginBottom: 18,
-    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 }, elevation: 5,
-  },
   sectionTitle: { fontSize: 18, fontWeight: "700", color: "#3d4076", marginBottom: 12 },
   sectionSubtitle: { fontSize: 13, color: "#667084", marginBottom: 14 },
   field: { marginBottom: 16 },
@@ -943,32 +834,16 @@ const styles = StyleSheet.create({
   },
   avatar: { width: 86, height: 86, borderRadius: 43 },
   uploadButton: {
-    flex: 1,
-    borderRadius: 14,
-    backgroundColor: "#eef1fc",
-    paddingVertical: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#dbe2f6",
     flex: 1, borderRadius: 14, backgroundColor: "#5b5f97",
     paddingVertical: 12, alignItems: "center", justifyContent: "center",
   },
-  uploadButtonText: { color: "#4f5fc5", fontWeight: "800", fontSize: 14 },
+  uploadButtonText: { color: "#fff", fontWeight: "800", fontSize: 14 },
   label: { fontSize: 13, fontWeight: "700", color: "#1c2131", marginBottom: 8 },
   inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#a9b1c0",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingHorizontal: 16,
     flexDirection: "row", alignItems: "center",
     borderWidth: 1, borderColor: "#e0e0e0",
     backgroundColor: "#fff", borderRadius: 12, paddingHorizontal: 12,
   },
-  // For TextInputs that don't use inputWrapper (standalone)
   standaloneInput: {
     borderWidth: 1, borderColor: "#e0e0e0",
     borderRadius: 12, paddingHorizontal: 12,
@@ -977,9 +852,6 @@ const styles = StyleSheet.create({
   input: { flex: 1, height: Platform.OS === "ios" ? 54 : 50, color: "#111", fontSize: 15 },
   icon: { marginRight: 12 },
   eyeButton: { padding: 8 },
-  inputError: { borderColor: "#dc2626", backgroundColor: "#fffcfc" },
-  hintText: { fontSize: 12, color: "#7f88a3", marginTop: 6, fontWeight: "500" },
-  errorText: { color: "#dc2626", fontSize: 12, marginTop: 6, fontWeight: "600" },
   inputError: { borderColor: "#dc2626" },
   hintText: { fontSize: 12, color: "#666", marginTop: 6 },
   errorText: { color: "#dc2626", fontSize: 12, marginTop: 6 },
@@ -993,52 +865,23 @@ const styles = StyleSheet.create({
   flex1: { flex: 1 },
   ml12: { marginLeft: 16 },
   primaryButton: {
-    backgroundColor: "#5b61a7",
-    paddingVertical: 18,
-    borderRadius: 14,
-    alignItems: "center",
-    shadowColor: "#2d3a7c",
-    shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 12,
-    elevation: 4,
     backgroundColor: "#5b5f97", paddingVertical: 14,
     borderRadius: 14, alignItems: "center",
   },
   primaryButtonDisabled: { opacity: 0.7, shadowOpacity: 0 },
   primaryButtonText: { color: "#fff", fontWeight: "800", fontSize: 16, letterSpacing: 0.5 },
   reviewCard: {
-    backgroundColor: "#fbfbff",
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#eff1f8",
-    marginTop: 6,
     backgroundColor: "#fff", borderRadius: 16, padding: 16,
     borderWidth: 1, borderColor: "rgba(0,0,0,0.05)", marginTop: 10,
   },
   reviewRow: { flexDirection: "row", alignItems: "center", marginBottom: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#eff1f8" },
   reviewAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#eff1f8",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  reviewAvatarImage: { width: 60, height: 60, borderRadius: 30 },
-  reviewInfo: { flex: 1 },
-  reviewTitle: { fontSize: 15, fontWeight: "900", color: "#111" },
-  reviewText: { fontSize: 13, color: "#7a82a0", marginTop: 4, fontWeight: "500" },
-  reviewSection: { marginTop: 16 },
-  reviewHeading: { fontSize: 14, fontWeight: "900", color: "#4f5fc5", marginBottom: 12 },
-  reviewTextSmall: { fontSize: 13, color: "#222", marginBottom: 8, fontWeight: "600" },
     width: 60, height: 60, borderRadius: 18,
     backgroundColor: "rgba(91,95,151,0.15)",
     justifyContent: "center", alignItems: "center", marginRight: 12,
   },
   reviewAvatarImage: { width: 46, height: 46, borderRadius: 12 },
+  reviewInfo: { flex: 1 },
   reviewTitle: { fontSize: 13, fontWeight: "700", color: "#3d4076" },
   reviewText: { fontSize: 13, color: "#333", marginTop: 4 },
   reviewSection: { marginTop: 14 },
@@ -1048,18 +891,6 @@ const styles = StyleSheet.create({
   successTitle: { fontSize: 32, fontWeight: "900", color: "#4f5ec4", marginBottom: 12, textAlign: "center" },
   successSubtitle: { fontSize: 15, color: "#6e7798", marginBottom: 32, textAlign: "center", fontWeight: "500", lineHeight: 22 },
   successBadge: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "#29d0a5",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 40,
-    shadowColor: "#29d0a5",
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
     width: 160, height: 160, borderRadius: 100,
     backgroundColor: "#5b5f97",
     justifyContent: "center", alignItems: "center", marginBottom: 30,

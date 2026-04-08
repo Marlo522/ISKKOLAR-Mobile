@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   headerContainer: {
     backgroundColor: "#5b5f97",
     paddingTop: Platform.OS === "ios" ? 50 : 32,
-    paddingBottom: 24,
+    paddingBottom: 32,
     paddingHorizontal: 16,
   },
   backButton: {
@@ -276,12 +276,12 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 28, fontWeight: "700", color: "#fff" },
   subtitle: { fontSize: 14, color: "rgba(255,255,255,0.75)", marginTop: 6 },
-  container: { padding: 18, paddingBottom: 32 },
+  container: { padding: 18, paddingTop: 24, paddingBottom: 32 },
   card: {
     backgroundColor: "#fff",
     borderRadius: 18,
     padding: 18,
-    marginTop: -28,
+    marginTop: 0,
     marginBottom: 18,
     shadowColor: "#000",
     shadowOpacity: 0.08,

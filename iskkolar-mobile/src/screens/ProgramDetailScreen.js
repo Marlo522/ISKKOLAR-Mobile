@@ -5,9 +5,9 @@ import { Ionicons } from "@expo/vector-icons";
 const eligibility = [
   "Filipino Citizen",
   "Incoming or Current College Student",
-  "GWA 85% or 2.25 Above",
-  "Public State University",
-  "Family income should not exceed Thirty Thousand Pesos",
+  "GWA 85% and above",
+  "Public University / State University",
+  "Family income should not exceed Thirty Thousand Pesos (₱30,000) monthly",
 ];
 
 const forms = [
@@ -52,7 +52,7 @@ export default function ProgramDetailScreen({ navigation, route }) {
           <Text style={styles.cardIndicatorTitle}>BACKGROUND</Text>
         </View>
         <Text style={styles.cardText}>
-          KKFI believes the growth of its personnel is central to its mission. The SDEA empowers staff to enhance their skills while supporting the educational aspirations of their families.
+          KKFI believes the growth of its personnel is central to its mission. The Staff and Dependents Educational Assistance (SDEA) empowers staff to enhance their skills while supporting the educational aspirations of their families.
         </Text>
       </View>
 
