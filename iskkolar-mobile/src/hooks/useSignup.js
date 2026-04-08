@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { validateSignupStep, registerUser } from '../services/authService';
 
 // ─── CONSTANTS ───────────────────────────────────────────────
-export const GENDER_OPTIONS = ['Male', 'Female', 'Prefer not to say'];
+export const GENDER_OPTIONS = ['Male', 'Female'];
 export const CITIZENSHIP_OPTIONS = ['Filipino', 'Others'];
 export const CIVIL_STATUS_OPTIONS = ['Single', 'Married'];
 
@@ -33,7 +33,7 @@ const INITIAL_FORM = {
   barangay: '',
   city: '',
   province: '',
-  country: '',
+  country: 'Philippines',
   zip: '',              // stored as 'zip' in form, sent as 'zipCode' to backend
 };
 
@@ -205,13 +205,13 @@ export const useSignup = (navigation) => {
       if (field === 'province') {
         newState.city = '';
         newState.barangay = '';
-        
+
         // Find the province/NCR object to fetch its cities
         const prov = addressData.provinces.find(p => p.name === value);
         if (prov) fetchCities(prov.code, prov.isNcr);
       } else if (field === 'city') {
         newState.barangay = '';
-        
+
         // Find the city object to fetch its barangays
         const city = addressData.cities.find(c => c.name === value);
         if (city) fetchBarangays(city.code);

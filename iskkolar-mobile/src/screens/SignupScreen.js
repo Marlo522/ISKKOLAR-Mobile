@@ -18,7 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useSignup } from "../hooks/useSignup";
 
-const GENDER_OPTIONS = ["Male", "Female", "Prefer not to say"];
+const GENDER_OPTIONS = ["Male", "Female"];
 const CIVIL_STATUS_OPTIONS = ["Single", "Married"];
 const CITIZENSHIP_OPTIONS = ["Filipino", "Others"];
 const STEP_TITLES = [
