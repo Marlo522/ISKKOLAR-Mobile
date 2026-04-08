@@ -3,20 +3,24 @@ import { SafeAreaView, View, Text, StyleSheet, TextInput, TouchableOpacity, Scro
 import { Ionicons } from "@expo/vector-icons";
 
 const infoFields = {
+  educPath: "Tertiary",
   scholarshipType: "",
   fundType: "",
   incomingFreshman: "No",
   schoolName: "",
   strand: "STEM",
-  yearGraduated: "2023",
+  yearGraduated: "",
   universityName: "",
   program: "",
   termType: "Semester",
   gradeScale: "1.0 - 5.00 Grading System",
-  yearLevel: "3rd",
+  yearLevel: "1st",
   term: "1st",
-  secondaryYearGraduated: "2023",
+  secondaryYearGraduated: "",
   expectedGradYear: "",
+  prevSchoolName: "",
+  prevProgram: "",
+  prevYearGraduated: "",
   staffId: "",
   firstName: "",
   middleName: "",
@@ -37,8 +41,6 @@ const infoFields = {
   vocationalProgram: "",
   courseDuration: "5",
   completionDate: "May 22, 2026",
-  scholarshipType: "",
-  fundType: "",
 };
 
 export default function ProgramApplyScreen({ navigation, route }) {
@@ -210,13 +212,12 @@ export default function ProgramApplyScreen({ navigation, route }) {
           return (
             <View>
               <Text style={styles.sectionHeader}>Academic Information</Text>
-              {renderSelect("Scholarship Type", "scholarshipType", ["KKFI Employee-Child Education Grant", "KKFI Staff Grant"])}
-              {renderSelect("Scholarship Fund Type", "fundType", ["Scrantron Funded", "KKFI Funded"])}
-              {renderYesNo("Incoming Freshman", "incomingFreshman")}
+
+              {renderSelect("Education Path", "educPath", ["Tertiary", "Masters"])}
+              {renderYesNo("Incoming Freshman?", "incomingFreshman")}
 
               <Text style={styles.sectionHeader}>| Secondary Education</Text>
               {renderInput("School Name", "schoolName", "Enter School Name")}
-              
               <View style={styles.rowTwoCol}>
                 <View style={styles.colHalf}>
                   {renderSelect("Strand", "strand", ["STEM", "ABM", "HUMMS", "GAS", "TVL"])}
@@ -226,6 +227,15 @@ export default function ProgramApplyScreen({ navigation, route }) {
                 </View>
               </View>
               {renderUpload("Grade Report", "gradeReport")}
+
+              {values.educPath === "Masters" && (
+                <>
+                  <Text style={styles.sectionHeader}>| Previous Tertiary Education</Text>
+                  {renderInput("Previous School Name", "prevSchoolName", "Enter Previous School Name")}
+                  {renderInput("Previous Program", "prevProgram", "Enter Previous Program")}
+                  {renderYearPicker("Previous Year Graduated", "prevYearGraduated")}
+                </>
+              )}
 
               <Text style={styles.sectionHeader}>| Current Tertiary Education</Text>
               {renderInput("University / College Name", "universityName", "Enter School Name")}
@@ -243,7 +253,9 @@ export default function ProgramApplyScreen({ navigation, route }) {
               </View>
 
               {renderYearPicker("Expected Year of Graduation", "expectedGradYear")}
-
+              {values.expectedGradYear && values.expectedGradYear.length === 4 && parseInt(values.expectedGradYear) < 2026 && (
+                <Text style={{ color: "#e03a3a", fontSize: 12, marginTop: -6, marginBottom: 8 }}>Expected graduation year must be 2026 or later</Text>
+              )}
               {renderUpload("COR", "cor")}
               {values.incomingFreshman === "No" && renderUpload("Current Term Report Card", "currentTermGradeReport")}
             </View>
@@ -565,6 +577,9 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </View>
 
             {renderYearPicker("Expected Year of Graduation", "expectedGradYear")}
+            {values.expectedGradYear && values.expectedGradYear.length === 4 && parseInt(values.expectedGradYear) < 2026 && (
+              <Text style={{ color: "#e03a3a", fontSize: 12, marginTop: -6, marginBottom: 8 }}>Expected graduation year must be 2026 or later</Text>
+            )}
 
             {renderUpload("COR", "cor")}
             {values.incomingFreshman === "No" && renderUpload("Current Term Grade Report", "currentTermGradeReport")}
