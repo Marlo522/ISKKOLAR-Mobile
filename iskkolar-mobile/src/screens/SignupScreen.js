@@ -190,7 +190,8 @@ export default function SignupScreen({ navigation }) {
   // All logic lives in the hook
   const {
     step, loading, form, errors, addressData,
-    updateField, nextStep, backStep, handleRegister, formatDate, fetchProvinces,
+    resendCooldown, resendLoading, resendError, resendMessage,
+    updateField, nextStep, backStep, handleRegister, handleResendVerification, formatDate, fetchProvinces,
     GENDER_OPTIONS, CITIZENSHIP_OPTIONS, CIVIL_STATUS_OPTIONS, STEP_TITLES,
   } = useSignup(navigation);
 
@@ -238,7 +239,7 @@ export default function SignupScreen({ navigation }) {
     if (!permission.granted) return;
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       quality: 0.8,
     });
@@ -370,6 +371,9 @@ export default function SignupScreen({ navigation }) {
           )}
         </View>
       </View>
+      {errors.profilePhoto ? (
+        <Text style={[styles.errorText, { marginBottom: 16 }]}>{errors.profilePhoto}</Text>
+      ) : null}
 
       <View style={styles.field}>
         <Text style={styles.label}>First Name</Text>
@@ -502,7 +506,8 @@ export default function SignupScreen({ navigation }) {
           onChangeText={(v) => updateField("mobile", v.replace(/[^0-9]/g, ""))}
           placeholder="09XXXXXXXXX"
           style={[styles.input, styles.standaloneInput, errors.mobile && styles.inputError]}
-          keyboardType="phone-pad"
+          keyboardType="numeric"
+          maxLength={11}
         />
         {errors.mobile ? <Text style={styles.errorText}>{errors.mobile}</Text> : null}
       </View>
@@ -686,20 +691,48 @@ export default function SignupScreen({ navigation }) {
 
   // ─── STEP 4: Success ─────────────────────────────────────
   const renderStep4 = () => (
-    <View style={styles.successContainer}>
-      <Text style={styles.successTitle}>Success!</Text>
-      <Text style={styles.successSubtitle}>
-        We sent a verification link to {form.email}
+    <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 32, alignItems: 'center' }}>
+      <Text style={{ color: '#4F5288', fontSize: 30, fontWeight: 'bold', marginBottom: 8 }}>Success!</Text>
+      <Text style={{ color: '#6b7280', marginBottom: 32, textAlign: 'center', fontSize: 16 }}>
+        We sent a verification link to your email
       </Text>
-      <View style={styles.successBadge}>
-        <Ionicons name="checkmark" size={72} color="#fff" />
+      
+      <View style={{ width: 96, height: 96, borderRadius: 48, borderWidth: 4, borderColor: '#4F5288', alignItems: 'center', justifyContent: 'center', marginBottom: 32 }}>
+        <Ionicons name="checkmark" size={48} color="#4F5288" />
       </View>
+      
       <TouchableOpacity
-        style={styles.primaryButton}
+        style={{ backgroundColor: '#5b5f97', width: '100%', borderRadius: 8, paddingVertical: 14, alignItems: 'center' }}
         onPress={() => navigation.navigate("Login")}
       >
-        <Text style={styles.primaryButtonText}>Go to Login</Text>
+        <Text style={{ color: '#fff', fontWeight: '500', fontSize: 16 }}>Continue</Text>
       </TouchableOpacity>
+      
+      <TouchableOpacity
+        style={{
+          marginTop: 24,
+          paddingVertical: 8,
+          opacity: resendCooldown > 0 || resendLoading ? 0.5 : 1
+        }}
+        onPress={handleResendVerification}
+        disabled={resendCooldown > 0 || resendLoading}
+      >
+        <Text style={{ color: '#4F5288', fontWeight: '500', fontSize: 16 }}>
+          {resendLoading
+            ? "Sending..."
+            : resendCooldown > 0
+              ? `Resend available in ${resendCooldown}s`
+              : "Resend verification link"}
+        </Text>
+      </TouchableOpacity>
+
+      {resendMessage ? (
+        <Text style={{ color: '#10b981', marginTop: 16, fontSize: 14 }}>{resendMessage}</Text>
+      ) : null}
+
+      {resendError ? (
+        <Text style={{ color: '#ef4444', marginTop: 16, fontSize: 14 }}>{resendError}</Text>
+      ) : null}
     </View>
   );
 
