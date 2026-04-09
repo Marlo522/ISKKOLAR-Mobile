@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { loginUser, logoutUser, getCurrentUser } from '../services/authService';
+import * as SecureStore from 'expo-secure-store';
+import { login as authLogin, logout as authLogout, getCurrentUser } from '../services/authService';
 
 // ─── THE HOOK ─────────────────────────────────────────────────
 export const useAuth = (navigation) => {
@@ -14,16 +15,15 @@ export const useAuth = (navigation) => {
     setErrors({});
 
     try {
-      const res = await loginUser(email, password);
+      const res = await authLogin(email, password);
 
-      // Store token and user data persistently
-      await AsyncStorage.setItem('token', res.data.token);
-      await AsyncStorage.setItem('user', JSON.stringify(res.data));
+      // Store token securely and user data persistently
+      await SecureStore.setItemAsync('secure_token', res.token);
+      await AsyncStorage.setItem('user', JSON.stringify(res.user));
 
-      setUser(res.data);
+      setUser(res.user);
       navigation.replace('Dashboard'); // adjust to your actual route name
     } catch (err) {
-      // Handle specific backend error codes
       if (err.code === 'EMAIL_NOT_VERIFIED') {
         setErrors({
           general: 'Please verify your email before logging in. Check your inbox.',
@@ -31,10 +31,6 @@ export const useAuth = (navigation) => {
       } else if (err.code === 'ACCOUNT_INACTIVE') {
         setErrors({
           general: 'Your account is inactive. Please contact support.',
-        });
-      } else if (err.status === 401) {
-        setErrors({
-          general: 'Invalid email or password.',
         });
       } else {
         setErrors({
@@ -50,11 +46,11 @@ export const useAuth = (navigation) => {
   const logout = async () => {
     setLoading(true);
     try {
-      await logoutUser();
+      await authLogout();
     } catch {
       // Even if the server call fails, clear local data
     } finally {
-      await AsyncStorage.removeItem('token');
+      await SecureStore.deleteItemAsync('secure_token');
       await AsyncStorage.removeItem('user');
       setUser(null);
       setLoading(false);
@@ -67,7 +63,7 @@ export const useAuth = (navigation) => {
   const restoreSession = async () => {
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('token');
+      const token = await SecureStore.getItemAsync('secure_token');
       if (!token) {
         setLoading(false);
         return false;
@@ -75,12 +71,12 @@ export const useAuth = (navigation) => {
 
       // Verify token is still valid with backend
       const res = await getCurrentUser();
-      setUser(res.data);
+      setUser(res);
       setLoading(false);
       return true;
     } catch {
       // Token expired or invalid — clear storage
-      await AsyncStorage.removeItem('token');
+      await SecureStore.deleteItemAsync('secure_token');
       await AsyncStorage.removeItem('user');
       setLoading(false);
       return false;
