@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import api from "../services/api";
+import { getMyApplications as fetchMyApplications, validateTertiaryStep, submitTertiaryApplication } from "../services/tertiaryAppService";
 
 const FIELD_MAP = {
   scholarship_type: "scholarshipType",
@@ -81,18 +81,10 @@ const mapApiFieldToUiKey = (field) => {
 };
 
 const normalizeApiErrorShape = (err) => {
-  const fromWrapper = err || {};
-  const fromResponse = err?.response?.data || {};
   return {
-    status: fromWrapper.status ?? err?.response?.status,
-    message:
-      fromWrapper.message ||
-      fromResponse.message ||
-      "An unexpected error occurred.",
-    errors:
-      (Array.isArray(fromWrapper.errors) && fromWrapper.errors) ||
-      (Array.isArray(fromResponse.errors) && fromResponse.errors) ||
-      [],
+    status: err?.status,
+    message: err?.message || "An unexpected error occurred.",
+    errors: Array.isArray(err?.errors) ? err.errors : [],
   };
 };
 
@@ -111,90 +103,7 @@ export const useTertiaryApplication = () => {
     });
   }, []);
 
-  // All family member fields sent as empty strings — never null/undefined.
-  // Server decides what is required based on employment_status.
-  const buildFamilyMembers = (values, dynamicFamilyMembers) => {
-    const family = [
-      {
-        role: "father",
-        full_name: values.fatherName || "",
-        employment_status: values.fatherStatus || "",
-        occupation: values.fatherOccupation || "",
-        monthly_income: values.fatherIncome || "",
-        contact_number: values.fatherContact || "",
-      },
-      {
-        role: "mother",
-        full_name: values.motherName || "",
-        employment_status: values.motherStatus || "",
-        occupation: values.motherOccupation || "",
-        monthly_income: values.motherIncome || "",
-        contact_number: values.motherContact || "",
-      },
-    ];
 
-    (dynamicFamilyMembers || []).forEach((member) => {
-      family.push({
-        role: member.relationship || "",
-        full_name: member.name || "",
-        employment_status: member.status || "",
-        occupation: member.occupation || "",
-        monthly_income: member.income || "",
-        contact_number: member.contactNo || "",
-      });
-    });
-
-    return family;
-  };
-
-  const appendFile = (formData, apiField, file) => {
-    if (!file?.uri) return;
-    formData.append(apiField, {
-      uri: file.uri,
-      type: file.mimeType || file.type || "application/pdf",
-      name: file.name || file.fileName || apiField + ".pdf",
-    });
-  };
-
-  // All files appended unconditionally — server validates which are required.
-  const prepareFormData = (values, uploads, dynamicFamilyMembers) => {
-    const formData = new FormData();
-
-    formData.append("scholarship_type", values.scholarshipType || "");
-    formData.append("incoming_freshman", values.incomingFreshman === "Yes" ? "true" : "false");
-    formData.append("secondary_school", values.schoolName || "");
-    formData.append("strand", values.strand || "");
-    formData.append("year_graduated", values.yearGraduated || "");
-    formData.append("tertiary_school", values.universityName || "");
-    formData.append("program", values.program || "");
-    formData.append("term_type", values.termType || "");
-    formData.append("grade_scale", values.gradeScale || "");
-    formData.append("year_level", values.yearLevel || "");
-    formData.append("term", values.term || "");
-    formData.append("expected_graduation_year", values.expectedGradYear || "");
-
-    const familyMembers = buildFamilyMembers(values, dynamicFamilyMembers);
-    formData.append("family_members", JSON.stringify(familyMembers));
-
-    // Documents — all appended, server decides what's required per step
-    appendFile(formData, "cor", uploads.cor);
-    appendFile(formData, "grade_report", uploads.gradeReport);
-    appendFile(formData, "current_term_report", uploads.currentTermGradeReport);
-    appendFile(formData, "certificate_of_indigency", uploads.indigency);
-    appendFile(formData, "birth_certificate", uploads.birthCert);
-    appendFile(formData, "essay", uploads.essay);
-    appendFile(formData, "recommendation_letter", uploads.recommendation);
-    appendFile(formData, "income_cert_father", uploads.incomeFather);
-    appendFile(formData, "income_cert_mother", uploads.incomeMother);
-
-    // Dynamic member income certs — append all that exist in uploads
-    (dynamicFamilyMembers || []).forEach((_, idx) => {
-      const file = uploads["incomeMember_" + idx];
-      if (file) appendFile(formData, "income_cert_member_" + idx, file);
-    });
-
-    return formData;
-  };
 
   const handleApiError = (rawError) => {
     const err = normalizeApiErrorShape(rawError);
@@ -241,12 +150,7 @@ export const useTertiaryApplication = () => {
   };
 
   const getMyApplications = useCallback(async () => {
-    try {
-      const response = await api("/scholarships/tertiary/my-applications", { method: "GET" });
-      return response?.data || [];
-    } catch {
-      return [];
-    }
+    return await fetchMyApplications();
   }, []);
 
   // uiStep is the current 0-based step shown in the UI.
@@ -334,11 +238,7 @@ export const useTertiaryApplication = () => {
     // ---------------------------------------------------
 
     try {
-      const formData = prepareFormData(values, uploads, dynamicFamilyMembers);
-      await api("/scholarships/tertiary/validate-step?step=" + apiStep, {
-        method: "POST",
-        body: formData,
-      });
+      await validateTertiaryStep(apiStep, values, uploads, dynamicFamilyMembers);
       return true;
     } catch (err) {
       handleApiError(err);
@@ -353,11 +253,7 @@ export const useTertiaryApplication = () => {
     setQualificationOutcome(null);
 
     try {
-      const formData = prepareFormData(values, uploads, dynamicFamilyMembers);
-      const response = await api("/scholarships/tertiary/apply", {
-        method: "POST",
-        body: formData,
-      });
+      const response = await submitTertiaryApplication(values, uploads, dynamicFamilyMembers);
       if (response?.success && response?.data) {
         setQualificationOutcome(response.data);
       }

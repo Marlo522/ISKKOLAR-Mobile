@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { validateSignupStep, registerUser } from '../services/authService';
+import { useState, useEffect } from 'react';
+import { validateSignupStep, register, resendVerificationEmail } from '../services/authService';
 
 // ─── CONSTANTS ───────────────────────────────────────────────
 export const GENDER_OPTIONS = ['Male', 'Female'];
@@ -85,7 +85,7 @@ const buildStepPayload = (screenStep, form) => {
       citizenship: form.citizenship,
       // Include profilePhoto metadata so backend can validate it
       profilePhoto: form.profilePhoto
-        ? { uri: form.profilePhoto.uri, type: form.profilePhoto.mimeType, size: form.profilePhoto.fileSize }
+        ? { uri: form.profilePhoto.uri, type: form.profilePhoto.mimeType, size: form.profilePhoto.fileSize, name: form.profilePhoto.fileName }
         : null,
     };
   }
@@ -141,6 +141,19 @@ export const useSignup = (navigation) => {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(INITIAL_FORM);
   const [errors, setErrors] = useState({});
+
+  // ─── RESEND VERIFICATION STATE ───
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendError, setResendError] = useState("");
+  const [resendMessage, setResendMessage] = useState("");
+
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   // ─── PSGC ADDRESS STATE ───
   const [addressData, setAddressData] = useState({
@@ -277,7 +290,8 @@ export const useSignup = (navigation) => {
     setErrors({});
 
     try {
-      await registerUser(buildBackendPayload(form), form.profilePhoto);
+      const payload = { ...buildBackendPayload(form), profilePhoto: form.profilePhoto };
+      await register(payload);
       setStep(4); // success screen
     } catch (err) {
       if (err.errors && Array.isArray(err.errors)) {
@@ -293,6 +307,30 @@ export const useSignup = (navigation) => {
     }
   };
 
+  const handleResendVerification = async () => {
+    if (!form.email || resendCooldown > 0) {
+      return;
+    }
+
+    setResendLoading(true);
+    setResendError("");
+    setResendMessage("");
+
+    try {
+      const result = await resendVerificationEmail(form.email);
+      setResendMessage(result.message || "Verification email resent successfully.");
+      setResendCooldown(result.resendCooldownSeconds || 60);
+    } catch (error) {
+      if (error?.code === "VERIFICATION_RESEND_COOLDOWN") {
+        const retryAfter = Number(error?.data?.retryAfterSeconds) || 0;
+        setResendCooldown(retryAfter);
+      }
+      setResendError(error?.message || "Failed to resend verification email.");
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   return {
     // State
     step,
@@ -300,12 +338,17 @@ export const useSignup = (navigation) => {
     form,
     errors,
     addressData,
+    resendCooldown,
+    resendLoading,
+    resendError,
+    resendMessage,
 
     // Actions
     updateField,
     nextStep,
     backStep,
     handleRegister,
+    handleResendVerification,
     formatDate,
     fetchProvinces,
 
