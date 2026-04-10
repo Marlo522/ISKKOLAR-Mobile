@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSignup } from "../hooks/useSignup";
 
 const GENDER_OPTIONS = ["Male", "Female"];
@@ -68,24 +69,37 @@ function PasswordStrengthMeter({ password }) {
 
 // ─── PICKER MODAL ────────────────────────────────────────────
 function PickerModal({ visible, title, options, selected, onSelect, onClose }) {
+  const insets = useSafeAreaInsets();
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent>
       <View style={modalStyles.yearPickerModal}>
-        <View style={modalStyles.yearPickerContent}>
+        <TouchableOpacity 
+          activeOpacity={1} 
+          style={StyleSheet.absoluteFill} 
+          onPress={onClose} 
+        />
+        <View style={[modalStyles.yearPickerContent, { paddingBottom: Math.max(insets.bottom, 20) }]}>
           <View style={modalStyles.yearPickerHeader}>
             <Text style={modalStyles.yearPickerTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color="#4f5fc5" />
+            <TouchableOpacity onPress={onClose} style={modalStyles.closeBtn}>
+              <Ionicons name="close" size={24} color="#3d4076" />
             </TouchableOpacity>
           </View>
-          <ScrollView style={modalStyles.yearPickerScroll} showsVerticalScrollIndicator={true}>
-            <View style={{ flexDirection: "column", paddingBottom: 20 }}>
-              {options.map((option) => (
+          <ScrollView 
+            style={modalStyles.yearPickerScroll} 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          >
+            {options.length === 0 ? (
+              <View style={modalStyles.emptyState}>
+                <Text style={modalStyles.emptyText}>No options available</Text>
+              </View>
+            ) : (
+              options.map((option) => (
                 <TouchableOpacity
                   key={option}
                   style={[
                     modalStyles.yearPickerOption,
-                    { width: "100%", marginBottom: 8, paddingVertical: 14 },
                     option === selected ? modalStyles.yearPickerOptionActive : null,
                   ]}
                   onPress={() => {
@@ -101,9 +115,12 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose }) {
                   >
                     {option}
                   </Text>
+                  {option === selected && (
+                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                  )}
                 </TouchableOpacity>
-              ))}
-            </View>
+              ))
+            )}
           </ScrollView>
         </View>
       </View>
@@ -118,7 +135,7 @@ function DatePickerModal({ visible, date, onConfirm, onClose }) {
   const [day, setDay] = useState(date.getDate());
 
   const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 81 }, (_, i) => currentYear - i);
 
@@ -187,12 +204,12 @@ function DatePickerModal({ visible, date, onConfirm, onClose }) {
 
 // ─── MAIN SCREEN ─────────────────────────────────────────────
 export default function SignupScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   // All logic lives in the hook
   const {
     step, loading, form, errors, addressData,
     resendCooldown, resendLoading, resendError, resendMessage,
     updateField, nextStep, backStep, handleRegister, handleResendVerification, formatDate, fetchProvinces,
-    GENDER_OPTIONS, CITIZENSHIP_OPTIONS, CIVIL_STATUS_OPTIONS, STEP_TITLES,
   } = useSignup(navigation);
 
   useEffect(() => {
@@ -503,10 +520,19 @@ export default function SignupScreen({ navigation }) {
         <Text style={styles.label}>Mobile Number</Text>
         <TextInput
           value={form.mobile}
-          onChangeText={(v) => updateField("mobile", v.replace(/[^0-9]/g, ""))}
+          onFocus={() => {
+            if (!form.mobile) updateField("mobile", "09");
+          }}
+          onChangeText={(v) => {
+            let digits = v.replace(/[^0-9]/g, "");
+            if (!digits.startsWith("09")) {
+              digits = digits.startsWith("0") ? "09" + digits.slice(1) : "09" + digits;
+            }
+            updateField("mobile", digits.slice(0, 11));
+          }}
           placeholder="09XXXXXXXXX"
           style={[styles.input, styles.standaloneInput, errors.mobile && styles.inputError]}
-          keyboardType="numeric"
+          keyboardType="phone-pad"
           maxLength={11}
         />
         {errors.mobile ? <Text style={styles.errorText}>{errors.mobile}</Text> : null}
@@ -608,86 +634,98 @@ export default function SignupScreen({ navigation }) {
   );
 
   // ─── STEP 3: Review ──────────────────────────────────────
-  const renderStep3 = () => (
-    <>
-      <Text style={styles.sectionTitle}>Review Information</Text>
-      <Text style={styles.sectionSubtitle}>Check your details before submitting</Text>
-
-      {errors.general ? (
-        <View style={styles.generalError}>
-          <Text style={styles.generalErrorText}>{errors.general}</Text>
+  const renderStep3 = () => {
+    const renderReviewRow = (icon, label, value) => (
+      <View style={styles.reviewDataRow}>
+        <View style={styles.reviewIconWrapper}>
+          <Ionicons name={icon} size={16} color="#5b5f97" />
         </View>
-      ) : null}
+        <View style={styles.reviewDataText}>
+          <Text style={styles.reviewLabel}>{label}</Text>
+          <Text style={styles.reviewValue}>{value || "-"}</Text>
+        </View>
+      </View>
+    );
 
-      <View style={styles.reviewCard}>
-        <View style={styles.reviewRow}>
-          <View style={styles.reviewAvatar}>
-            <Image
-              source={
-                form.profilePhoto?.uri
-                  ? { uri: form.profilePhoto.uri }
-                  : require("../../assets/images/logo.png")
-              }
-              style={styles.reviewAvatarImage}
-            />
+    const renderReviewCard = (title, icon, items) => (
+      <View style={styles.newReviewSection}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.sectionIconWrapper}>
+            <Ionicons name={icon} size={18} color="#3d4076" />
           </View>
-          <View>
-            <Text style={styles.reviewTitle}>
-              {form.firstName} {form.lastName}
-            </Text>
-            <Text style={styles.reviewText}>{form.email}</Text>
-          </View>
+          <Text style={styles.newReviewHeading}>{title}</Text>
         </View>
-
-        <View style={styles.reviewSection}>
-          <Text style={styles.reviewHeading}>Personal Information</Text>
-          <Text style={styles.reviewTextSmall}>First Name: {form.firstName || "-"}</Text>
-          <Text style={styles.reviewTextSmall}>Middle Name: {form.middleName || "-"}</Text>
-          <Text style={styles.reviewTextSmall}>Last Name: {form.lastName || "-"}</Text>
-          <Text style={styles.reviewTextSmall}>Suffix: {form.suffix || "-"}</Text>
-          <Text style={styles.reviewTextSmall}>Birthday: {form.birthday || "-"}</Text>
-          <Text style={styles.reviewTextSmall}>Gender: {form.gender || "-"}</Text>
-          <Text style={styles.reviewTextSmall}>Civil Status: {form.civilStatus || "-"}</Text>
-          <Text style={styles.reviewTextSmall}>
-            Citizenship: {form.citizenship === "Others" ? form.otherCitizenship : form.citizenship || "-"}
-          </Text>
-          {[
-            ["First Name", form.firstName],
-            ["Middle Name", form.middleName],
-            ["Last Name", form.lastName],
-            ["Suffix", form.suffix],
-            ["Birthday", form.birthday],
-            ["Gender", form.gender],
-            ["Civil Status", form.civilStatus],
-            ["Citizenship", form.citizenship],
-          ].map(([label, value]) => (
-            <Text key={label} style={styles.reviewTextSmall}>
-              {label}: {value || "-"}
-            </Text>
-          ))}
-        </View>
-
-        <View style={styles.reviewSection}>
-          <Text style={styles.reviewHeading}>Contact Information</Text>
-          {[
-            ["Mobile", form.mobile],
-            ["Email", form.email],
-            ["Facebook", form.facebook],
-            ["Street", form.street],
-            ["Barangay", form.barangay],
-            ["City", form.city],
-            ["Province", form.province],
-            ["Country", form.country],
-            ["Zip Code", form.zip],
-          ].map(([label, value]) => (
-            <Text key={label} style={styles.reviewTextSmall}>
-              {label}: {value || "-"}
-            </Text>
+        <View style={styles.newReviewCard}>
+          {items.map(([iconName, label, value], idx) => (
+            <React.Fragment key={label}>
+              {renderReviewRow(iconName, label, value)}
+              {idx < items.length - 1 && <View style={styles.reviewDivider} />}
+            </React.Fragment>
           ))}
         </View>
       </View>
-    </>
-  );
+    );
+
+    return (
+      <View style={{ paddingBottom: 20 }}>
+        <Text style={styles.sectionTitle}>Review Information</Text>
+        <Text style={styles.sectionSubtitle}>Please review all details before completing your registration.</Text>
+
+        {errors.general ? (
+          <View style={styles.generalError}>
+            <Text style={styles.generalErrorText}>{errors.general}</Text>
+          </View>
+        ) : null}
+
+        {/* Profile Card */}
+        <View style={styles.identityCard}>
+          <View style={styles.identityLeft}>
+            <View style={styles.identityAvatar}>
+              <Image
+                source={
+                  form.profilePhoto?.uri
+                    ? { uri: form.profilePhoto.uri }
+                    : require("../../assets/images/logo.png")
+                }
+                style={styles.identityAvatarImage}
+                resizeMode="cover"
+              />
+            </View>
+          </View>
+          <View style={styles.identityRight}>
+            <Text style={styles.identityName} numberOfLines={1}>
+              {form.firstName} {form.lastName}
+            </Text>
+            <Text style={styles.identityEmail} numberOfLines={1}>{form.email}</Text>
+            <View style={styles.statusBadge}>
+              <View style={styles.dot} />
+              <Text style={styles.statusText}>Scholar Applicant</Text>
+            </View>
+          </View>
+        </View>
+
+        {renderReviewCard("Personal Information", "person-outline", [
+          ["calendar-outline", "Birthday", form.birthday],
+          ["male-female-outline", "Gender", form.gender],
+          ["heart-outline", "Civil Status", form.civilStatus],
+          ["flag-outline", "Citizenship", form.citizenship],
+        ])}
+
+        {renderReviewCard("Contact Details", "call-outline", [
+          ["phone-portrait-outline", "Mobile", form.mobile],
+          ["logo-facebook", "Facebook", form.facebook],
+        ])}
+
+        {renderReviewCard("Address Information", "location-outline", [
+          ["home-outline", "Street", form.street],
+          ["business-outline", "Barangay", form.barangay],
+          ["map-outline", "City/Municipality", form.city],
+          ["earth-outline", "Province", form.province],
+          ["mail-open-outline", "Zip Code", form.zip],
+        ])}
+      </View>
+    );
+  };
 
   // ─── STEP 4: Success ─────────────────────────────────────
   const renderStep4 = () => (
@@ -696,18 +734,18 @@ export default function SignupScreen({ navigation }) {
       <Text style={{ color: '#6b7280', marginBottom: 32, textAlign: 'center', fontSize: 16 }}>
         We sent a verification link to your email
       </Text>
-      
+
       <View style={{ width: 96, height: 96, borderRadius: 48, borderWidth: 4, borderColor: '#4F5288', alignItems: 'center', justifyContent: 'center', marginBottom: 32 }}>
         <Ionicons name="checkmark" size={48} color="#4F5288" />
       </View>
-      
+
       <TouchableOpacity
         style={{ backgroundColor: '#5b5f97', width: '100%', borderRadius: 8, paddingVertical: 14, alignItems: 'center' }}
         onPress={() => navigation.navigate("Login")}
       >
         <Text style={{ color: '#fff', fontWeight: '500', fontSize: 16 }}>Continue</Text>
       </TouchableOpacity>
-      
+
       <TouchableOpacity
         style={{
           marginTop: 24,
@@ -751,7 +789,7 @@ export default function SignupScreen({ navigation }) {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       {/* Header */}
-      <View style={styles.headerContainer}>
+      <View style={[styles.headerContainer, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity style={styles.backButton} onPress={backStep}>
           <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
@@ -819,7 +857,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f8f9fc" },
   headerContainer: {
     backgroundColor: "#5b61a7",
-    paddingTop: Platform.OS === "ios" ? 60 : 40,
+    paddingTop: 16,
     paddingBottom: 40,
     paddingHorizontal: 24,
     borderBottomLeftRadius: 32,
@@ -928,11 +966,60 @@ const styles = StyleSheet.create({
     backgroundColor: "#5b5f97",
     justifyContent: "center", alignItems: "center", marginBottom: 30,
   },
+  // Redesigned Review Styles
+  identityCard: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#eff1f8",
+    alignItems: "center",
+    shadowColor: "#3d4076",
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3
+  },
+  identityLeft: { marginRight: 16 },
+  identityAvatar: {
+    width: 76, height: 76, borderRadius: 38,
+    backgroundColor: "rgba(91,95,151,0.1)",
+    justifyContent: "center", alignItems: "center",
+    borderWidth: 3, borderColor: "#eff1f8"
+  },
+  identityAvatarImage: { width: 70, height: 70, borderRadius: 35 },
+  identityRight: { flex: 1 },
+  identityName: { fontSize: 20, fontWeight: "800", color: "#1c2131" },
+  identityEmail: { fontSize: 13, color: "#667084", marginTop: 2 },
+  statusBadge: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "rgba(91,95,151,0.1)",
+    alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 20, marginTop: 8
+  },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#5b5f97", marginRight: 6 },
+  statusText: { fontSize: 11, fontWeight: "700", color: "#5b5f97", textTransform: "uppercase" },
+  newReviewSection: { marginBottom: 24 },
+  sectionHeaderRow: { flexDirection: "row", alignItems: "center", marginBottom: 10, paddingLeft: 4 },
+  newReviewHeading: { fontSize: 16, fontWeight: "700", color: "#3d4076" },
+  newReviewCard: { backgroundColor: "#fff", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#eff1f8" },
+  reviewDataRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10 },
+  reviewIconWrapper: {
+    width: 32, height: 32, borderRadius: 10,
+    backgroundColor: "rgba(91,95,151,0.08)",
+    justifyContent: "center", alignItems: "center", marginRight: 12
+  },
+  reviewDataText: { flex: 1 },
+  reviewLabel: { fontSize: 12, fontWeight: "600", color: "#667084" },
+  reviewValue: { fontSize: 14, fontWeight: "700", color: "#1c2131", marginTop: 1 },
+  reviewDivider: { height: 1, backgroundColor: "#f1f3f9", marginLeft: 44 },
 });
 
 const modalStyles = StyleSheet.create({
   overlay: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.35)",
+    flex: 1, backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center", alignItems: "center", padding: 24,
   },
   modal: {
@@ -954,15 +1041,49 @@ const modalStyles = StyleSheet.create({
     borderRadius: 12, backgroundColor: "rgba(91,95,151,0.12)", marginLeft: 8,
   },
   modalButtonText: { color: "#3d4076", fontWeight: "700" },
-  yearPickerModal: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  yearPickerContent: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "80%", paddingTop: 16 },
-  yearPickerHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "#e4e8f8" },
-  yearPickerTitle: { fontSize: 18, fontWeight: "800", color: "#3d4fa0" },
-  yearPickerScroll: { paddingHorizontal: 16, paddingVertical: 12 },
-  yearPickerOption: { paddingVertical: 12, marginBottom: 8, borderRadius: 10, borderWidth: 1, borderColor: "#d7def8", backgroundColor: "#f8f9ff", alignItems: "center" },
-  yearPickerOptionActive: { backgroundColor: "#4f5fc5", borderColor: "#4f5fc5" },
-  yearPickerOptionText: { fontSize: 16, fontWeight: "700", color: "#4f5fc5" },
+  yearPickerModal: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
+  yearPickerContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    maxHeight: "80%",
+    width: "100%",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 25,
+    elevation: 25
+  },
+  yearPickerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eff1f8"
+  },
+  yearPickerTitle: { fontSize: 20, fontWeight: "900", color: "#1c2131" },
+  closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#f3f4f6", justifyContent: "center", alignItems: "center" },
+  yearPickerScroll: { paddingHorizontal: 24 },
+  yearPickerOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginBottom: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#eff1f8",
+    backgroundColor: "#fff",
+  },
+  yearPickerOptionActive: { backgroundColor: "#5b5f97", borderColor: "#5b5f97" },
+  yearPickerOptionText: { fontSize: 16, fontWeight: "700", color: "#3d4076" },
   yearPickerOptionTextActive: { color: "#fff" },
+  emptyState: { paddingVertical: 40, alignItems: "center" },
+  emptyText: { color: "#9ca3af", fontSize: 15, fontWeight: "600" },
+  sectionIconWrapper: { width: 32, height: 32, borderRadius: 10, backgroundColor: "rgba(91,95,151,0.1)", justifyContent: "center", alignItems: "center", marginRight: 10 },
 });
 
 const strengthStyles = StyleSheet.create({

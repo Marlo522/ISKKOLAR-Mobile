@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ActivitiesScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(20)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -24,9 +26,9 @@ export default function ActivitiesScreen({ navigation }) {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Top Profile Header */}
-      <View style={styles.landingHeaderTop}>
+      <View style={[styles.landingHeaderTop, { paddingTop: insets.top + 16 }]}>
         <View style={styles.profileRow}>
           <View style={styles.userIconWrapper}>
             <Ionicons name="person-outline" size={24} color="#6472d9" />
@@ -113,7 +115,7 @@ export default function ActivitiesScreen({ navigation }) {
         </View>
 
       </Animated.ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -124,7 +126,6 @@ const styles = StyleSheet.create({
   },
   landingHeaderTop: { 
     paddingHorizontal: 20, 
-    paddingTop: 16, 
     paddingBottom: 16, 
     borderBottomWidth: 1, 
     borderBottomColor: "#e4e8f8", 

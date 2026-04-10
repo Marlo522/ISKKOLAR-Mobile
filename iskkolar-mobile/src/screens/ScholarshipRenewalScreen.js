@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { SafeAreaView, View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert, Modal, Animated } from "react-native";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert, Modal, Animated } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function ScholarshipRenewalScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0);
   const [values, setValues] = useState({
     scholarshipType: "Nationwide Scholarship Program",
@@ -300,8 +302,8 @@ export default function ScholarshipRenewalScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.progressHeader}>
+    <View style={styles.container}>
+      <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity onPress={() => (step > 0 ? setStep(step - 1) : navigation.goBack())} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#5b6095" />
         </TouchableOpacity>
@@ -336,13 +338,13 @@ export default function ScholarshipRenewalScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fbfbfe" },
-  progressHeader: { flexDirection: "row", alignItems: "center", paddingTop: 16, paddingBottom: 16, paddingHorizontal: 24 },
+  progressHeader: { flexDirection: "row", alignItems: "center", paddingBottom: 16, paddingHorizontal: 24 },
   backBtn: { width: 42, height: 42, borderRadius: 10, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#dbe2f6" },
   empty: { width: 42 },
   title: { flex: 1, textAlign: "center", fontSize: 22, fontWeight: "900", color: "#4f5fc5" },

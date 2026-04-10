@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { SafeAreaView, View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert, Animated } from "react-native";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert, Animated } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function FinancialRecordsScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [step, setStep] = useState(-1); // -1: Landing, 10: Other Study Needs, 20: Upload Receipt
   const [values, setValues] = useState({
     itemDescription: "",
@@ -301,9 +303,9 @@ export default function FinancialRecordsScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {step === -1 ? (
-        <View style={styles.landingHeaderTop}>
+        <View style={[styles.landingHeaderTop, { paddingTop: insets.top + 16 }]}>
           <View style={styles.profileRow}>
             <View style={styles.userIconWrapper}>
               <Ionicons name="person-outline" size={24} color="#6472d9" />
@@ -318,7 +320,7 @@ export default function FinancialRecordsScreen({ navigation }) {
           </View>
         </View>
       ) : (
-        <View style={styles.progressHeader}>
+        <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
           <TouchableOpacity onPress={() => setStep(-1)} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#5b6095" />
           </TouchableOpacity>
@@ -348,13 +350,13 @@ export default function FinancialRecordsScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fc" },
-  landingHeaderTop: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#e4e8f8", backgroundColor: "#fff" },
+  landingHeaderTop: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#e4e8f8", backgroundColor: "#fff" },
   profileRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   userIconWrapper: { width: 50, height: 50, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#e8eAFD', justifyContent: 'center', alignItems: 'center', marginRight: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   headerTextCol: { flex: 1 },
@@ -362,7 +364,7 @@ const styles = StyleSheet.create({
   userRole: { fontSize: 13, color: '#344054', fontWeight: '600' },
   bellBtnLanding: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#e8eaff', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   
-  progressHeader: { flexDirection: "row", alignItems: "center", paddingTop: 16, paddingBottom: 16, paddingHorizontal: 20, borderBottomWidth: 1, borderColor: "#ccd1ed", backgroundColor: "#fff" },
+  progressHeader: { flexDirection: "row", alignItems: "center", paddingBottom: 16, paddingHorizontal: 20, borderBottomWidth: 1, borderColor: "#ccd1ed", backgroundColor: "#fff" },
   backBtn: { width: 42, height: 42, borderRadius: 10, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#dbe2f6" },
   empty: { width: 42 },
   titleLanding: { flex: 1, textAlign: "center", fontSize: 18, fontWeight: "900", color: "#4f5fc5" },

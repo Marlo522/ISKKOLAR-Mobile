@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo, useCallback } from "react";
-import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, Animated, ScrollView, ImageBackground, RefreshControl } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Animated, ScrollView, ImageBackground, RefreshControl } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../services/api";
@@ -100,6 +101,7 @@ const toApplicationCardData = (app) => {
 };
 
 export default function ApplicationScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -228,8 +230,8 @@ export default function ApplicationScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View style={styles.headerTop}>
           <View style={styles.headerTextContainer}>
             <Text style={styles.title}>Application History</Text>
@@ -267,13 +269,13 @@ export default function ApplicationScreen({ navigation }) {
           </View>
         )}
       </Animated.ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fc" },
-  header: { paddingTop: 16, paddingBottom: 16, paddingHorizontal: 20, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#dbe2f6" },
+  header: { paddingBottom: 16, paddingHorizontal: 20, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#dbe2f6" },
   headerTop: { flexDirection: "row", alignItems: "center" },
   headerTextContainer: { flex: 1 },
   title: { fontSize: 22, fontWeight: "900", color: "#4f5ec4", letterSpacing: -0.3 },

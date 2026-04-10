@@ -1,8 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function NotificationsScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const notifications = [
     {
       id: 1,
@@ -13,8 +15,8 @@ export default function NotificationsScreen({ navigation }) {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View style={styles.headerTop}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color="#5b6095" />
@@ -40,7 +42,7 @@ export default function NotificationsScreen({ navigation }) {
           </View>
         ))}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -50,7 +52,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fc',
   },
   header: {
-    paddingTop: 16,
     paddingBottom: 16,
     paddingHorizontal: 20,
     backgroundColor: '#fff',

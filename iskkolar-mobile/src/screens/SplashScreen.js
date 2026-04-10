@@ -8,9 +8,11 @@ import {
   StatusBar,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function SplashScreen() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [showWelcome, setShowWelcome] = useState(false);
 
   useEffect(() => {
@@ -23,7 +25,7 @@ export default function SplashScreen() {
 
   if (!showWelcome) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
       <View style={styles.content}>
         <Image
@@ -38,7 +40,7 @@ export default function SplashScreen() {
 }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
       <View style={styles.top}>
         <Image

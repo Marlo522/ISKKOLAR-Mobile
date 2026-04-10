@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ScholarDashboardScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const quickActions = [
     {
       id: 1,
@@ -58,8 +60,8 @@ export default function ScholarDashboardScreen({ navigation }) {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View style={styles.profileRow}>
           <View style={styles.userIconWrapper}>
             <Ionicons name="person-outline" size={24} color="#6472d9" />
@@ -134,7 +136,7 @@ export default function ScholarDashboardScreen({ navigation }) {
           ))}
         </View>
       </Animated.ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -144,7 +146,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fafbfc',
   },
   header: {
-    paddingTop: 16,
     paddingBottom: 24,
     paddingHorizontal: 20,
     backgroundColor: '#fafbfc'

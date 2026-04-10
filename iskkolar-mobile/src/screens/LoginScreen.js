@@ -11,17 +11,19 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLogin } from "../hooks/useLogin";
 
 export default function LoginScreen({ navigation }) {
   const { form, errors, apiError, loading, updateField, handleLogin } = useLogin(navigation);
+  const insets = useSafeAreaInsets();
 
   // Local UI-only state
   const [showPassword, setShowPassword] = useState(false);
 
   return (
     <KeyboardAvoidingView
-      style={styles.screen}
+      style={[styles.screen, { paddingTop: insets.top }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView

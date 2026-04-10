@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Animated, Alert } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Animated, Alert } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { getGradeComplianceTerms, submitGradeCompliance } from "../services/gradeComplianceService";
@@ -13,6 +14,7 @@ const statusColors = {
 };
 
 export default function GradeComplianceScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [completeStage, setCompleteStage] = useState("none");
   const [termRequirements, setTermRequirements] = useState([]);
   const [academicYear, setAcademicYear] = useState("");
@@ -320,8 +322,8 @@ export default function GradeComplianceScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.progressHeader}>
+    <View style={styles.container}>
+      <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity 
           onPress={() => {
             if (completeStage === "preAssessment") {
@@ -363,13 +365,13 @@ export default function GradeComplianceScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fc" },
-  progressHeader: { flexDirection: "row", alignItems: "center", paddingTop: 16, paddingBottom: 16, paddingHorizontal: 24, borderBottomWidth: 1, borderColor: "#ccd1ed", backgroundColor: "#fff" },
+  progressHeader: { flexDirection: "row", alignItems: "center", paddingBottom: 16, paddingHorizontal: 24, borderBottomWidth: 1, borderColor: "#ccd1ed", backgroundColor: "#fff" },
   backBtn: { width: 42, height: 42, borderRadius: 10, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#dbe2f6" },
   titleLanding: { fontSize: 18, fontWeight: "900", color: "#1a1a2e" },
   subtitleLanding: { fontSize: 13, color: "#666", marginTop: 2 },
