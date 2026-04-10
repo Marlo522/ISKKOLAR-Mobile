@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useRef } from "react";
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
 
@@ -28,6 +29,7 @@ const programs = [
 ];
 
 export default function HomeScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { user } = useContext(AuthContext);
 
   const headerAnim = useRef(new Animated.Value(0)).current;
@@ -52,8 +54,8 @@ export default function HomeScreen({ navigation }) {
   }, [headerAnim, cardsAnim]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Animated.View style={[styles.headerRow, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
+    <View style={styles.container}>
+      <Animated.View style={[styles.headerRow, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }], paddingTop: insets.top + 8 }]}>
         <View>
           <Text style={styles.userSubtitle}>Hello,</Text>
           <Text style={styles.userTitle}>Dominic</Text>
@@ -102,18 +104,18 @@ export default function HomeScreen({ navigation }) {
           </Animated.View>
         ))}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f6f8fb", padding: 18 },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24, marginTop: 8 },
+  container: { flex: 1, backgroundColor: "#f6f8fb" },
+  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24, paddingHorizontal: 18 },
   userSubtitle: { fontSize: 16, color: "#7a82a0", fontWeight: "600", marginBottom: 2 },
   userTitle: { fontSize: 32, fontWeight: "900", color: "#131b3e", letterSpacing: -0.5 },
   iconBubble: { width: 50, height: 50, borderRadius: 25, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 4 },
   notifyDot: { position: "absolute", top: 14, right: 14, width: 10, height: 10, backgroundColor: "#e94e4e", borderRadius: 5, borderWidth: 2, borderColor: "#fff" },
-  sectionTitle: { fontSize: 22, fontWeight: "800", color: "#1d2e57", marginBottom: 16 },
+  sectionTitle: { fontSize: 22, fontWeight: "800", color: "#1d2e57", marginBottom: 16, paddingHorizontal: 18 },
   cardsContainer: { paddingBottom: 20 },
   card: { backgroundColor: "#fff", borderRadius: 18, marginBottom: 22, borderWidth: 1, borderColor: "#dce1f0", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 2 },
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 16, backgroundColor: "#5562d8", borderTopLeftRadius: 17, borderTopRightRadius: 17 },

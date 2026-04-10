@@ -1,5 +1,6 @@
 import React from "react";
-import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 const eligibility = [
@@ -17,6 +18,7 @@ const forms = [
 ];
 
 export default function ProgramDetailScreen({ navigation, route }) {
+  const insets = useSafeAreaInsets();
   const program = route.params?.program || "tertiary";
 
   const employeeChildOptions = [
@@ -247,8 +249,8 @@ export default function ProgramDetailScreen({ navigation, route }) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color="#4c60d1" />
         </TouchableOpacity>
@@ -271,13 +273,13 @@ export default function ProgramDetailScreen({ navigation, route }) {
             ? renderVocationalContent()
             : renderTertiaryContent()}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f6f8fb" },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 16, paddingBottom: 16, paddingHorizontal: 18 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingBottom: 16, paddingHorizontal: 18 },
   backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   bellBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   title: { fontSize: 18, fontWeight: "900", color: "#131b3e", flex: 1, textAlign: "center", letterSpacing: -0.3 },

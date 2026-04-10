@@ -7,7 +7,7 @@ import Constants from 'expo-constants';
 // iOS simulator: localhost works fine
 const expoHost = Constants.expoConfig?.hostUri?.split(':')?.[0];
 const BASE_URL = __DEV__
-  ? `http://${expoHost || '192.168.1.6'}:5000/api`
+  ? `http://${expoHost || '192.168.1.10'}:5173/api`
   : 'https://your-production-url.com/api'; // MUST be HTTPS in prod
 
 // Critical Production Security Constraint
@@ -22,7 +22,7 @@ const MAX_RETRIES = 2; // For safe methods (GET)
 const executeWithRetry = async (url, config, retriesLeft = MAX_RETRIES) => {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), config.timeout || DEFAULT_TIMEOUT_MS);
-  
+
   try {
     const response = await fetch(url, {
       ...config,
@@ -33,12 +33,12 @@ const executeWithRetry = async (url, config, retriesLeft = MAX_RETRIES) => {
     return response;
   } catch (error) {
     clearTimeout(id);
-    
+
     const isNetworkError = error.name === 'AbortError' || error.message.includes('Network request failed');
-    
+
     // Only safely retry GET requests to prevent things like double-charges or duplicate database rows
     const isSafeMethod = !config.method || config.method.toUpperCase() === 'GET';
-    
+
     // Exponential backoff logic
     if (isNetworkError && isSafeMethod && retriesLeft > 0) {
       const waitMs = (MAX_RETRIES - retriesLeft + 1) * 1000;
@@ -53,7 +53,7 @@ const executeWithRetry = async (url, config, retriesLeft = MAX_RETRIES) => {
 const api = async (endpoint, options = {}) => {
   // 1. JWT Storage - SecureStore uses encrypted keychain/keystore.
   const token = await SecureStore.getItemAsync('secure_token');
-  
+
   const isAuthEndpoint =
     endpoint.startsWith('/auth/login') ||
     endpoint.startsWith('/auth/signup') ||
@@ -86,8 +86,8 @@ const api = async (endpoint, options = {}) => {
 
       // 3. Sanitized error block. Prevents passing unhandled strings. 
       // Always shapes the error cleanly so UI hooks uniformly extract .message securely 
-      throw { 
-        status: response.status, 
+      throw {
+        status: response.status,
         code: data?.code || "REQUEST_FAILED",
         message: data?.message || "An unexpected error occurred processing your request.",
         errors: data?.errors || [],
@@ -103,7 +103,7 @@ const api = async (endpoint, options = {}) => {
     }
     // Re-throw previously structured backend errors cleanly
     if (err.status) throw err;
-    
+
     // Fallback wrapper for absolute network dropouts
     throw { status: 0, message: 'Network error. Please ensure you are connected to the internet.' };
   }

@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  SafeAreaView,
   View,
   Text,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
   Modal,
   Animated,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import useTertiaryApplication from "../hooks/useTertiaryApplication";
@@ -58,6 +58,7 @@ const infoFields = {
 };
 
 export default function ProgramApplyScreen({ navigation, route }) {
+  const insets = useSafeAreaInsets();
   const selectedProgram = route?.params?.program || "tertiary";
   const option = route?.params?.option || "Option 1";
 
@@ -144,11 +145,22 @@ export default function ProgramApplyScreen({ navigation, route }) {
   };
 
   const updateContact = (key, value) => {
-    let cleaned = value.replace(/[^0-9]/g, "");
-    if (cleaned.length >= 1 && cleaned[0] !== "0") cleaned = "0";
-    if (cleaned.length >= 2 && cleaned.substring(0, 2) !== "09") cleaned = "09";
-    setValues((prev) => ({ ...prev, [key]: cleaned }));
+    let digits = value.replace(/[^0-9]/g, "");
+    // Always enforce "09" prefix
+    if (!digits.startsWith("09")) {
+      if (digits.startsWith("0")) {
+        digits = "09" + digits.slice(1);
+      } else {
+        digits = "09" + digits;
+      }
+    }
+    // Limit to 11 digits
+    setValues((prev) => ({ ...prev, [key]: digits.slice(0, 11) }));
     clearFieldError(key);
+  };
+
+  const focusContact = (key) => {
+    if (!values[key]) setValues((prev) => ({ ...prev, [key]: "09" }));
   };
 
   const addFamilyMember = () => {
@@ -233,8 +245,9 @@ export default function ProgramApplyScreen({ navigation, route }) {
       <TextInput
         value={values[key]}
         placeholder={placeholder}
-        keyboardType="numeric"
+        keyboardType="phone-pad"
         maxLength={11}
+        onFocus={() => focusContact(key)}
         onChangeText={(text) => updateContact(key, text)}
         style={[styles.input, fieldErrors[key] && styles.errorInput]}
       />
@@ -366,13 +379,17 @@ export default function ProgramApplyScreen({ navigation, route }) {
                 style={[styles.input, fieldErrors["dynFamily_" + idx + "_contactNo"] && styles.errorInput]}
                 value={member.contactNo}
                 placeholder="09XXXXXXXXX"
-                keyboardType="numeric"
+                keyboardType="phone-pad"
                 maxLength={11}
+                onFocus={() => {
+                  if (!member.contactNo) updateFamilyMember(idx, "contactNo", "09");
+                }}
                 onChangeText={(text) => {
-                  let cleaned = text.replace(/[^0-9]/g, "");
-                  if (cleaned.length >= 1 && cleaned[0] !== "0") cleaned = "0";
-                  if (cleaned.length >= 2 && cleaned.substring(0, 2) !== "09") cleaned = "09";
-                  updateFamilyMember(idx, "contactNo", cleaned);
+                  let digits = text.replace(/[^0-9]/g, "");
+                  if (!digits.startsWith("09")) {
+                    digits = digits.startsWith("0") ? "09" + digits.slice(1) : "09" + digits;
+                  }
+                  updateFamilyMember(idx, "contactNo", digits.slice(0, 11));
                 }}
               />
               {fieldErrors["dynFamily_" + idx + "_contactNo"] && (
@@ -535,7 +552,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           <Text style={styles.sectionHeader}>| Secondary Education</Text>
           {renderInput("School Name", "schoolName", "Enter School Name")}
           {renderSelect("Strand", "strand", ["STEM", "ABM", "HUMMS", "GAS", "TVL"])}
-          {renderInput("Year Graduated", "yearGraduated", "YYYY")}
+          {renderYearInput("Year Graduated", "yearGraduated")}
           {renderUpload("Report Card", "gradeReport")}
 
           <Text style={styles.sectionHeader}>| Vocational/Technical Education</Text>
@@ -604,7 +621,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           <Text style={styles.sectionHeader}>| Secondary Education</Text>
           {renderInput("School Name", "schoolName", "Enter School Name")}
           {renderSelect("Strand", "strand", ["STEM", "ABM", "HUMMS", "GAS", "TVL"])}
-          {renderInput("Year Graduated", "secondaryYearGraduated", "YYYY")}
+          {renderYearInput("Year Graduated", "secondaryYearGraduated")}
           {renderUpload("Grade Report", "gradeReport")}
 
           {values.educPath === "Masters" && (
@@ -612,7 +629,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
               <Text style={styles.sectionHeader}>| Previous Tertiary Education</Text>
               {renderInput("Previous School Name", "prevSchoolName", "Enter Previous School Name")}
               {renderInput("Previous Program", "prevProgram", "Enter Previous Program")}
-              {renderInput("Previous Year Graduated", "prevYearGraduated", "YYYY")}
+              {renderYearInput("Previous Year Graduated", "prevYearGraduated")}
             </>
           )}
 
@@ -651,131 +668,144 @@ export default function ProgramApplyScreen({ navigation, route }) {
     return renderReview();
   };
 
-  const renderReviewCard = (title, fields) => (
-    <View style={styles.reviewCard}>
-      <View style={{ borderBottomWidth: 1, borderBottomColor: "#eef0ff", paddingBottom: 8, marginBottom: 10 }}>
-        <Text style={styles.reviewCardTitle}>{title}</Text>
-      </View>
-      {fields.map((item, idx) => (
-        <View key={idx} style={styles.reviewRowCardItem}>
-          <Text style={styles.reviewLabel}>{item.label}</Text>
-          {item.icon ? (
-            <Ionicons name={item.icon} size={20} color="#2dd1a3" />
-          ) : item.dash ? (
-            <Text style={{ color: "#aab0cc", fontSize: 16 }}>—</Text>
-          ) : (
-            <Text style={styles.reviewValueCard}>{item.value || "-"}</Text>
-          )}
+  const renderReviewSection = (title, icon, items) => (
+    <View style={styles.newReviewSection}>
+      <View style={styles.sectionHeaderRow}>
+        <View style={styles.sectionIconWrapper}>
+          <Ionicons name={icon} size={18} color="#3d4076" />
         </View>
-      ))}
+        <Text style={styles.newReviewHeading}>{title}</Text>
+      </View>
+      <View style={styles.newReviewCard}>
+        {items.map((item, idx) => (
+          <React.Fragment key={idx}>
+            <View style={styles.reviewDataRow}>
+              <View style={styles.reviewRowIconWrapper}>
+                <Ionicons name={item.icon || "receipt-outline"} size={16} color="#5b6095" />
+              </View>
+              <View style={styles.reviewDataContent}>
+                <Text style={styles.reviewLabel}>{item.label}</Text>
+                <Text style={styles.reviewValue}>{item.value || "-"}</Text>
+              </View>
+            </View>
+            {idx < items.length - 1 && <View style={styles.reviewDivider} />}
+          </React.Fragment>
+        ))}
+      </View>
     </View>
   );
 
   const renderReview = () => (
-    <View>
-      <Text style={styles.sectionHeader}>Review & Declaration</Text>
+    <View style={{ paddingBottom: 20 }}>
+      <Text style={styles.sectionTitle}>Review Information</Text>
+      <Text style={styles.sectionSubtitle}>Please double-check all details below before submitting your application.</Text>
 
       {selectedProgram === "tertiary" && (
         <>
-          {renderReviewCard("| Scholarship Information", [
-            { label: "Scholarship type", value: values.scholarshipType },
-            { label: "Incoming Freshman?", value: values.incomingFreshman },
+          {renderReviewSection("Scholarship Fund Details", "card-outline", [
+            { label: "Scholarship Type", value: values.scholarshipType, icon: "ribbon-outline" },
+            { label: "Incoming Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
           ])}
-          {renderReviewCard("| Secondary Education Information", [
-            { label: "School Name", value: values.schoolName },
-            { label: "Strand", value: values.strand },
-            { label: "Year Graduated", value: values.yearGraduated },
+
+          {renderReviewSection("Secondary Education", "school-outline", [
+            { label: "High School Name", value: values.schoolName, icon: "business-outline" },
+            { label: "Strand", value: values.strand, icon: "bookmarks-outline" },
+            { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
           ])}
-          {renderReviewCard("| Tertiary Education Information", [
-            { label: "School Name", value: values.universityName },
-            { label: "Program", value: values.program },
-            { label: "Year Level", value: values.yearLevel },
-            { label: "Term", value: values.term },
-            { label: "Expected Year Series", value: values.expectedGradYear },
+
+          {renderReviewSection("Higher Education", "medal-outline", [
+            { label: "University / College", value: values.universityName, icon: "location-outline" },
+            { label: "Degree Program", value: values.program, icon: "school-outline" },
+            { label: "Current Year Level", value: values.yearLevel, icon: "layers-outline" },
+            { label: "Term System", value: values.term, icon: "time-outline" },
           ])}
-          {renderReviewCard("| Parents Information", [
-            { label: "Father's Name", value: values.fatherName },
-            { label: "Employment Status", value: values.fatherStatus },
+
+          {renderReviewSection("Family Background", "people-outline", [
+            { label: "Father's Name", value: values.fatherName, icon: "man-outline" },
+            { label: "Father Status", value: values.fatherStatus, icon: "information-circle-outline" },
             ...(values.fatherStatus !== "Deceased" && requiresIncomeProof(values.fatherStatus) ? [
-              { label: "Father Contact", value: values.fatherContact },
-              { label: "Father Income", value: values.fatherIncome },
+              { label: "Father Income", value: values.fatherIncome, icon: "cash-outline" }
             ] : []),
-            { label: "Mother's Name", value: values.motherName },
-            { label: "Employment Status", value: values.motherStatus },
+            { label: "Mother's Name", value: values.motherName, icon: "woman-outline" },
+            { label: "Mother Status", value: values.motherStatus, icon: "information-circle-outline" },
             ...(values.motherStatus !== "Deceased" && requiresIncomeProof(values.motherStatus) ? [
-              { label: "Mother Contact", value: values.motherContact },
-              { label: "Mother Income", value: values.motherIncome },
+              { label: "Mother Income", value: values.motherIncome, icon: "cash-outline" }
             ] : []),
           ])}
-          {renderReviewCard("| Supporting Documents", [
-            { label: "Certificate of Indigency", icon: uploadText.indigency ? "checkmark-circle-outline" : null, dash: !uploadText.indigency },
-            { label: "Birth Certificate", icon: uploadText.birthCert ? "checkmark-circle-outline" : null, dash: !uploadText.birthCert },
-            { label: "Essay", icon: uploadText.essay ? "checkmark-circle-outline" : null, dash: !uploadText.essay },
+
+          {renderReviewSection("Supporting Documents", "document-text-outline", [
+            { label: "Certificate of Indigency", value: uploadText.indigency ? "Attached" : "Not Attached", icon: uploadText.indigency ? "checkmark-circle" : "close-circle" },
+            { label: "Birth Certificate", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
+            { label: "Personal Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
           ])}
         </>
       )}
 
       {selectedProgram === "vocational" && (
         <>
-          {renderReviewCard("| Scholarship Information", [
-            { label: "Scholarship type", value: values.scholarshipType },
-            { label: "Fund type", value: values.fundType },
+          {renderReviewSection("Program Assignment", "construct-outline", [
+            { label: "Scholarship Type", value: values.scholarshipType, icon: "ribbon-outline" },
+            { label: "Fund Source", value: values.fundType, icon: "wallet-outline" },
           ])}
-          {renderReviewCard("| Secondary Education", [
-            { label: "School Name", value: values.schoolName },
-            { label: "Strand", value: values.strand },
+          {renderReviewSection("Educational History", "school-outline", [
+            { label: "HS School Name", value: values.schoolName, icon: "business-outline" },
+            { label: "Strand / Track", value: values.strand, icon: "bookmarks-outline" },
           ])}
-          {renderReviewCard("| Vocational Education", [
-            { label: "School Name", value: values.vocationalSchoolName },
-            { label: "Program", value: values.vocationalProgram },
+          {renderReviewSection("Vocational Details", "flask-outline", [
+            { label: "Technical School", value: values.vocationalSchoolName, icon: "business-outline" },
+            { label: "Technical Program", value: values.vocationalProgram, icon: "list-outline" },
           ])}
         </>
       )}
 
       {selectedProgram === "employeeChild" && (
         <>
-          {renderReviewCard("| Academic Information", [
-             { label: "Path", value: values.educPath },
-             { label: "Incoming Freshman", value: values.incomingFreshman },
+          {renderReviewSection("Academic Path", "trail-sign-outline", [
+             { label: "Education Path", value: values.educPath, icon: "map-outline" },
+             { label: "New Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
           ])}
-          {renderReviewCard("| Staff Details", [
-             { label: "Staff ID", value: values.staffId },
-             { label: "First Name", value: values.firstName },
-             { label: "Last Name", value: values.lastName },
-             { label: "Position", value: values.position },
+          {renderReviewSection("Staff Information", "id-card-outline", [
+             { label: "Staff ID", value: values.staffId, icon: "barcode-outline" },
+             { label: "Staff Employee", value: `${values.firstName} ${values.lastName}`, icon: "person-outline" },
+             { label: "Position", value: values.position, icon: "briefcase-outline" },
           ])}
         </>
       )}
 
-      <View style={styles.reviewCard}>
-        <Text style={styles.reviewCardTitle}>Declaration and Agreement</Text>
+      <View style={styles.premiumReviewCard}>
+        <View style={styles.declarationHeader}>
+          <Ionicons name="document-text-outline" size={20} color="#3d4fa0" />
+          <Text style={styles.declarationTitle}>Declaration & Agreement</Text>
+        </View>
+        
+        <View style={styles.declarationItems}>
+          <TouchableOpacity style={styles.declRow} activeOpacity={0.7} onPress={() => setDeclarations((d) => ({ ...d, agree1: !d.agree1 }))}>
+            <View style={[styles.modernCheckbox, declarations.agree1 && styles.modernCheckboxChecked]}>
+              {declarations.agree1 && <Ionicons name="checkmark" size={14} color="#fff" />}
+            </View>
+            <Text style={styles.declarationText}>
+              I certify that all information provided is true and correct.
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.declRow} onPress={() => setDeclarations((d) => ({ ...d, agree1: !d.agree1 }))}>
-          <View style={[styles.checkbox, declarations.agree1 && styles.checkboxChecked]}>
-            {declarations.agree1 && <Ionicons name="checkmark" size={14} color="#fff" />}
-          </View>
-          <Text style={styles.declarationText}>
-            I certify that all information provided is true and correct. Any false information may result in denial or revocation of the scholarship.
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.declRow} activeOpacity={0.7} onPress={() => setDeclarations((d) => ({ ...d, agree2: !d.agree2 }))}>
+            <View style={[styles.modernCheckbox, declarations.agree2 && styles.modernCheckboxChecked]}>
+              {declarations.agree2 && <Ionicons name="checkmark" size={14} color="#fff" />}
+            </View>
+            <Text style={styles.declarationText}>
+              I agree to provide additional documentation when requested.
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.declRow} onPress={() => setDeclarations((d) => ({ ...d, agree2: !d.agree2 }))}>
-          <View style={[styles.checkbox, declarations.agree2 && styles.checkboxChecked]}>
-            {declarations.agree2 && <Ionicons name="checkmark" size={14} color="#fff" />}
-          </View>
-          <Text style={styles.declarationText}>
-            I agree to provide additional documentation when requested and comply with all scholarship terms.
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.declRow} onPress={() => setDeclarations((d) => ({ ...d, agree3: !d.agree3 }))}>
-          <View style={[styles.checkbox, declarations.agree3 && styles.checkboxChecked]}>
-            {declarations.agree3 && <Ionicons name="checkmark" size={14} color="#fff" />}
-          </View>
-          <Text style={styles.declarationText}>
-            I have read and agree to the <Text style={{ color: "#3d4fa0", fontWeight: "700" }}>Data Privacy Notice</Text> and consent to processing of my personal data.
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.declRow} activeOpacity={0.7} onPress={() => setDeclarations((d) => ({ ...d, agree3: !d.agree3 }))}>
+            <View style={[styles.modernCheckbox, declarations.agree3 && styles.modernCheckboxChecked]}>
+              {declarations.agree3 && <Ionicons name="checkmark" size={14} color="#fff" />}
+            </View>
+            <Text style={styles.declarationText}>
+              I have read and agree to the <Text style={{ color: "#3d4fa0", fontWeight: "700" }}>Data Privacy Notice</Text>.
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -900,8 +930,8 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const allDeclared = declarations.agree1 && declarations.agree2 && declarations.agree3;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.progressHeader}>
+    <View style={styles.container}>
+      <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity
           onPress={() => (step > 0 ? setStep(step - 1) : navigation?.goBack?.())}
           style={styles.backBtn}
@@ -989,7 +1019,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -997,7 +1027,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f4f5ff" },
   progressHeader: {
     flexDirection: "row", alignItems: "center",
-    paddingTop: 16, paddingBottom: 12, paddingHorizontal: 14,
+    paddingBottom: 12, paddingHorizontal: 14,
     borderBottomWidth: 1, borderColor: "#ccd1ed",
   },
   backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#fff", justifyContent: "center", alignItems: "center" },
@@ -1038,8 +1068,29 @@ const styles = StyleSheet.create({
   },
   reviewCardTitle: { fontSize: 16, fontWeight: "900", color: "#3d4fa0", marginBottom: 12 },
   reviewRowCardItem: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8, alignItems: "flex-start" },
-  reviewLabel: { color: "#6b72aa", fontSize: 13, fontWeight: "700" },
-  reviewValueCard: { fontSize: 14, color: "#233873", fontWeight: "700" },
+  reviewLabel: { color: "#6b7280", fontSize: 13, fontWeight: "600" },
+  reviewValueCard: { fontSize: 13, color: "#2d3a7c", fontWeight: "800", textAlign: "right" },
+  
+  // New Premium Review Styles
+  sectionTitle: { fontSize: 22, fontWeight: "900", color: "#1c2131", marginBottom: 6 },
+  sectionSubtitle: { fontSize: 13, color: "#6b7280", lineHeight: 18, marginBottom: 24 },
+  newReviewSection: { marginBottom: 24 },
+  sectionHeaderRow: { flexDirection: "row", alignItems: "center", marginBottom: 12, paddingLeft: 4 },
+  sectionIconWrapper: { width: 32, height: 32, borderRadius: 10, backgroundColor: "rgba(91,95,151,0.1)", justifyContent: "center", alignItems: "center", marginRight: 10 },
+  newReviewHeading: { fontSize: 16, fontWeight: "800", color: "#3d4076", letterSpacing: 0.3 },
+  newReviewCard: { backgroundColor: "#fff", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "#eff1f8" },
+  reviewDataRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10 },
+  reviewRowIconWrapper: { width: 30, height: 30, borderRadius: 8, backgroundColor: "rgba(91,95,151,0.06)", justifyContent: "center", alignItems: "center", marginRight: 12 },
+  reviewDataContent: { flex: 1 },
+  reviewDivider: { height: 1, backgroundColor: "#f1f3f9", marginLeft: 42 },
+  
+  premiumReviewCard: { backgroundColor: "rgba(91,95,151,0.04)", borderRadius: 24, padding: 20, borderWidth: 1, borderColor: "rgba(91,95,151,0.1)", marginTop: 10 },
+  declarationHeader: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  declarationTitle: { fontSize: 16, fontWeight: "800", color: "#3d4fa0", marginLeft: 10 },
+  declarationItems: { gap: 12 },
+  modernCheckbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: "#5b6095", justifyContent: "center", alignItems: "center", marginRight: 12, backgroundColor: "#fff" },
+  modernCheckboxChecked: { backgroundColor: "#5b6095", borderColor: "#5b6095" },
+  declarationText: { flex: 1, fontSize: 13, color: "#4b5563", lineHeight: 18, fontWeight: "500" },
   nextBtn: { margin: 14, backgroundColor: "#4f5fc5", borderRadius: 12, paddingVertical: 14, alignItems: "center" },
   nextBtnText: { color: "#fff", fontSize: 16, fontWeight: "800" },
   centered: { alignItems: "center", justifyContent: "center", marginTop: 120 },

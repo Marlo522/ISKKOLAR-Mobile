@@ -1,9 +1,11 @@
 import React, { useState, useContext, useEffect, useRef } from "react";
-import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Animated, Platform } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Animated, Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
 
 export default function ProfileScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { user, logoutUser, loginUser } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState("Profile");
   const [form, setForm] = useState({
@@ -63,9 +65,9 @@ export default function ProfileScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Top Profile Header like Financial Records / Activities */}
-      <View style={styles.landingHeaderTop}>
+      <View style={[styles.landingHeaderTop, { paddingTop: insets.top + 16 }]}>
         <View style={styles.profileRow}>
           <View style={styles.userIconWrapper}>
             <Ionicons name="person-outline" size={24} color="#5b6095" />
@@ -185,13 +187,13 @@ export default function ProfileScreen({ navigation }) {
           </View>
         )}
       </Animated.ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fc" },
-  landingHeaderTop: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#e4e8f8", backgroundColor: "#fff" },
+  landingHeaderTop: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#e4e8f8", backgroundColor: "#fff" },
   profileRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   userIconWrapper: { width: 50, height: 50, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#e8eAFD', justifyContent: 'center', alignItems: 'center', marginRight: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   headerTextCol: { flex: 1 },

@@ -1,1 +1,1 @@
-export const API_URL = "http://192.168.1.6:5000/api"; // replace with your PC IP
+export const API_URL = "http://192.168.1.10:5173/api"; // replace with your PC IP

@@ -12,8 +12,10 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ForgotPasswordScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0); // 0: email, 1: verification code, 2: new password, 3: success
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -233,7 +235,7 @@ export default function ForgotPasswordScreen({ navigation }) {
       style={styles.screen}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View style={styles.headerContainer}>
+      <View style={[styles.headerContainer, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => (step === 0 ? navigation.goBack() : setStep(step - 1))}
@@ -261,7 +263,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f5f5f5" },
   headerContainer: {
     backgroundColor: "#5b5f97",
-    paddingTop: Platform.OS === "ios" ? 50 : 32,
+    paddingTop: 16,
     paddingBottom: 32,
     paddingHorizontal: 16,
   },
