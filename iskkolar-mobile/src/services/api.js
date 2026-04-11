@@ -7,7 +7,7 @@ import Constants from 'expo-constants';
 // iOS simulator: localhost works fine
 const expoHost = Constants.expoConfig?.hostUri?.split(':')?.[0];
 const BASE_URL = __DEV__
-  ? `http://${expoHost || '192.168.1.10'}:5173/api`
+  ? `http://${expoHost || '192.168.1.8'}:5000/api`
   : 'https://your-production-url.com/api'; // MUST be HTTPS in prod
 
 // Critical Production Security Constraint
