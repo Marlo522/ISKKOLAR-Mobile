@@ -279,13 +279,13 @@ export default function ApplicationScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fc" },
-  header: { paddingBottom: 16, paddingHorizontal: 20, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#dbe2f6" },
+  container: { flex: 1, backgroundColor: "#eff2f9" },
+  header: { paddingBottom: 24, paddingHorizontal: 24, backgroundColor: "#fff", borderBottomLeftRadius: 24, borderBottomRightRadius: 24, shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 4, marginBottom: 10, zIndex: 10 },
   headerTop: { flexDirection: "row", alignItems: "center" },
   headerTextContainer: { flex: 1 },
   title: { fontSize: 22, fontWeight: "900", color: "#4f5ec4", letterSpacing: -0.3 },
   subtitle: { fontSize: 13, color: "#7a82a0", marginTop: 2, fontWeight: "500" },
-  bellBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1.5, borderColor: "#e4e8f6", justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
+  bellBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#f5f7fc", justifyContent: "center", alignItems: "center" },
   content: { padding: 20, paddingBottom: 120 },
   sectionTitleHeader: { fontSize: 18, fontWeight: "900", color: "#4f568e", marginBottom: 16 },
 
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   browseBtn: { backgroundColor: "#5b5f97", paddingVertical: 14, paddingHorizontal: 32, borderRadius: 12 },
   browseBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
 
-  card: { backgroundColor: "#fff", borderRadius: 16, overflow: "hidden", marginBottom: 24, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 20, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+  card: { backgroundColor: "#fff", borderRadius: 20, overflow: "hidden", marginBottom: 20, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   cardHeader: { minHeight: 120, backgroundColor: "#25364f" },
   cardHeaderOverlay: { flex: 1, backgroundColor: "rgba(91, 95, 151, 0.5)", padding: 24, justifyContent: "flex-end" },
   tagWrap: { alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20, marginBottom: 8 },

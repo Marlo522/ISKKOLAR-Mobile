@@ -18,9 +18,6 @@ export default function NotificationsScreen({ navigation }) {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View style={styles.headerTop}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#5b6095" />
-          </TouchableOpacity>
           <View style={styles.headerTextContainer}>
             <Text style={styles.title}>Notifications</Text>
             <Text style={styles.subtitle}>Stay updated with announcements</Text>
@@ -32,10 +29,13 @@ export default function NotificationsScreen({ navigation }) {
         {notifications.map((item) => (
           <View key={item.id} style={styles.card}>
             <View style={styles.iconBox}>
-              <Text style={styles.iconText}>i</Text>
+              <Ionicons name="notifications" size={20} color="#4f5ec4" />
             </View>
             <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
+              <View style={styles.cardTitleRow}>
+                <Text style={styles.cardTitle}>{item.title}</Text>
+                <View style={styles.unreadDot} />
+              </View>
               <Text style={styles.cardMessage}>{item.message}</Text>
               <Text style={styles.cardTimestamp}>{item.timestamp}</Text>
             </View>
@@ -49,101 +49,99 @@ export default function NotificationsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fc',
+    backgroundColor: '#eff2f9', // distinct soft background so it's obvious to the user
   },
   header: {
-    paddingBottom: 16,
-    paddingHorizontal: 20,
+    paddingBottom: 24,
+    paddingHorizontal: 24,
     backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#dbe2f6',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 4,
+    marginBottom: 10,
+    zIndex: 10
   },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  backBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#dbe2f6',
-    marginRight: 16,
-  },
   headerTextContainer: {
     flex: 1,
   },
   title: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '900',
-    color: '#4f5ec4',
-    letterSpacing: -0.3,
+    color: '#1a1d2d',
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 13,
-    color: '#7a82a0',
-    marginTop: 2,
+    fontSize: 14,
+    color: '#6e7798',
+    marginTop: 4,
     fontWeight: '500'
   },
   content: {
     padding: 20,
+    paddingTop: 10,
   },
   card: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.06,
     shadowRadius: 10,
     elevation: 3,
-    borderWidth: 1,
-    borderColor: '#e4e8f6'
   },
   iconBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: '#5b6095',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ebedfa',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
-    backgroundColor: '#fff',
-    marginTop: 2
-  },
-  iconText: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#5b6095',
-    marginBottom: 1
+    marginRight: 16,
   },
   cardContent: {
     flex: 1,
   },
+  cardTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#e96e5e',
+  },
   cardTitle: {
     fontSize: 16,
-    fontWeight: '900',
-    color: '#111',
-    marginBottom: 6,
+    fontWeight: '800',
+    color: '#1a1d2d',
+    flex: 1,
     letterSpacing: -0.2,
   },
   cardMessage: {
-    fontSize: 13,
-    color: '#7a82a0',
-    lineHeight: 18,
-    marginBottom: 12,
+    fontSize: 14,
+    color: '#6e7798',
+    lineHeight: 22,
+    marginBottom: 14,
     fontWeight: '500'
   },
   cardTimestamp: {
-    fontSize: 10,
-    color: '#9aa1be',
-    fontWeight: '600'
+    fontSize: 12,
+    color: '#a3a9c7',
+    fontWeight: '700'
   }
 });

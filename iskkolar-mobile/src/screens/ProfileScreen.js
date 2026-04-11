@@ -1,5 +1,6 @@
 import React, { useState, useContext, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Animated, Platform } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Animated, Platform, Image } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
@@ -17,6 +18,7 @@ export default function ProfileScreen({ navigation }) {
     gender: user?.gender ?? "Male",
     civilStatus: user?.civilStatus ?? "Single",
     citizenship: user?.citizenship ?? "Filipino",
+    profilePhoto: user?.profilePhoto ?? null
   });
   const [passwords, setPasswords] = useState({ current: "", newPassword: "", confirm: "" });
 
@@ -49,6 +51,24 @@ export default function ProfileScreen({ navigation }) {
   const updateProfile = () => {
     loginUser({ ...user, ...form }, "dev-token");
     alert("Profile updated (local only)");
+  };
+
+  const pickProfilePhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (result.canceled) return;
+
+    const asset = result.assets?.[0];
+    if (!asset?.uri) return;
+
+    setForm({ ...form, profilePhoto: { uri: asset.uri } });
   };
 
   const updatePassword = () => {
@@ -84,7 +104,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
       </View>
 
-      <Animated.ScrollView 
+      <Animated.ScrollView
         contentContainerStyle={{ paddingBottom: 80 }}
         showsVerticalScrollIndicator={false}
         style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
@@ -92,9 +112,9 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.tabContainer}>
           <View style={styles.tabRow}>
             {['Profile', 'Password'].map((label) => (
-              <TouchableOpacity 
-                key={label} 
-                onPress={() => setActiveTab(label)} 
+              <TouchableOpacity
+                key={label}
+                onPress={() => setActiveTab(label)}
                 style={[styles.tabButton, activeTab === label && styles.tabActive]}
                 activeOpacity={0.7}
               >
@@ -106,15 +126,32 @@ export default function ProfileScreen({ navigation }) {
 
         {activeTab === 'Profile' ? (
           <View style={styles.sectionCard}>
-            <View style={styles.profilePicCircle}>
-              <Ionicons name="person" size={54} color="#fff" />
-              <View style={styles.cameraIconBadge}>
-                <Ionicons name="camera" size={16} color="#fff" />
-              </View>
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>
+              <TouchableOpacity onPress={pickProfilePhoto} activeOpacity={0.8}>
+                <View style={[styles.profilePicCircle, form.profilePhoto?.uri ? { marginBottom: 12 } : { marginBottom: 0 }]}>
+                  {form.profilePhoto?.uri ? (
+                    <Image source={{ uri: form.profilePhoto.uri }} style={{ width: 88, height: 88, borderRadius: 44 }} />
+                  ) : (
+                    <Ionicons name="person" size={54} color="#fff" />
+                  )}
+                  <View style={styles.cameraIconBadge}>
+                    <Ionicons name="camera" size={16} color="#fff" />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              {form.profilePhoto?.uri && (
+                <TouchableOpacity
+                  onPress={() => setForm({ ...form, profilePhoto: null })}
+                  style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, backgroundColor: '#fee2e2' }}
+                >
+                  <Text style={{ color: '#ef4444', fontWeight: '700', fontSize: 13 }}>Remove Photo</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             <Text style={styles.sectionTitleHeader}>| Personal Information</Text>
-            
+
             <View style={styles.formContainer}>
               {[
                 { label: 'First Name', key: 'firstName' },
@@ -192,24 +229,24 @@ export default function ProfileScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fc" },
-  landingHeaderTop: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#e4e8f8", backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: "#eff2f9" },
+  landingHeaderTop: { paddingHorizontal: 24, paddingBottom: 24, backgroundColor: "#fff", borderBottomLeftRadius: 24, borderBottomRightRadius: 24, shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 4, marginBottom: 10, zIndex: 10 },
   profileRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   userIconWrapper: { width: 50, height: 50, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#e8eAFD', justifyContent: 'center', alignItems: 'center', marginRight: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   headerTextCol: { flex: 1 },
   userName: { fontSize: 20, fontWeight: '900', color: '#080d19', letterSpacing: -0.3, marginBottom: 4 },
   roleBadge: { backgroundColor: '#daf3e1', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   roleText: { fontSize: 11, color: '#00562b', fontWeight: '800' },
-  bellBtnLanding: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#e8eaff', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
-  content: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
-  tabContainer: { backgroundColor: '#fff', borderRadius: 14, padding: 4, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 2, marginBottom: 16, borderWidth: 1, borderColor: '#e4e8f6' },
+  bellBtnLanding: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#f5f7fc", justifyContent: "center", alignItems: "center" },
+  content: { flex: 1, paddingHorizontal: 20, paddingTop: 10 },
+  tabContainer: { backgroundColor: '#fff', borderRadius: 18, padding: 4, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 2, marginBottom: 16 },
   tabRow: { flexDirection: "row" },
   tabButton: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 10 },
   tabActive: { backgroundColor: "#5b61a7" },
   tabText: { color: "#7f88a3", fontWeight: "700", fontSize: 14 },
   tabTextActive: { color: "#fff", fontWeight: "800" },
-  sectionCard: { backgroundColor: "#fff", borderRadius: 16, padding: 20, borderWidth: 1, borderColor: "#e4e8f6", shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  profilePicCircle: { width: 96, height: 96, borderRadius: 48, backgroundColor: "#5b61a7", justifyContent: "center", alignItems: "center", alignSelf: "center", marginBottom: 24, borderWidth: 4, borderColor: '#eff1fa' },
+  sectionCard: { backgroundColor: "#fff", borderRadius: 20, padding: 20, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  profilePicCircle: { width: 96, height: 96, borderRadius: 48, backgroundColor: "#5b61a7", justifyContent: "center", alignItems: "center", borderWidth: 4, borderColor: '#eff1fa' },
   cameraIconBadge: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#29d0a5', width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff' },
   sectionTitleHeader: { fontSize: 18, fontWeight: "900", color: "#4f5fc5", marginBottom: 16 },
   formContainer: { marginBottom: 8 },
