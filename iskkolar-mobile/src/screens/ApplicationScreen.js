@@ -115,15 +115,20 @@ export default function ApplicationScreen({ navigation }) {
       if (!isRefresh) setLoading(true);
       setError("");
 
-      const [tertiaryResult, employeeChildResult] = await Promise.allSettled([
+      const [tertiaryResult, employeeChildResult, staffAdvancementResult] = await Promise.allSettled([
         api("/scholarships/tertiary/my-applications", { method: "GET" }).catch(() => ({ data: [] })),
         api("/scholarships/child-designation/my-applications", { method: "GET" }).catch(() => ({ data: [] })),
+        api("/scholarships/staff-advancement/my-applications", { method: "GET" }).catch(() => ({ data: [] })),
       ]);
 
       const tertApps = tertiaryResult.status === "fulfilled" && tertiaryResult.value?.data ? ensureArray(tertiaryResult.value.data) : [];
       const childApps = employeeChildResult.status === "fulfilled" && employeeChildResult.value?.data ? ensureArray(employeeChildResult.value.data) : [];
+      const staffApps =
+        staffAdvancementResult.status === "fulfilled" && staffAdvancementResult.value?.data
+          ? ensureArray(staffAdvancementResult.value.data)
+          : [];
 
-      setApplications([...tertApps, ...childApps]);
+      setApplications([...tertApps, ...childApps, ...staffApps]);
     } catch (err) {
       setError(err?.message || "Failed to load applications.");
     } finally {

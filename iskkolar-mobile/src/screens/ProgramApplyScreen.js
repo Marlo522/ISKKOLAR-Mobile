@@ -15,6 +15,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import useTertiaryApplication from "../hooks/useTertiaryApplication";
+import useStaffApplication from "../hooks/useStaffApplication";
+import ApplicationSubmissionGuard from "../components/ApplicationSubmissionGuard";
+import { checkAnyOngoingApplication } from "../services/applicationGuardService";
 
 const infoFields = {
   educPath: "Tertiary",
@@ -61,6 +64,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const selectedProgram = route?.params?.program || "tertiary";
   const option = route?.params?.option || "Option 1";
+  const isChildDesignation = selectedProgram === "employeeChild" && option === "Option 2";
 
   const [step, setStep] = useState(0);
   const [values, setValues] = useState(infoFields);
@@ -81,16 +85,44 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const [selectVisible, setSelectVisible] = useState(false);
   const [selectContext, setSelectContext] = useState(null);
   const [declarations, setDeclarations] = useState({ agree1: false, agree2: false, agree3: false });
+  const [verifiedStaffId, setVerifiedStaffId] = useState("");
+  const [isCheckingApplication, setIsCheckingApplication] = useState(true);
+  const [ongoingApplication, setOngoingApplication] = useState(null);
 
   const {
-    submitting: apiSubmitting,
-    error: apiError,
-    fieldErrors,
-    clearFieldError,
-    qualificationOutcome,
-    submitApplication: apiSubmitApp,
-    validateStep,
+    submitting: tertiarySubmitting,
+    error: tertiaryError,
+    fieldErrors: tertiaryFieldErrors,
+    clearFieldError: clearTertiaryFieldError,
+    qualificationOutcome: tertiaryQualificationOutcome,
+    submitApplication: submitTertiary,
+    validateStep: validateTertiaryStep,
   } = useTertiaryApplication();
+
+  const {
+    submitting: staffSubmitting,
+    error: staffError,
+    fieldErrors: staffFieldErrors,
+    clearFieldError: clearStaffFieldError,
+    qualificationOutcome: staffQualificationOutcome,
+    staffLookupLoading,
+    staffLookupMessage,
+    submitApplication: submitStaff,
+    validateStep: validateStaffStep,
+    verifyStaffById,
+  } = useStaffApplication(isChildDesignation);
+
+  const isEmployeeChildFlow = selectedProgram === "employeeChild";
+  const apiSubmitting = selectedProgram === "tertiary" ? tertiarySubmitting : isEmployeeChildFlow ? staffSubmitting : false;
+  const apiError = selectedProgram === "tertiary" ? tertiaryError : isEmployeeChildFlow ? staffError : null;
+  const fieldErrors = selectedProgram === "tertiary" ? tertiaryFieldErrors : isEmployeeChildFlow ? staffFieldErrors : {};
+  const clearFieldError = selectedProgram === "tertiary" ? clearTertiaryFieldError : clearStaffFieldError;
+  const qualificationOutcome =
+    selectedProgram === "tertiary"
+      ? tertiaryQualificationOutcome
+      : isEmployeeChildFlow
+        ? staffQualificationOutcome
+        : null;
 
   const isSubmittingNow = localSubmitting || apiSubmitting;
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -112,10 +144,33 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
   const spin = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
+  useEffect(() => {
+    let mounted = true;
+
+    const runCheck = async () => {
+      try {
+        setIsCheckingApplication(true);
+        const ongoing = await checkAnyOngoingApplication();
+        if (!mounted) return;
+        setOngoingApplication(ongoing);
+      } catch (err) {
+        if (!mounted) return;
+        setOngoingApplication(null);
+      } finally {
+        if (mounted) setIsCheckingApplication(false);
+      }
+    };
+
+    runCheck();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   // tertiary: 4 steps (0=Academic, 1=Family, 2=Docs, 3=Review)
   // others:   3 steps (0, 1, 2=Review)
   const maxStep = selectedProgram === "employeeChild" ? 2 : 3;
-  const isChildDesignation = selectedProgram === "employeeChild" && option === "Option 2";
   const requiresIncomeProof = (status) => ["Employed", "Self-Employed"].includes(status);
 
   const pickFile = async (key) => {
@@ -140,9 +195,88 @@ export default function ProgramApplyScreen({ navigation, route }) {
   };
 
   const updateValue = (key, value) => {
-    setValues((prev) => ({ ...prev, [key]: value }));
+    setValues((prev) => {
+      if (key !== "staffId") return { ...prev, [key]: value };
+
+      // Reset auto-filled profile when the staff ID changes.
+      if (value === prev.staffId) return prev;
+      return {
+        ...prev,
+        staffId: value,
+        firstName: "",
+        middleName: "",
+        lastName: "",
+        suffix: "",
+        position: "",
+      };
+    });
+
+    if (key === "staffId") {
+      setVerifiedStaffId("");
+    }
+
     clearFieldError(key);
   };
+
+  const applyStaffRecordToForm = (record) => {
+    const valueOf = (...keys) => {
+      for (const key of keys) {
+        const value = record?.[key];
+        if (value !== undefined && value !== null && String(value).trim() !== "") {
+          return String(value).trim();
+        }
+      }
+      return "";
+    };
+
+    setValues((prev) => ({
+      ...prev,
+      firstName: valueOf("first_name", "firstName", "firstname"),
+      middleName: valueOf("middle_name", "middleName", "middlename"),
+      lastName: valueOf("last_name", "lastName", "lastname"),
+      suffix: valueOf("suffix") || "--",
+      position:
+        valueOf("position", "job_position", "jobPosition", "designation") ||
+        prev.position ||
+        "Human Resource",
+    }));
+  };
+
+  const lookupAndFillStaff = async (staffId = values.staffId) => {
+    const normalizedId = String(staffId || "").trim();
+    if (!normalizedId) {
+      setVerifiedStaffId("");
+      return false;
+    }
+
+    const staffRecord = await verifyStaffById(normalizedId);
+    if (!staffRecord) {
+      setVerifiedStaffId("");
+      return false;
+    }
+
+    applyStaffRecordToForm(staffRecord);
+    setVerifiedStaffId(normalizedId);
+    return true;
+  };
+
+  useEffect(() => {
+    if (selectedProgram !== "employeeChild" || step !== 1) return;
+
+    const normalizedId = String(values.staffId || "").trim();
+    if (!normalizedId) {
+      setVerifiedStaffId("");
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      if (normalizedId !== verifiedStaffId) {
+        lookupAndFillStaff(normalizedId);
+      }
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [selectedProgram, step, values.staffId, verifiedStaffId]);
 
   const updateContact = (key, value) => {
     let digits = value.replace(/[^0-9]/g, "");
@@ -195,6 +329,25 @@ export default function ProgramApplyScreen({ navigation, route }) {
       }
       return;
     }
+
+    if (selectedProgram === "employeeChild") {
+      if (step < maxStep) {
+        if (step === 1) {
+          if (staffLookupLoading) return;
+
+          const normalizedId = String(values.staffId || "").trim();
+          if (!normalizedId || normalizedId !== verifiedStaffId) {
+            const lookupOk = await lookupAndFillStaff(normalizedId);
+            if (!lookupOk) return;
+          }
+        }
+
+        const isValid = await validateStaffStep(step, values, uploadText);
+        if (isValid) setStep((s) => s + 1);
+      }
+      return;
+    }
+
     if (step < maxStep) setStep((s) => s + 1);
   };
 
@@ -202,7 +355,9 @@ export default function ProgramApplyScreen({ navigation, route }) {
     setLocalSubmitting(true);
     try {
       if (selectedProgram === "tertiary") {
-        await apiSubmitApp(values, uploadText, familyMembers);
+        await submitTertiary(values, uploadText, familyMembers);
+      } else if (selectedProgram === "employeeChild") {
+        await submitStaff(values, uploadText);
       } else {
         await new Promise((resolve) => setTimeout(resolve, 1200));
       }
@@ -226,16 +381,26 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
   // ─── Render helpers ───────────────────────────────────────────────────────
 
-  const renderInput = (label, key, placeholder = null) => (
+  const renderInput = (label, key, placeholder = null, inputProps = {}) => (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
         value={values[key]}
         placeholder={placeholder || "Enter " + label}
         onChangeText={(text) => updateValue(key, text)}
+        {...inputProps}
         style={[styles.input, fieldErrors[key] && styles.errorInput]}
       />
       {fieldErrors[key] && <Text style={styles.errorText}>{fieldErrors[key]}</Text>}
+    </View>
+  );
+
+  const renderReadonlyValue = (label, value) => (
+    <View style={styles.row}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.readonlyField}>
+        <Text style={styles.readonlyText}>{value || "--"}</Text>
+      </View>
     </View>
   );
 
@@ -615,7 +780,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
       return (
         <View>
           <Text style={styles.sectionHeader}>Academic Information</Text>
-          {renderSelect("Education Path", "educPath", ["Tertiary", "Masters"])}
+          {!isChildDesignation && renderSelect("Education Path", "educPath", ["Tertiary", "Masters"])}
           {renderSelect("Incoming Freshman?", "incomingFreshman", ["No", "Yes"])}
 
           <Text style={styles.sectionHeader}>| Secondary Education</Text>
@@ -624,7 +789,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderYearInput("Year Graduated", "secondaryYearGraduated")}
           {renderUpload("Grade Report", "gradeReport")}
 
-          {values.educPath === "Masters" && (
+          {!isChildDesignation && values.educPath === "Masters" && (
             <>
               <Text style={styles.sectionHeader}>| Previous Tertiary Education</Text>
               {renderInput("Previous School Name", "prevSchoolName", "Enter Previous School Name")}
@@ -654,13 +819,21 @@ export default function ProgramApplyScreen({ navigation, route }) {
       return (
         <View>
           <Text style={styles.sectionHeader}>| Staff Details</Text>
-          {renderInput("Staff ID", "staffId", "Enter Staff ID")}
-          {renderInput("First Name", "firstName", "Enter First Name")}
-          {renderInput("Middle Name (Optional)", "middleName", "Enter Middle Name")}
-          {renderInput("Last Name", "lastName", "Enter Last Name")}
-          {renderSelect("Suffix (Optional)", "suffix", ["--", "Jr.", "Sr.", "II", "III", "IV"])}
-          {renderSelect("Position", "position", ["Human Resource", "Finance", "Operations", "Admin", "IT", "Sales", "Others"])}
-          {values.position === "Others" && renderInput("Specify Position", "position", "Enter Position")}
+          {renderInput("Staff ID", "staffId", "Enter Staff ID", {
+            autoCapitalize: "characters",
+            autoCorrect: false,
+            onBlur: () => lookupAndFillStaff(values.staffId),
+          })}
+          {!fieldErrors.staffId && !!staffLookupMessage && (
+            <Text style={[styles.lookupStatus, staffLookupLoading ? styles.lookupStatusBusy : styles.lookupStatusOk]}>
+              {staffLookupLoading ? "Looking up staff record..." : staffLookupMessage}
+            </Text>
+          )}
+          {renderReadonlyValue("First Name", values.firstName)}
+          {renderReadonlyValue("Middle Name", values.middleName)}
+          {renderReadonlyValue("Last Name", values.lastName)}
+          {renderReadonlyValue("Suffix", values.suffix)}
+          {renderReadonlyValue("Position", values.position)}
         </View>
       );
     }
@@ -761,7 +934,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
       {selectedProgram === "employeeChild" && (
         <>
           {renderReviewSection("Academic Path", "trail-sign-outline", [
-             { label: "Education Path", value: values.educPath, icon: "map-outline" },
+             ...(!isChildDesignation ? [{ label: "Education Path", value: values.educPath, icon: "map-outline" }] : []),
              { label: "New Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
           ])}
           {renderReviewSection("Staff Information", "id-card-outline", [
@@ -929,6 +1102,17 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
   const allDeclared = declarations.agree1 && declarations.agree2 && declarations.agree3;
 
+  if (isCheckingApplication || ongoingApplication) {
+    return (
+      <ApplicationSubmissionGuard
+        isChecking={isCheckingApplication}
+        ongoingApplication={ongoingApplication}
+        onBack={() => navigation?.goBack?.()}
+        onViewApplications={() => navigation?.navigate?.("Application")}
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
@@ -1059,6 +1243,15 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === "ios" ? 12 : 10, backgroundColor: "#f7f9ff",
   },
   uploadText: { color: "#848baf", fontSize: 16, fontWeight: "600" },
+  readonlyField: {
+    borderWidth: 1,
+    borderColor: "#d7def8",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === "ios" ? 12 : 10,
+    backgroundColor: "#f5f7ff",
+  },
+  readonlyText: { color: "#2f427f", fontSize: 16, fontWeight: "600" },
   errorInput: { borderColor: "#e03a3a", borderWidth: 2 },
   errorText: { color: "#e03a3a", fontSize: 13, marginTop: 4, fontWeight: "600" },
   skippedDoc: { fontSize: 13, color: "#6b72aa", marginBottom: 18 },
@@ -1107,6 +1300,9 @@ const styles = StyleSheet.create({
   modalOptionText: { fontSize: 16, fontWeight: "700", color: "#4f5fc5" },
   modalOptionTextActive: { color: "#fff" },
   declRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 14 },
+  lookupStatus: { marginTop: -6, marginBottom: 10, fontSize: 12, fontWeight: "600" },
+  lookupStatusBusy: { color: "#6b7280" },
+  lookupStatusOk: { color: "#1a9e6a" },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: "#4f5fc5", alignItems: "center", justifyContent: "center", marginRight: 10, marginTop: 1, backgroundColor: "#fff", flexShrink: 0 },
   checkboxChecked: { backgroundColor: "#4f5fc5", borderColor: "#4f5fc5" },
   declarationText: { flex: 1, color: "#5b6095", fontSize: 13, lineHeight: 20 },
