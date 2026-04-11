@@ -21,8 +21,7 @@ import { checkAnyOngoingApplication } from "../services/applicationGuardService"
 
 const infoFields = {
   educPath: "Tertiary",
-  scholarshipType: "Manila Scholars",
-  fundType: "",
+  scholarshipType: "TESDA",
   incomingFreshman: "No",
   schoolName: "",
   strand: "STEM",
@@ -56,9 +55,96 @@ const infoFields = {
   motherIncome: "",
   vocationalSchoolName: "",
   vocationalProgram: "",
-  courseDuration: "5",
-  completionDate: "May 22, 2026",
+  courseDuration: "3 months",
+  completionDate: "",
 };
+
+function DatePickerModal({ visible, dateStr, onConfirm, onClose }) {
+  const initialDate = dateStr ? new Date(dateStr) : new Date();
+  const [year, setYear] = useState(isNaN(initialDate.getTime()) ? new Date().getFullYear() : initialDate.getFullYear());
+  const [month, setMonth] = useState(isNaN(initialDate.getTime()) ? new Date().getMonth() : initialDate.getMonth());
+  const [day, setDay] = useState(isNaN(initialDate.getTime()) ? new Date().getDate() : initialDate.getDate());
+
+  const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 11 }, (_, i) => currentYear - 2 + i);
+
+  useEffect(() => {
+    if (visible && dateStr) {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        setYear(d.getFullYear());
+        setMonth(d.getMonth());
+        setDay(d.getDate());
+      }
+    }
+  }, [visible, dateStr]);
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalRoot}>
+        <View style={[styles.modalCard, { paddingBottom: 30 }]}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Select Completion Date</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close" size={24} color="#4f5fc5" />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={{ flexDirection: "row", height: 200, marginTop: 16 }}>
+            <ScrollView style={{ flex: 1.2 }} showsVerticalScrollIndicator={false}>
+              {months.map((m, idx) => (
+                <TouchableOpacity
+                  key={m}
+                  style={[styles.modalOption, idx === month && styles.modalOptionActive, { marginVertical: 4, paddingVertical: 10 }]}
+                  onPress={() => { setMonth(idx); const max = daysInMonth(year, idx); if (day > max) setDay(max); }}
+                >
+                  <Text style={[styles.modalOptionText, idx === month && styles.modalOptionTextActive]}>{m}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+              {Array.from({ length: daysInMonth(year, month) }, (_, i) => i + 1).map((d) => (
+                <TouchableOpacity
+                  key={d}
+                  style={[styles.modalOption, d === day && styles.modalOptionActive, { marginVertical: 4, paddingVertical: 10 }]}
+                  onPress={() => setDay(d)}
+                >
+                  <Text style={[styles.modalOptionText, d === day && styles.modalOptionTextActive]}>{d}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+              {years.map((y) => (
+                <TouchableOpacity
+                  key={y}
+                  style={[styles.modalOption, y === year && styles.modalOptionActive, { marginVertical: 4, paddingVertical: 10 }]}
+                  onPress={() => setYear(y)}
+                >
+                  <Text style={[styles.modalOptionText, y === year && styles.modalOptionTextActive]}>{y}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.nextBtn, { marginHorizontal: 0, marginTop: 24 }]}
+            onPress={() => { 
+                const d = new Date(year, month, day);
+                const formatted = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                onConfirm(formatted); 
+            }}
+          >
+            <Text style={styles.nextBtnText}>Confirm Selection</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 export default function ProgramApplyScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
@@ -88,6 +174,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const [verifiedStaffId, setVerifiedStaffId] = useState("");
   const [isCheckingApplication, setIsCheckingApplication] = useState(true);
   const [ongoingApplication, setOngoingApplication] = useState(null);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
 
   const {
     submitting: tertiarySubmitting,
@@ -324,7 +411,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
       // Steps 0, 1, 2 require server validation before advancing
       // Step 3 is Review — no validate call needed, handled by submitApplication
       if (step < maxStep) {
-        const isValid = await validateStep(step, values, uploadText, familyMembers);
+        const isValid = await validateTertiaryStep(step, values, uploadText, familyMembers);
         if (isValid) setStep((s) => s + 1);
       }
       return;
@@ -426,7 +513,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
       <TextInput
         value={values[key]}
         placeholder={placeholder || "Enter " + label}
-        keyboardType="numeric"
+        keyboardType="number-pad"
         onChangeText={(text) => updateValue(key, text.replace(/[^0-9]/g, ""))}
         style={[styles.input, fieldErrors[key] && styles.errorInput]}
       />
@@ -440,7 +527,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
       <TextInput
         value={values[key]}
         placeholder={placeholder}
-        keyboardType="numeric"
+        keyboardType="number-pad"
         maxLength={4}
         onChangeText={(text) => updateValue(key, text.replace(/[^0-9]/g, ""))}
         style={[styles.input, fieldErrors[key] && styles.errorInput]}
@@ -483,12 +570,31 @@ export default function ProgramApplyScreen({ navigation, route }) {
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
       <TouchableOpacity
-        style={[styles.uploadBtn, fieldErrors[key] && styles.errorInput]}
         onPress={() => pickFile(key)}
+        style={[styles.newUploadContainer, fieldErrors[key] && styles.errorInput]}
       >
-        <Text style={styles.uploadText} numberOfLines={1} ellipsizeMode="middle">
-          {uploadText[key] ? uploadText[key].name || uploadText[key].fileName || "Selected File" : "File Upload"}
-        </Text>
+        <View style={styles.chooseFileBtn}>
+          <Text style={styles.chooseFileText}>Choose File</Text>
+        </View>
+        <View style={styles.fileNameBox}>
+          <Text style={styles.fileNameText} numberOfLines={1} ellipsizeMode="middle">
+            {uploadText[key] ? uploadText[key].name || uploadText[key].fileName || "Selected File" : "No file chosen"}
+          </Text>
+        </View>
+      </TouchableOpacity>
+      {fieldErrors[key] && <Text style={styles.errorText}>{fieldErrors[key]}</Text>}
+    </View>
+  );
+
+  const renderDatePicker = (label, key) => (
+    <View style={styles.row}>
+      <Text style={styles.label}>{label}</Text>
+      <TouchableOpacity
+        style={[styles.pickerInput, fieldErrors[key] && styles.errorInput]}
+        onPress={() => setDatePickerVisible(true)}
+      >
+        <Text style={styles.pickerText}>{values[key] || "Select Date"}</Text>
+        <Ionicons name="calendar-outline" size={20} color="#5b6095" />
       </TouchableOpacity>
       {fieldErrors[key] && <Text style={styles.errorText}>{fieldErrors[key]}</Text>}
     </View>
@@ -711,8 +817,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
       return (
         <View>
           <Text style={styles.sectionHeader}>Academic Information</Text>
-          {renderSelect("Scholarship type", "scholarshipType", ["TESDA", "CHED", "Others"])}
-          {renderSelect("Scholarship Fund type", "fundType", ["KKFI Funded", "Scrantron Funded"])}
+          {renderSelect("Scholarship type", "scholarshipType", ["TESDA"])}
 
           <Text style={styles.sectionHeader}>| Secondary Education</Text>
           {renderInput("School Name", "schoolName", "Enter School Name")}
@@ -723,8 +828,8 @@ export default function ProgramApplyScreen({ navigation, route }) {
           <Text style={styles.sectionHeader}>| Vocational/Technical Education</Text>
           {renderInput("School Name", "vocationalSchoolName", "Enter School Name")}
           {renderInput("Program", "vocationalProgram", "Enter Program")}
-          {renderSelect("Course Duration (months)", "courseDuration", ["3", "5", "6", "12"])}
-          {renderSelect("Completion Date", "completionDate", ["May 22, 2026", "Dec 15, 2026"])}
+          {renderSelect("Course Duration", "courseDuration", ["3 months", "6 months", "9 months", "12 months", "18 months", "24 months"])}
+          {renderDatePicker("Completion Date", "completionDate")}
           {renderUpload("COR", "cor")}
         </View>
       );
@@ -734,10 +839,11 @@ export default function ProgramApplyScreen({ navigation, route }) {
       return (
         <View>
           <Text style={styles.sectionHeader}>Family Information</Text>
-          <Text style={styles.sectionHeader}>| Parents Information</Text>
 
+          <Text style={styles.sectionHeader}>| Father's Information</Text>
           {renderInput("Father's Name", "fatherName", "Enter Father's Name")}
           {renderSelect("Employment Status", "fatherStatus", ["Employed", "Unemployed", "Self-Employed", "Deceased"])}
+          {values.fatherStatus !== "Deceased" && renderContactInput("Contact Number", "fatherContact")}
           {requiresIncomeProof(values.fatherStatus) && (
             <>
               {renderInput("Occupation", "fatherOccupation", "Enter Occupation")}
@@ -745,8 +851,10 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </>
           )}
 
+          <Text style={styles.sectionHeader}>| Mother's Information</Text>
           {renderInput("Mother's Name", "motherName", "Enter Mother's Name")}
           {renderSelect("Employment Status", "motherStatus", ["Employed", "Unemployed", "Self-Employed", "Deceased"])}
+          {values.motherStatus !== "Deceased" && renderContactInput("Contact Number", "motherContact")}
           {requiresIncomeProof(values.motherStatus) && (
             <>
               {renderInput("Occupation", "motherOccupation", "Enter Occupation")}
@@ -763,11 +871,25 @@ export default function ProgramApplyScreen({ navigation, route }) {
       return (
         <View>
           <Text style={styles.sectionHeader}>| Supporting Documents</Text>
-          {renderUpload("Barangay Certificate (Applicant)", "indigency")}
+          <View style={{ backgroundColor: "#eaf2fe", padding: 13, borderRadius: 8, marginBottom: 18 }}>
+            <Text style={{ color: "#305fce", fontSize: 13 }}>
+              Upload clear and readable files only. Accepted formats: PDF, DOC, DOCX. Max file size: 10MB each.
+            </Text>
+          </View>
+
+          {renderUpload("Certificate of Indigency Form (Applicant)", "indigency")}
           {renderUpload("Birth Certificate (Applicant)", "birthCert")}
-          {requiresIncomeProof(values.fatherStatus) && renderUpload("Income Certificate (Father)", "incomeFather")}
-          {requiresIncomeProof(values.motherStatus) && renderUpload("Income Certificate (Mother)", "incomeMother")}
-          {renderUpload("Income Certificate (Guardian)", "incomeGuardian")}
+
+          {requiresIncomeProof(values.fatherStatus)
+            ? renderUpload("Income Certificate (Father)", "incomeFather")
+            : <Text style={styles.skippedDoc}>Income certificate not required for Father ({values.fatherStatus}).</Text>}
+
+          {requiresIncomeProof(values.motherStatus)
+            ? renderUpload("Income Certificate (Mother)", "incomeMother")
+            : <Text style={styles.skippedDoc}>Income certificate not required for Mother ({values.motherStatus}).</Text>}
+
+          {renderUpload("Recommendation Letter Form (Optional)", "recommendation")}
+          {renderUpload("Essay", "essay")}
         </View>
       );
     }
@@ -808,7 +930,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             values.termType === "Quarter System" ? ["1st", "2nd", "3rd", "4th"] :
             values.termType === "Trimester" ? ["1st", "2nd", "3rd"] : ["1st", "2nd"]
           )}
-          {renderInput("Expected Year of Graduation", "expectedGradYear", "YYYY")}
+          {renderYearInput("Expected Year of Graduation", "expectedGradYear")}
           {renderUpload("COR", "cor")}
           {values.incomingFreshman === "No" && renderUpload("Current Term Grade Report", "currentTermGradeReport")}
         </View>
@@ -957,7 +1079,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
               {declarations.agree1 && <Ionicons name="checkmark" size={14} color="#fff" />}
             </View>
             <Text style={styles.declarationText}>
-              I certify that all information provided is true and correct.
+              I certify that all information provided in this application is true and correct to the best of my knowledge. I understand that any false or misleading information may result in the denial or revocation of any scholarship granted.
             </Text>
           </TouchableOpacity>
 
@@ -966,7 +1088,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
               {declarations.agree2 && <Ionicons name="checkmark" size={14} color="#fff" />}
             </View>
             <Text style={styles.declarationText}>
-              I agree to provide additional documentation when requested.
+              I agree to provide any additional documentation requested by KKFI and to comply with all scholarship terms and conditions.
             </Text>
           </TouchableOpacity>
 
@@ -975,7 +1097,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
               {declarations.agree3 && <Ionicons name="checkmark" size={14} color="#fff" />}
             </View>
             <Text style={styles.declarationText}>
-              I have read and agree to the <Text style={{ color: "#3d4fa0", fontWeight: "700" }}>Data Privacy Notice</Text>.
+              I have read and agree to the <Text style={{ color: "#3d4fa0", fontWeight: "700" }}>Data Privacy Notice</Text>. I consent to the collection, processing, and storage of my personal data for scholarship evaluation and related program administration.
             </Text>
           </TouchableOpacity>
         </View>
@@ -1203,6 +1325,16 @@ export default function ProgramApplyScreen({ navigation, route }) {
           </View>
         </View>
       </Modal>
+
+      <DatePickerModal
+        visible={datePickerVisible}
+        dateStr={values.completionDate}
+        onConfirm={(formatted) => {
+          updateValue("completionDate", formatted);
+          setDatePickerVisible(false);
+        }}
+        onClose={() => setDatePickerVisible(false)}
+      />
     </View>
   );
 }
@@ -1306,4 +1438,36 @@ const styles = StyleSheet.create({
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: "#4f5fc5", alignItems: "center", justifyContent: "center", marginRight: 10, marginTop: 1, backgroundColor: "#fff", flexShrink: 0 },
   checkboxChecked: { backgroundColor: "#4f5fc5", borderColor: "#4f5fc5" },
   declarationText: { flex: 1, color: "#5b6095", fontSize: 13, lineHeight: 20 },
+  newUploadContainer: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderColor: "#d7def8",
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    height: 48,
+    overflow: "hidden",
+  },
+  chooseFileBtn: {
+    backgroundColor: "#f1f3f9",
+    borderRightWidth: 1,
+    borderRightColor: "#d7def8",
+    paddingHorizontal: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  chooseFileText: {
+    color: "#5b6095",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  fileNameBox: {
+    flex: 1,
+    paddingHorizontal: 12,
+    justifyContent: "center",
+  },
+  fileNameText: {
+    color: "#848baf",
+    fontSize: 14,
+    fontWeight: "500",
+  },
 });

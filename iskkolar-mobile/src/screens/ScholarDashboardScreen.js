@@ -1,44 +1,32 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import React, { useEffect, useRef, useContext } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, ScrollView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { AuthContext } from '../context/AuthContext';
 
 export default function ScholarDashboardScreen({ navigation }) {
+  const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
-  const quickActions = [
-    {
-      id: 1,
-      title: "Renew scholarship",
-      subtitle: "For AY 2026 -2027",
-      icon: "sync",
-      iconColor: "#41b5bd",
-      bgColor: "#eefafc"
-    },
-    {
-      id: 2,
-      title: "Exam Assistance",
-      subtitle: "Apply Now",
-      icon: "clipboard-outline",
-      iconColor: "#7e52d8",
-      bgColor: "#f4effe"
-    },
-    {
-      id: 3,
-      title: "Grade Compliance",
-      subtitle: "Submit Grades",
-      icon: "document-text",
-      iconColor: "#e96e5e",
-      bgColor: "#fcefe9"
-    },
-    {
-      id: 4,
-      title: "Financial Records",
-      subtitle: "View History",
-      icon: "cash",
-      iconColor: "#39a751",
-      bgColor: "#e7f6ea"
-    }
+
+  const stats = [
+    { title: "1st", sub: "BSIT", icon: "book-outline", iconBg: "#f4effe", iconColor: "#7e52d8" },
+    { title: "--", sub: "Current GWA", icon: "checkmark-circle-outline", iconBg: "#e7f6ea", iconColor: "#39a751" },
+    { title: "0", sub: "Applications Submitted", icon: "calendar-outline", iconBg: "#eefafc", iconColor: "#41b5bd" },
+    { title: "1st", sub: "Current Term", icon: "book-outline", iconBg: "#f4effe", iconColor: "#7e52d8" }
   ];
+
+  const quickLinks = [
+    { title: "Grade Compliance", route: "GradeCompliance", icon: "clipboard-outline", iconBg: "#e7f6ea", iconColor: "#39a751" },
+    { title: "Financial Records", route: "FinancialRecords", icon: "receipt-outline", iconBg: "#fcefe9", iconColor: "#e96e5e" },
+    { title: "My Profile", route: "Profile", icon: "person-outline", iconBg: "#f4effe", iconColor: "#7e52d8" },
+    { title: "Activities", route: "Activities", icon: "calendar-outline", iconBg: "#eefafc", iconColor: "#41b5bd" }
+  ];
+
+  const services = [
+    { title: "Scholarship Renewal", sub: "Renew for AY 2026-2027", route: "ScholarshipRenewal", icon: "sync", iconBg: "#f4effe", iconColor: "#7e52d8" },
+    { title: "Board Exam/Certification Assistance", sub: "Up to P12,000 support", route: "ExamAssistance", icon: "checkmark-circle-outline", iconBg: "#eefafc", iconColor: "#41b5bd" }
+  ];
+
   const slideAnim = useRef(new Animated.Value(20)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -59,82 +47,84 @@ export default function ScholarDashboardScreen({ navigation }) {
     ]).start();
   }, []);
 
+  const fullName = user?.firstName ? `${user.firstName} ${user.lastName}`.toUpperCase() : 'JUAN DELA CRUZ';
+
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <View style={styles.profileRow}>
-          <View style={styles.userIconWrapper}>
-            <Ionicons name="person-outline" size={24} color="#6472d9" />
-          </View>
-          <View style={styles.headerText}>
-            <Text style={styles.userName}>Dominic Madla</Text>
-            <Text style={styles.userRole}>Active Scholar</Text>
-          </View>
-          <TouchableOpacity style={styles.bellBtn} activeOpacity={0.8} onPress={() => navigation.navigate("Notifications")}>
-            <Ionicons name="notifications-outline" size={22} color="#6472d9" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <Animated.ScrollView 
-        contentContainerStyle={styles.content}
+      <Animated.ScrollView
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
         showsVerticalScrollIndicator={false}
         style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
       >
-        <View style={styles.heroCard}>
-          <View style={styles.heroHeaderRow}>
-            <Text style={styles.heroStatusText}>Scholarship Status</Text>
-            <View style={styles.activeBadge}>
-              <Text style={styles.activeBadgeText}>ACTIVE</Text>
+        {/* Header Banner */}
+        <View style={styles.heroBanner}>
+          <View style={styles.heroTextContent}>
+            <Text style={styles.heroGreeting}>Good day,</Text>
+            <Text style={styles.heroName}>{fullName}</Text>
+            <View style={styles.heroBadge}>
+              <Text style={styles.heroBadgeText}>Active Scholar</Text>
             </View>
           </View>
-          
-          <Text style={styles.heroScholarType}>Nationwide Scholar</Text>
-          
-          <View style={styles.heroStatsRow}>
-            <View style={styles.statCol}>
-              <Text style={styles.statValue}>2025-2026</Text>
-              <Text style={styles.statLabel}>Academic Year</Text>
-            </View>
-            <View style={styles.statCol}>
-              <Text style={styles.statValue}>P1,500</Text>
-              <Text style={styles.statLabel}>Total Grant</Text>
-            </View>
-            <View style={styles.statCol}>
-              <Text style={styles.statValue}>1.25</Text>
-              <Text style={styles.statLabel}>Current GWA</Text>
-            </View>
+          <View style={styles.heroIconWatermark}>
+            <Ionicons name="school" size={100} color="rgba(255,255,255,0.15)" />
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-
-        <View style={styles.grid}>
-          {quickActions.map((action) => (
-            <TouchableOpacity 
-              key={action.id} 
-              style={styles.gridItem} 
-              activeOpacity={0.8}
-              onPress={() => {
-                if (action.title === "Renew scholarship") {
-                  navigation.navigate("ScholarshipRenewal");
-                } else if (action.id === 2 || action.title === "Exam Assistance") {
-                  navigation.navigate("ExamAssistance");
-                } else if (action.id === 3 || action.title === "Grade Compliance") {
-                  navigation.navigate("GradeCompliance");
-                } else if (action.id === 4 || action.title === "Financial Records") {
-                  navigation.navigate("FinancialRecords");
-                }
-              }}
-            >
-              <View style={[styles.gridIconFrame, { backgroundColor: action.bgColor }]}>
-                <Ionicons name={action.icon} size={32} color={action.iconColor} />
+        {/* Stats Row */}
+        <View style={styles.statsContainer}>
+          {stats.map((stat, idx) => (
+            <View key={idx} style={styles.statCard}>
+              <View style={[styles.statIconBox, { backgroundColor: stat.iconBg }]}>
+                <Ionicons name={stat.icon} size={20} color={stat.iconColor} />
               </View>
-              <Text style={styles.gridActionTitle}>{action.title}</Text>
-              <Text style={styles.gridActionSub}>{action.subtitle}</Text>
+              <View style={styles.statTextCol}>
+                <Text style={styles.statTitle}>{stat.title}</Text>
+                <Text style={styles.statSub}>{stat.sub}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* Quick Links */}
+        <Text style={styles.sectionHeader}>Quick Links</Text>
+        <View style={styles.quickLinksGrid}>
+          {quickLinks.map((link, idx) => (
+            <TouchableOpacity
+              key={idx}
+              style={styles.quickLinkCard}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate(link.route)}
+            >
+              <View style={[styles.qlIconBox, { backgroundColor: link.iconBg }]}>
+                <Ionicons name={link.icon} size={24} color={link.iconColor} />
+              </View>
+              <Text style={styles.qlTitle}>{link.title}</Text>
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Scholar Services */}
+        <Text style={styles.sectionHeader}>Scholar Services</Text>
+        <View style={styles.servicesContainer}>
+          {services.map((svc, idx) => (
+            <TouchableOpacity
+              key={idx}
+              style={styles.serviceCard}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate(svc.route)}
+            >
+              <View style={[styles.svcIconBox, { backgroundColor: svc.iconBg }]}>
+                <Ionicons name={svc.icon} size={28} color={svc.iconColor} />
+              </View>
+              <View style={styles.svcTextCol}>
+                <Text style={styles.svcTitle}>{svc.title}</Text>
+                <Text style={styles.svcSub}>{svc.sub}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#d4dae8" />
+            </TouchableOpacity>
+          ))}
+        </View>
+
       </Animated.ScrollView>
     </View>
   );
@@ -143,180 +133,199 @@ export default function ScholarDashboardScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fafbfc',
-  },
-  header: {
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    backgroundColor: '#fafbfc'
-  },
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  userIconWrapper: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: '#e8eafd',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  headerText: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#080d19',
-    letterSpacing: -0.3,
-    marginBottom: 2
-  },
-  userRole: {
-    fontSize: 14,
-    color: '#344054',
-    fontWeight: '600'
-  },
-  bellBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: '#e8eaff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+    backgroundColor: '#f5f6fa',
   },
   content: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingBottom: 40,
   },
-  heroCard: {
-    backgroundColor: '#6b73d6',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 32,
-    shadowColor: '#4f55b1',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.25,
-    shadowRadius: 18,
-    elevation: 6,
-  },
-  heroHeaderRow: {
+
+  // Hero Banner
+  heroBanner: {
+    backgroundColor: '#727ab6',
+    borderRadius: 16,
+    padding: 24,
+    paddingBottom: 28,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#4f5fc5',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 4,
+    marginBottom: 20,
   },
-  heroStatusText: {
-    color: '#dbe0fd',
-    fontSize: 14,
-    fontWeight: '500',
-    letterSpacing: 0.2,
-  },
-  activeBadge: {
-    backgroundColor: '#3df38b',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  activeBadgeText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  heroScholarType: {
-    color: '#fff',
-    fontWeight: '800',
-    fontSize: 18,
-    marginBottom: 24,
-    letterSpacing: -0.2,
-  },
-  heroStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.15)',
-  },
-  statCol: {
-    alignItems: 'center',
+  heroTextContent: {
     flex: 1,
+    zIndex: 2,
   },
-  statValue: {
-    color: '#fff',
-    fontWeight: '900',
+  heroGreeting: {
+    color: '#e2e5fc',
     fontSize: 14,
     marginBottom: 4,
-  },
-  statLabel: {
-    color: '#dbe0fd',
-    fontSize: 11,
     fontWeight: '500',
   },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#080d19',
-    marginBottom: 20,
+  heroName: {
+    color: '#fff',
+    fontSize: 26,
+    fontWeight: '800',
+    marginBottom: 12,
     letterSpacing: -0.3,
   },
-  grid: {
+  heroBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+  },
+  heroBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  heroIconWatermark: {
+    position: 'absolute',
+    right: -20,
+    bottom: -20,
+    zIndex: 1,
+  },
+
+  // Stats
+  statsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    marginBottom: 8,
   },
-  gridItem: {
-    width: '48%',
+  statCard: {
     backgroundColor: '#fff',
-    borderRadius: 22,
-    paddingVertical: 24,
-    paddingHorizontal: 12,
+    width: '48%',
+    borderRadius: 14,
+    padding: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#1d2e57',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.04,
-    shadowRadius: 16,
-    elevation: 4,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
     borderWidth: 1,
     borderColor: '#edf0f8'
   },
-  gridIconFrame: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
+  statIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginRight: 10,
   },
-  gridActionTitle: {
-    fontSize: 14,
+  statTextCol: {
+    flex: 1,
+  },
+  statTitle: {
+    fontSize: 16,
     fontWeight: '800',
-    color: '#080d19',
-    textAlign: 'center',
-    marginBottom: 6,
-    lineHeight: 18,
+    color: '#111',
+    lineHeight: 20,
   },
-  gridActionSub: {
+  statSub: {
     fontSize: 11,
-    color: '#6873a6',
+    color: '#848baf',
     fontWeight: '500',
+  },
+
+  // Sections
+  sectionHeader: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#343a40',
+    marginBottom: 12,
+    marginTop: 8,
+    paddingLeft: 4,
+  },
+
+  // Quick Links
+  quickLinksGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  quickLinkCard: {
+    backgroundColor: '#fff',
+    width: '48%',
+    borderRadius: 14,
+    paddingVertical: 20,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#edf0f8'
+  },
+  qlIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  qlTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#111',
     textAlign: 'center',
+  },
+
+  // Services
+  servicesContainer: {
+    marginBottom: 40,
+  },
+  serviceCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#edf0f8'
+  },
+  svcIconBox: {
+    width: 50,
+    height: 50,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  svcTextCol: {
+    flex: 1,
+  },
+  svcTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#111',
+    marginBottom: 4,
+  },
+  svcSub: {
+    fontSize: 12,
+    color: '#848baf',
+    fontWeight: '500',
   }
 });

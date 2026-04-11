@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert, Animated } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { AuthContext } from "../context/AuthContext";
 
 export default function FinancialRecordsScreen({ navigation }) {
+  const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(-1); // -1: Landing, 10: Other Study Needs, 20: Upload Receipt
   const [values, setValues] = useState({
@@ -311,7 +313,7 @@ export default function FinancialRecordsScreen({ navigation }) {
               <Ionicons name="person-outline" size={24} color="#6472d9" />
             </View>
             <View style={styles.headerTextCol}>
-              <Text style={styles.userName}>Dominic Madla</Text>
+              <Text style={styles.userName}>{user?.firstName ? `${user.firstName} ${user.lastName}` : 'Juan dela Cruz'}</Text>
               <Text style={styles.userRole}>Active Scholar</Text>
             </View>
             <TouchableOpacity style={styles.bellBtnLanding} activeOpacity={0.8} onPress={() => navigation.navigate("Notifications")}>

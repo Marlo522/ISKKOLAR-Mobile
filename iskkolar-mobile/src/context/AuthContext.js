@@ -8,14 +8,14 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
 
-    const loginUser = async (userData, jwt) => {
+  const loginUser = async (userData, jwt) => {
     setUser(userData);
     setToken(jwt);
     await SecureStore.setItemAsync("secure_token", jwt);
     await AsyncStorage.setItem("user", JSON.stringify(userData));
   };
 
-    const logoutUser = async () => {
+  const logoutUser = async () => {
     setUser(null);
     setToken(null);
     await SecureStore.deleteItemAsync("secure_token");

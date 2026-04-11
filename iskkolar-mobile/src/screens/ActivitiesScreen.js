@@ -1,9 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useContext } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { AuthContext } from '../context/AuthContext';
 
 export default function ActivitiesScreen({ navigation }) {
+  const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(20)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -34,7 +36,7 @@ export default function ActivitiesScreen({ navigation }) {
             <Ionicons name="person-outline" size={24} color="#6472d9" />
           </View>
           <View style={styles.headerTextCol}>
-            <Text style={styles.userName}>Dominic Madla</Text>
+            <Text style={styles.userName}>{user?.firstName ? `${user.firstName} ${user.lastName}` : 'Juan dela Cruz'}</Text>
             <Text style={styles.userRole}>Active Scholar</Text>
           </View>
           <TouchableOpacity style={styles.bellBtnLanding} activeOpacity={0.8} onPress={() => navigation.navigate("Notifications")}>
@@ -50,6 +52,43 @@ export default function ActivitiesScreen({ navigation }) {
         <View style={styles.pageHeaderBox}>
           <Text style={styles.pageHeaderTitle}>Activity Records</Text>
           <Text style={styles.pageHeaderSub}>Scholar's Active Participation</Text>
+        </View>
+
+        <View style={styles.overviewCard}>
+          <View style={styles.overviewHeader}>
+            <Ionicons name="pie-chart-outline" size={20} color="#5b61a7" />
+            <Text style={styles.overviewTitle}>Participation Summary</Text>
+          </View>
+          
+          <View style={styles.overviewStatsRow}>
+            <View style={styles.overviewStatCol}>
+              <View style={[styles.iconWrapper, { backgroundColor: '#eff1fa' }]}>
+                <Ionicons name="calendar" size={18} color="#5b61a7" />
+              </View>
+              <Text style={styles.overviewStatNum}>3</Text>
+              <Text style={styles.overviewStatLabel}>Total</Text>
+            </View>
+            
+            <View style={styles.dividerVertical} />
+            
+            <View style={styles.overviewStatCol}>
+              <View style={[styles.iconWrapper, { backgroundColor: '#daf3e1' }]}>
+                <Ionicons name="checkmark-done" size={18} color="#2cae57" />
+              </View>
+              <Text style={[styles.overviewStatNum, { color: '#2cae57' }]}>2</Text>
+              <Text style={styles.overviewStatLabel}>Attended</Text>
+            </View>
+            
+            <View style={styles.dividerVertical} />
+            
+            <View style={styles.overviewStatCol}>
+              <View style={[styles.iconWrapper, { backgroundColor: '#fdf0d5' }]}>
+                <Ionicons name="time" size={18} color="#f0a500" />
+              </View>
+              <Text style={[styles.overviewStatNum, { color: '#f0a500' }]}>1</Text>
+              <Text style={styles.overviewStatLabel}>Upcoming</Text>
+            </View>
+          </View>
         </View>
 
         <Text style={styles.yearTitle}>2026</Text>
@@ -122,14 +161,21 @@ export default function ActivitiesScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fc',
+    backgroundColor: '#eff2f9',
   },
   landingHeaderTop: { 
-    paddingHorizontal: 20, 
-    paddingBottom: 16, 
-    borderBottomWidth: 1, 
-    borderBottomColor: "#e4e8f8", 
-    backgroundColor: "#fff" 
+    paddingHorizontal: 24, 
+    paddingBottom: 24, 
+    backgroundColor: "#fff",
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 4,
+    marginBottom: 10,
+    zIndex: 10
   },
   profileRow: { 
     flexDirection: 'row', 
@@ -206,18 +252,75 @@ const styles = StyleSheet.create({
     marginBottom: 12
   },
   
+  overviewCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  overviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f2f8'
+  },
+  overviewTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#3d4076',
+    marginLeft: 8
+  },
+  overviewStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  overviewStatCol: {
+    flex: 1,
+    alignItems: 'center'
+  },
+  dividerVertical: {
+    width: 1,
+    height: 40,
+    backgroundColor: '#f0f2f8'
+  },
+  iconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  overviewStatNum: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#111',
+    marginBottom: 2
+  },
+  overviewStatLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#848baf'
+  },
+  
   activityCard: {
     backgroundColor: "#fff", 
-    borderRadius: 16, 
-    padding: 16, 
+    borderRadius: 20, 
+    padding: 20, 
     marginBottom: 16, 
     shadowColor: "#000", 
-    shadowOpacity: 0.04, 
-    shadowRadius: 10, 
     shadowOffset: { width: 0, height: 4 }, 
-    elevation: 2, 
-    borderWidth: 1, 
-    borderColor: "#e4e8f6", 
+    shadowOpacity: 0.06, 
+    shadowRadius: 12, 
+    elevation: 3, 
   },
   cardHeaderRow: {
     flexDirection: 'row',

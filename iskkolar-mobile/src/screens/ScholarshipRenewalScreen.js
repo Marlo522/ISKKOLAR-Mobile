@@ -1,23 +1,36 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert, Modal, Animated } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { AuthContext } from "../context/AuthContext";
+import * as DocumentPicker from "expo-document-picker";
 
 export default function ScholarshipRenewalScreen({ navigation }) {
+  const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0);
   const [values, setValues] = useState({
-    scholarshipType: "Nationwide Scholarship Program",
-    academicYear: "2025 - 2026",
-    renewingFor: "2026 - 2027",
-    yearLevel: "4th",
-    schoolName: "PUP",
-    program: "BSBA",
-    currentYearLevel: "3rd",
-    currentTerm: "2nd", // Corrected from Filipino as per likely intent
+    academicYear: "2026-2027",
+    term: "2nd Semester",
+    school: user?.school || "FEU Tech",
+    program: user?.course || "BSIT",
+    gwa: "",
+    additionalNotes: "",
   });
-  
-  const [uploadText, setUploadText] = useState({ cor: "", currentTermReportCard: "" });
+
+  const [confirmed, setConfirmed] = useState(false);
+
+  const academicCalendar = (user?.academicCalendar || "").toLowerCase();
+  let termOptions = ["1st Semester", "2nd Semester", "Summer"];
+
+  if (academicCalendar.includes("tri")) {
+    termOptions = ["1st Trimester", "2nd Trimester", "3rd Trimester", "Summer"];
+  } else if (academicCalendar.includes("quad")) {
+    termOptions = ["1st Term", "2nd Term", "3rd Term", "4th Term", "Summer"];
+  }
+
+
+  const [uploadText, setUploadText] = useState({ cor: "", gradeReport: "", receipts: "" });
   const [submitting, setSubmitting] = useState(false);
   const [completeStage, setCompleteStage] = useState("none");
   const [selectVisible, setSelectVisible] = useState(false);
@@ -161,9 +174,39 @@ export default function ScholarshipRenewalScreen({ navigation }) {
       <Text style={styles.label}>{label}</Text>
       <TouchableOpacity
         style={styles.uploadBtn}
-        onPress={() => Alert.alert("File upload", "File picker stub (implement with expo-document-picker).")}
+        onPress={() => handleFileUpload(key)}
       >
         <Text style={styles.uploadText}>{uploadText[key] || "File Upload"}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const handleFileUpload = async (key) => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf", "image/*"],
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled) return;
+      if (result.assets && result.assets.length > 0) {
+        setUploadText(prev => ({ ...prev, [key]: result.assets[0].name }));
+      }
+    } catch (error) {
+      console.log("Error picking file:", error);
+      Alert.alert("Error", "Failed to select document.");
+    }
+  };
+
+  const renderFileUploadBox = (label, subtext, key) => (
+    <View style={{ marginBottom: 16 }}>
+      <Text style={styles.label}>{label}</Text>
+      <TouchableOpacity style={styles.uploadBoxDashed} onPress={() => handleFileUpload(key)}>
+        <Text style={[styles.uploadBoxTitle, uploadText[key] && { color: "#2cae57" }]}>
+          {uploadText[key] ? "File selected ✓" : "Tap to upload"}
+        </Text>
+        <Text style={styles.uploadBoxSubtext} numberOfLines={1} ellipsizeMode="middle">
+          {uploadText[key] || subtext}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -177,7 +220,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
         <View key={idx} style={styles.reviewRowCardItem}>
           <Text style={styles.reviewLabel}>{item.label}</Text>
           {item.icon ? (
-            <Ionicons name={item.icon} size={22} color="#29d0a5" />
+            <Ionicons name={item.icon} size={22} color={item.iconColor || "#2cae57"} />
           ) : (
             <Text style={styles.reviewValueCard}>{item.value || "-"}</Text>
           )}
@@ -193,9 +236,9 @@ export default function ScholarshipRenewalScreen({ navigation }) {
           <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
             <Ionicons name="checkmark-circle" size={120} color="#29d0a5" />
           </Animated.View>
-          <Text style={[styles.completeText, { marginTop: 8 }]}>Submission Successful!</Text>
+          <Text style={[styles.completeText, { marginTop: 8 }]}>Renewal submitted.</Text>
           <Text style={{ textAlign: "center", color: "#6b72aa", paddingHorizontal: 30, marginBottom: 30, fontSize: 16, lineHeight: 22 }}>
-            Your application has been pre-assessed and forwarded securely. Please wait for further announcements.
+            We will review your documents and notify you via email.
           </Text>
           <TouchableOpacity style={styles.submitBtn} onPress={() => navigation.navigate("ScholarDashboardMain")}>
             <Text style={styles.submitBtnText}>Return Home</Text>
@@ -222,77 +265,121 @@ export default function ScholarshipRenewalScreen({ navigation }) {
       case 0:
         return (
           <View>
-            <View style={styles.topSectionHeaderContainer}>
-              <Text style={styles.topSectionHeader}>Renewal Information</Text>
-            </View>
             <View style={styles.formContainer}>
-              <Text style={styles.sectionHeader}>|Academic Year 2026-2027</Text>
-              {renderInput("Current Scholarship", "scholarshipType")}
-              {renderInput("Current Academic Year", "academicYear")}
-              
+              <Text style={styles.subtextAboveHeader}>Scholar Status</Text>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.verticalPill} />
+                <Text style={styles.sectionHeader}>Academic Information</Text>
+              </View>
+
               <View style={styles.rowTwoCol}>
                 <View style={styles.colHalf}>
-                  {renderSelect("Renewing For", "renewingFor", ["2026 - 2027", "2027 - 2028"])}
+                  {renderInput("Academic Year", "academicYear")}
                 </View>
                 <View style={styles.colHalf}>
-                  {renderSelect("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th+"])}
+                  {renderSelect("Term", "term", termOptions)}
                 </View>
               </View>
 
-              {renderUpload("COR (This Coming Academic Year)", "cor")}
+              <View style={styles.rowTwoCol}>
+                <View style={styles.colHalf}>
+                  {renderInput("School", "school")}
+                </View>
+                <View style={styles.colHalf}>
+                  {renderInput("Program / Course", "program")}
+                </View>
+              </View>
+
+              <View style={styles.rowTwoCol}>
+                <View style={styles.colHalf}>
+                  {renderInput("Current GWA", "gwa", "e.g. 1.75")}
+                </View>
+              </View>
+
             </View>
           </View>
         );
       case 1:
         return (
           <View>
-            <View style={styles.topSectionHeaderContainer}>
-              <Text style={styles.topSectionHeader}>Current School Information</Text>
-            </View>
             <View style={styles.formContainer}>
-              <Text style={styles.sectionHeader}>|Academic Year 2026-2027</Text>
-              
-              {renderInput("School Name", "schoolName")}
-              {renderInput("Program", "program")}
+              <Text style={styles.subtextAboveHeader}>Documents</Text>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.verticalPill} />
+                <Text style={styles.sectionHeader}>Supporting Documents</Text>
+              </View>
 
               <View style={styles.rowTwoCol}>
                 <View style={styles.colHalf}>
-                  {renderSelect("Current Year Level", "currentYearLevel", ["1st", "2nd", "3rd", "4th", "5th+"])}
+                  {renderFileUploadBox("Grade Report", "PDF or clear image of grades", "gradeReport")}
                 </View>
                 <View style={styles.colHalf}>
-                  {renderSelect("Current Term", "currentTerm", ["1st", "2nd", "3rd", "Summer"])}
+                  {renderFileUploadBox("Certificate of Registration", "Latest term COR", "cor")}
                 </View>
               </View>
 
-              {renderUpload("Current Report Card", "currentTermReportCard")}
+              <View style={styles.rowTwoCol}>
+                <View style={styles.colHalf}>
+                  {renderFileUploadBox("Official Receipts (Optional)", "Upload tuition or fee receipts", "receipts")}
+                </View>
+                <View style={styles.colHalf}>
+                  <Text style={styles.label}>Additional Notes</Text>
+                  <TextInput
+                    style={[styles.input, { height: 75, textAlignVertical: 'top', paddingTop: 10 }]}
+                    multiline
+                    placeholder="Share context on grades, delays, or special circumstances."
+                    value={values.additionalNotes}
+                    onChangeText={(text) => setValues({ ...values, additionalNotes: text })}
+                  />
+                </View>
+              </View>
+
             </View>
           </View>
         );
       case 2:
         return (
           <View>
-            <View style={styles.topSectionHeaderContainer}>
-              <Text style={styles.topSectionHeader}>Review Information</Text>
-            </View>
             <View style={styles.formContainer}>
-              {renderReviewCard("| Renewal Information", [
-                { label: "Current Scholarship", value: values.scholarshipType },
-                { label: "Current Academic", value: values.academicYear },
-                { label: "Renewing For", value: values.renewingFor },
-                { label: "Year Level (This Academic Year)", value: values.yearLevel },
-              ])}
+              <Text style={styles.subtextAboveHeader}>Review & Submit</Text>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.verticalPill} />
+                <Text style={styles.sectionHeader}>Review & Confirm</Text>
+              </View>
 
-              {renderReviewCard("| Current School Information", [
-                { label: "School Name", value: values.schoolName },
+              <View style={styles.infoBox}>
+                <Text style={styles.infoBoxText}>Please review your details below. Ensure information and documents reflect your current academic standing.</Text>
+              </View>
+
+              {renderReviewCard("| Renewal Information", [
+                { label: "Academic Year", value: values.academicYear },
+                { label: "Term", value: values.term },
+                { label: "School", value: values.school },
                 { label: "Program", value: values.program },
-                { label: "Current Year Level", value: values.currentYearLevel },
-                { label: "Current Term", value: values.currentTerm },
+                { label: "GWA", value: values.gwa || "N/A" },
               ])}
 
               {renderReviewCard("| Supporting Documents", [
-                { label: "COR (This Academic Year)", icon: "checkmark-circle-outline" },
-                { label: "Current Term Report Card", icon: "checkmark-circle-outline" },
+                { label: "Grade Report", icon: "checkmark-circle", iconColor: "#2cae57" },
+                { label: "Certificate of Registration", icon: "checkmark-circle", iconColor: "#2cae57" },
+                { label: "Official Receipts (Optional)", icon: "remove-circle", iconColor: "#dce1f0" },
               ])}
+
+              <TouchableOpacity
+                style={styles.checkboxRow}
+                activeOpacity={0.8}
+                onPress={() => setConfirmed(!confirmed)}
+              >
+                <Ionicons
+                  name={confirmed ? "checkbox" : "square-outline"}
+                  size={20}
+                  color={confirmed ? "#5b61aa" : "#848baf"}
+                />
+                <Text style={styles.checkboxText}>
+                  I confirm the details are correct and wish to submit my renewal.
+                </Text>
+              </TouchableOpacity>
+
             </View>
           </View>
         );
@@ -307,8 +394,11 @@ export default function ScholarshipRenewalScreen({ navigation }) {
         <TouchableOpacity onPress={() => (step > 0 ? setStep(step - 1) : navigation.goBack())} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#5b6095" />
         </TouchableOpacity>
-        <Text style={styles.title}>Scholarship Renewal</Text>
-        <View style={styles.empty} />
+        <View style={styles.headerTitles}>
+          <Text style={styles.superTitle}>SCHOLARSHIP RENEWAL</Text>
+          <Text style={styles.mainTitle}>AY 2026-2027 Renewal Form</Text>
+          <Text style={styles.subTitle}>Submit grades and receipts to renew your assistance.</Text>
+        </View>
       </View>
 
       {completeStage === "none" && !submitting && (
@@ -332,9 +422,22 @@ export default function ScholarshipRenewalScreen({ navigation }) {
       </ScrollView>
 
       {!submitting && completeStage === "none" && (
-        <View style={{ paddingHorizontal: 24, paddingBottom: 30 }}>
-          <TouchableOpacity style={styles.nextBtn} onPress={advance}>
-            <Text style={styles.nextBtnText}>{step < maxStep ? "Next Step →" : "Submit Application"}</Text>
+        <View style={styles.footerRow}>
+          {step === 0 ? (
+            <TouchableOpacity style={styles.backToHomeBtn} onPress={() => navigation.navigate("ScholarDashboardMain")}>
+              <Text style={styles.backToHomeText}>Back to Home</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.backToHomeBtn} onPress={() => setStep(step - 1)}>
+              <Text style={styles.backToHomeText}>Previous</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.nextBtn, step === maxStep && !confirmed && { backgroundColor: '#aeb4d2', elevation: 0 }]}
+            onPress={advance}
+            disabled={step === maxStep && !confirmed}
+          >
+            <Text style={styles.nextBtnText}>{step < maxStep ? "Continue" : "Submit Renewal"}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -348,20 +451,28 @@ const styles = StyleSheet.create({
   backBtn: { width: 42, height: 42, borderRadius: 10, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#dbe2f6" },
   empty: { width: 42 },
   title: { flex: 1, textAlign: "center", fontSize: 22, fontWeight: "900", color: "#4f5fc5" },
-  progressBarRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 24, marginTop: 4, marginBottom: 12 },
-  progressStep: { height: 5, flex: 1, marginHorizontal: 6, borderRadius: 5 },
-  progressStepActive: { backgroundColor: "#29d0a5" },
+  headerTitles: { flex: 1, paddingLeft: 14 },
+  superTitle: { fontSize: 11, fontWeight: "700", color: "#5b61aa", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 },
+  mainTitle: { fontSize: 20, fontWeight: "900", color: "#111", letterSpacing: -0.3, marginBottom: 2 },
+  subTitle: { fontSize: 12, color: "#6e7798", fontWeight: "500" },
+  progressBarRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 24, marginTop: 4, marginBottom: 16 },
+  progressStep: { height: 6, flex: 1, marginHorizontal: 4, borderRadius: 5 },
+  progressStepActive: { backgroundColor: "#5b61aa" },
   progressStepInactive: { backgroundColor: "#dde2ee" },
-  topSectionHeaderContainer: { borderBottomWidth: 1, borderColor: "#ccd1ed", paddingHorizontal: 24, paddingBottom: 16, marginBottom: 20 },
-  topSectionHeader: { fontSize: 18, fontWeight: "600", color: "#5b6095" },
-  formContainer: { paddingHorizontal: 24 },
+  formContainer: { paddingHorizontal: 24, paddingTop: 10 },
+  subtextAboveHeader: { fontSize: 11, color: "#6d78a8", fontWeight: "600", marginBottom: 12 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  verticalPill: { width: 4, height: 20, backgroundColor: '#5b61aa', borderRadius: 2, marginRight: 8 },
   content: { flex: 1 },
-  sectionHeader: { fontSize: 19, fontWeight: "900", color: "#4f5fc5", marginBottom: 16 },
+  sectionHeader: { fontSize: 17, fontWeight: "800", color: "#2d3a7c" },
   row: { marginBottom: 16 },
   label: { fontWeight: "600", color: "#1c2131", fontSize: 13, marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, paddingHorizontal: 16, paddingVertical: Platform.OS === "ios" ? 14 : 12, backgroundColor: "#ffffff", color: "#555", fontSize: 15 },
+  input: { borderWidth: 1, borderColor: "#dce1f0", borderRadius: 10, paddingHorizontal: 12, paddingVertical: Platform.OS === "ios" ? 12 : 10, backgroundColor: "#ffffff", color: "#555", fontSize: 13 },
   uploadBtn: { borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, height: 50, justifyContent: "center", paddingHorizontal: 16, backgroundColor: "#ffffff" },
   uploadText: { color: "#777", fontSize: 15, alignSelf: "center" },
+  uploadBoxDashed: { borderWidth: 1, borderColor: "#c2c9d6", borderStyle: "dashed", borderRadius: 10, backgroundColor: "#f8f9fc", width: "100%", height: 75, paddingHorizontal: 12, justifyContent: "center" },
+  uploadBoxTitle: { fontSize: 13, fontWeight: "600", color: "#4f5ec4", marginBottom: 2 },
+  uploadBoxSubtext: { fontSize: 11, color: "#6e7798" },
   reviewRow: { padding: 10, borderColor: "#dbe2f6", borderWidth: 1, borderRadius: 10, marginBottom: 8, backgroundColor: "#fff" },
   reviewLabel: { color: "#848baf", fontSize: 13, fontWeight: "600" },
   reviewValue: { color: "#2d3a7c", fontSize: 14, marginTop: 2 },
@@ -369,6 +480,10 @@ const styles = StyleSheet.create({
   reviewCardTitle: { fontSize: 17, fontWeight: "900", color: "#4f5fc5", marginBottom: 4 },
   reviewRowCardItem: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8, alignItems: "center" },
   reviewValueCard: { fontSize: 12, color: "#1c2131", fontWeight: "700" },
+  infoBox: { backgroundColor: "#f8f9fc", padding: 14, borderRadius: 10, borderWidth: 1, borderColor: "#e4e8f6", marginBottom: 16 },
+  infoBoxText: { fontSize: 12, color: "#3d4076", lineHeight: 18, fontWeight: "500" },
+  checkboxRow: { flexDirection: "row", alignItems: "center", marginTop: 8, marginBottom: 20 },
+  checkboxText: { marginLeft: 10, fontSize: 13, color: "#2d3a7c", fontWeight: "700" },
   rowTwoCol: { flexDirection: "row", gap: 12, marginBottom: 0 }, // no bottom margin since elements inside have row margin
   colHalf: { flex: 1 },
   yearPickerInput: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, paddingHorizontal: 16, paddingVertical: Platform.OS === "ios" ? 14 : 12, backgroundColor: "#ffffff", height: 50 },
@@ -382,8 +497,11 @@ const styles = StyleSheet.create({
   yearPickerOptionActive: { backgroundColor: "#4f5fc5", borderColor: "#4f5fc5" },
   yearPickerOptionText: { fontSize: 16, fontWeight: "700", color: "#4f5fc5" },
   yearPickerOptionTextActive: { color: "#fff" },
-  nextBtn: { backgroundColor: "#5b61a7", borderRadius: 14, paddingVertical: 16, alignItems: "center", shadowColor: "#2d3a7c", shadowOpacity: 0.2, shadowOffset: { width: 0, height: 4 }, shadowRadius: 6, elevation: 4 },
-  nextBtnText: { color: "#fff", fontSize: 16, fontWeight: "800" },
+  footerRow: { flexDirection: 'row', paddingHorizontal: 24, paddingBottom: 30, justifyContent: 'flex-end', alignItems: 'center' },
+  backToHomeBtn: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, borderWidth: 1, borderColor: '#dce1f0', marginRight: 12 },
+  backToHomeText: { color: '#4f5ec4', fontWeight: '700', fontSize: 14 },
+  nextBtn: { backgroundColor: "#5b61a7", borderRadius: 12, paddingVertical: 14, paddingHorizontal: 26, alignItems: "center", shadowColor: "#2d3a7c", shadowOpacity: 0.2, shadowOffset: { width: 0, height: 4 }, shadowRadius: 6, elevation: 4 },
+  nextBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
   centered: { alignItems: "center", justifyContent: "center", marginTop: 120 },
   completeText: { fontSize: 22, fontWeight: "800", color: "#3f4ca8", marginTop: 16, marginBottom: 8 },
   submitBtn: { borderRadius: 12, backgroundColor: "#4f5fc5", paddingVertical: 14, paddingHorizontal: 30, marginTop: 10 },

@@ -2,16 +2,18 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert, Modal, Animated } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
 
 export default function ExamAssistanceScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(-1); // -1 is the initial landing page
   const [values, setValues] = useState({
-    assistanceType: "Incentive",
-    examType: "Board Exam",
+    assistanceType: "",
+    examType: "",
     examDate: "",
-    testingCenter: "Manila",
-    takenBefore: "No, this is my first attempt",
+    testingCenter: "",
+    takenBefore: "",
+    additionalNotes: "",
   });
   
   const [uploadText, setUploadText] = useState({ 
@@ -24,6 +26,13 @@ export default function ExamAssistanceScreen({ navigation }) {
   const [completeStage, setCompleteStage] = useState("none");
   const [selectVisible, setSelectVisible] = useState(false);
   const [selectKey, setSelectKey] = useState(null);
+  const [confirmed, setConfirmed] = useState(false);
+
+  const [dateVisible, setDateVisible] = useState(false);
+  const [dateKey, setDateKey] = useState(null);
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   const spinAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
@@ -158,14 +167,121 @@ export default function ExamAssistanceScreen({ navigation }) {
     </>
   );
 
+  const getDaysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (month, year) => new Date(year, month, 1).getDay();
+
+  const handlePrevMonth = () => {
+    if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear(selectedYear - 1); }
+    else setSelectedMonth(selectedMonth - 1);
+  };
+
+  const handleNextMonth = () => {
+    if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear(selectedYear + 1); }
+    else setSelectedMonth(selectedMonth + 1);
+  };
+
+  const renderCalendarGrid = () => {
+    const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
+    const firstDay = getFirstDayOfMonth(selectedMonth, selectedYear);
+    let days = [];
+    for (let i = 0; i < firstDay; i++) days.push(<View key={`empty-${i}`} style={styles.calendarDay} />);
+    for (let i = 1; i <= daysInMonth; i++) {
+       days.push(
+         <TouchableOpacity 
+           key={`day-${i}`} 
+           style={styles.calendarDay}
+           onPress={() => {
+             const m = selectedMonth + 1;
+             const d = i < 10 ? `0${i}` : i;
+             const dateStr = `${m < 10 ? '0'+m : m}/${d}/${selectedYear}`;
+             setValues({...values, [dateKey]: dateStr});
+             setDateVisible(false);
+           }}
+         >
+           <Text style={styles.calendarDayText}>{i}</Text>
+         </TouchableOpacity>
+       );
+    }
+    return days;
+  };
+
+  const renderDatePickerField = (label, key) => (
+    <>
+      <View style={styles.row}>
+        <Text style={styles.label}>{label}</Text>
+        <TouchableOpacity
+          style={styles.yearPickerInput}
+          onPress={() => { setDateKey(key); setDateVisible(true); }}
+        >
+          <Text style={[styles.yearPickerText, !values[key] && { color: "#a9b1c0" }]}>{values[key] || "mm/dd/yyyy"}</Text>
+          <Ionicons name="calendar-outline" size={20} color="#555" />
+        </TouchableOpacity>
+      </View>
+      <Modal visible={dateVisible && dateKey === key} transparent animationType="fade">
+        <View style={styles.calendarModalOverlay}>
+          <View style={styles.calendarModalContent}>
+            <View style={styles.calendarHeader}>
+              <TouchableOpacity onPress={handlePrevMonth} style={{ padding: 4 }}>
+                <Ionicons name="chevron-back" size={24} color="#4f5fc5" />
+              </TouchableOpacity>
+              <Text style={styles.calendarHeaderText}>{months[selectedMonth]} {selectedYear}</Text>
+              <TouchableOpacity onPress={handleNextMonth} style={{ padding: 4 }}>
+                <Ionicons name="chevron-forward" size={24} color="#4f5fc5" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.calendarWeekDaysRow}>
+              {['S','M','T','W','T','F','S'].map((d, i) => <Text key={i} style={styles.calendarWeekDay}>{d}</Text>)}
+            </View>
+            <View style={styles.calendarDaysGrid}>
+              {renderCalendarGrid()}
+            </View>
+            <TouchableOpacity onPress={() => setDateVisible(false)} style={styles.calendarCloseBtn}>
+              <Text style={styles.calendarCloseText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+
   const renderUpload = (label, key) => (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
       <TouchableOpacity
         style={styles.uploadBtn}
-        onPress={() => Alert.alert("File upload", "File picker stub (implement with expo-document-picker).")}
+        onPress={() => handleFileUpload(key)}
       >
         <Text style={styles.uploadText}>{uploadText[key] || "File Upload"}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const handleFileUpload = async (key) => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf", "image/*"],
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled) return;
+      if (result.assets && result.assets.length > 0) {
+        setUploadText(prev => ({ ...prev, [key]: result.assets[0].name }));
+      }
+    } catch (error) {
+      console.log("Error picking file:", error);
+      Alert.alert("Error", "Failed to select document.");
+    }
+  };
+
+  const renderFileUploadBox = (label, subtext, key) => (
+    <View style={{ marginBottom: 16 }}>
+      <Text style={styles.label}>{label}</Text>
+      <TouchableOpacity style={styles.uploadBoxDashed} onPress={() => handleFileUpload(key)}>
+        <Text style={[styles.uploadBoxTitle, uploadText[key] && { color: "#2cae57" }]}>
+          {uploadText[key] ? "File selected ✓" : "Tap to upload"}
+        </Text>
+        <Text style={styles.uploadBoxSubtext} numberOfLines={1} ellipsizeMode="middle">
+          {uploadText[key] || subtext}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -179,7 +295,7 @@ export default function ExamAssistanceScreen({ navigation }) {
         <View key={idx} style={styles.reviewRowCardItem}>
           <Text style={styles.reviewLabel}>{item.label}</Text>
           {item.icon ? (
-            <Ionicons name={item.icon} size={22} color="#29d0a5" />
+            <Ionicons name={item.icon} size={22} color={item.iconColor || "#2cae57"} />
           ) : (
             <Text style={styles.reviewValueCard}>{item.value || "-"}</Text>
           )}
@@ -195,9 +311,9 @@ export default function ExamAssistanceScreen({ navigation }) {
           <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
             <Ionicons name="checkmark-circle" size={120} color="#29d0a5" />
           </Animated.View>
-          <Text style={[styles.completeText, { marginTop: 8 }]}>Submission Successful!</Text>
+          <Text style={[styles.completeText, { marginTop: 8 }]}>Application submitted.</Text>
           <Text style={{ textAlign: "center", color: "#6b72aa", paddingHorizontal: 30, marginBottom: 30, fontSize: 16, lineHeight: 22 }}>
-            Your application has been pre-assessed and forwarded securely. Please wait for further announcements.
+            We will review your documents and notify you via email.
           </Text>
           <TouchableOpacity style={styles.submitBtn} onPress={() => navigation.navigate("ScholarDashboardMain")}>
             <Text style={styles.submitBtnText}>Return Home</Text>
@@ -222,90 +338,7 @@ export default function ExamAssistanceScreen({ navigation }) {
 
     switch (step) {
       case -1:
-        return (
-          <View style={styles.landingContainer}>
-            <Text style={styles.landingHeader}>From Graduation to Professional Success</Text>
-
-            <View style={styles.statsCard}>
-              <View style={styles.statCol}>
-                <Text style={styles.statLabel}>Limit</Text>
-                <Text style={styles.statValue}>₱ 12,000</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statCol}>
-                <Text style={styles.statLabel}>Validity</Text>
-                <Text style={styles.statValue}>2 Years Post-Grad</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statCol}>
-                <Text style={styles.statLabel}>Usage</Text>
-                <Text style={styles.statValue}>Once Only</Text>
-              </View>
-            </View>
-
-            <View style={styles.infoCard}>
-              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-                <Ionicons name="information-circle" size={24} color="#6471c3" />
-                <Text style={styles.infoCardTitle}>BACKGROUND</Text>
-              </View>
-              <Text style={styles.infoCardText}>
-                Ensuring the transition from education to employment is seamless by removing the financial barriers of licensure exams and review costs.
-              </Text>
-            </View>
-
-            <View style={styles.optionsCard}>
-              <Text style={styles.optionHeader}>Option 1: Review Support</Text>
-              <Text style={styles.optionSubHeader}>Subject for Liquidation</Text>
-              <View style={styles.optionListItem}>
-                <View style={[styles.optionIconBlock, { backgroundColor: '#eef2ff' }]}>
-                  <Ionicons name="checkmark-outline" size={18} color="#4f5fc5" />
-                </View>
-                <Text style={styles.optionListText}>Covers review fees, exam applications, and study materials.</Text>
-              </View>
-              <View style={styles.optionListDivider} />
-              <View style={styles.optionListItem}>
-                <View style={[styles.optionIconBlock, { backgroundColor: '#eef2ff' }]}>
-                  <Ionicons name="receipt-outline" size={18} color="#4f5fc5" />
-                </View>
-                <Text style={styles.optionListText}>Requires submission of Official Receipts for all expenses.</Text>
-              </View>
-              <View style={styles.optionListDivider} />
-              <View style={styles.optionListItem}>
-                <View style={[styles.optionIconBlock, { backgroundColor: '#eef2ff' }]}>
-                  <Ionicons name="information" size={18} color="#4f5fc5" />
-                </View>
-                <Text style={styles.optionListText}>Best for those needing fund before the exam.</Text>
-              </View>
-
-              <Text style={[styles.optionHeader, { marginTop: 20 }]}>Option 2: Cash Incentive</Text>
-              <Text style={styles.optionSubHeader}>Achievement Award</Text>
-              <View style={styles.optionListItem}>
-                <View style={[styles.optionIconBlock, { backgroundColor: '#eef2ff' }]}>
-                  <Ionicons name="trophy-outline" size={18} color="#4f5fc5" />
-                </View>
-                <Text style={styles.optionListText}>Granted after successfully passing the board exam.</Text>
-              </View>
-              <View style={styles.optionListDivider} />
-              <View style={styles.optionListItem}>
-                <View style={[styles.optionIconBlock, { backgroundColor: '#eef2ff' }]}>
-                  <Ionicons name="document-text-outline" size={18} color="#4f5fc5" />
-                </View>
-                <Text style={styles.optionListText}>Requires submission of board rating and proof of passing.</Text>
-              </View>
-              <View style={styles.optionListDivider} />
-              <View style={styles.optionListItem}>
-                <View style={[styles.optionIconBlock, { backgroundColor: '#eef2ff' }]}>
-                  <Ionicons name="information" size={18} color="#4f5fc5" />
-                </View>
-                <Text style={styles.optionListText}>No liquidation of receipts needed.</Text>
-              </View>
-
-              <TouchableOpacity style={styles.applyNowBtn} onPress={() => setStep(0)}>
-                <Text style={styles.applyNowBtnText}>Apply Now!</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        );
+        return null; // Handled directly in the main return
 
       case 0:
         return (
@@ -314,46 +347,88 @@ export default function ExamAssistanceScreen({ navigation }) {
               <Text style={styles.topSectionHeader}>Examination Information</Text>
             </View>
             <View style={styles.formContainer}>
-              {renderSelect("Type of Assistance", "assistanceType", ["Incentive", "Review Support"])}
-              {renderSelect("Exam Type", "examType", ["Board Exam", "Civil Service Exam", "Bar Exam", "Others"])}
-              {renderInput("Exam Date", "examDate", "mm/dd/yyyy")}
-              {renderInput("Testing Center/Location", "testingCenter")}
-              {renderSelect("Have you taken this exam before?", "takenBefore", ["No, this is my first attempt", "Yes"])}
+              {renderSelect("Type of Assistance", "assistanceType", ["Board Exam", "Bar Exam", "Certification"])}
+              {renderInput("Exam / Certification Type", "examType", "Exam / Certification Type")}
+              {renderDatePickerField("Exam Date", "examDate")}
+              {renderInput("Testing Center / Location", "testingCenter", "City / Testing center")}
+              {renderSelect("Have you taken this exam/certification before?", "takenBefore", ["No, this is my first attempt", "Yes, I have taken it before"])}
             </View>
           </View>
         );
       case 1:
         return (
           <View>
-            <View style={styles.topSectionHeaderContainer}>
-              <Text style={styles.topSectionHeader}>Supporting Documents</Text>
-            </View>
             <View style={styles.formContainer}>
-              {renderUpload("Exam Registration/Confirmation", "examRegistration")}
-              {renderUpload("Certificate of Graduation/Candidacy", "certOfGraduation")}
-              {renderUpload("Review Course Enrollment (if applicable)", "reviewCourse")}
+              <Text style={styles.subtextAboveHeader}>Supporting Documents</Text>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.verticalPill} />
+                <Text style={styles.sectionHeader}>Supporting Documents</Text>
+              </View>
+
+              <View style={styles.rowTwoCol}>
+                <View style={styles.colHalf}>
+                  {renderFileUploadBox("Exam Registration / Confirmation", "PDF or clear image", "examRegistration")}
+                </View>
+                <View style={styles.colHalf}>
+                  {renderFileUploadBox("Review Course Enrollment (optional)", "Upload if applicable", "reviewCourse")}
+                </View>
+              </View>
+
+              <View style={styles.row}>
+                <Text style={styles.label}>Notes (optional)</Text>
+                <TextInput
+                  style={[styles.input, { height: 80, textAlignVertical: 'top', paddingTop: 10 }]}
+                  multiline
+                  placeholder="Add context about your exam, timelines, or special circumstances."
+                  value={values.additionalNotes}
+                  onChangeText={(text) => setValues({ ...values, additionalNotes: text })}
+                />
+              </View>
+
             </View>
           </View>
         );
       case 2:
         return (
           <View>
-            <View style={styles.topSectionHeaderContainer}>
-              <Text style={styles.topSectionHeader}>Review Information</Text>
-            </View>
             <View style={styles.formContainer}>
+              <Text style={styles.subtextAboveHeader}>Review & Submit</Text>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.verticalPill} />
+                <Text style={styles.sectionHeader}>Review & Confirm</Text>
+              </View>
+
+              <View style={styles.infoBox}>
+                <Text style={styles.infoBoxText}>Please review your details below. Ensure information and documents reflect your exam application.</Text>
+              </View>
+
               {renderReviewCard("| Exam Information", [
+                { label: "Assistance Type", value: values.assistanceType },
                 { label: "Board Exam Type", value: values.examType },
                 { label: "Exam Date", value: values.examDate || "Not provided" },
                 { label: "Testing Center/Location", value: values.testingCenter },
-                { label: "Have you taken this exam before?", value: values.takenBefore },
+                { label: "Taken Before", value: values.takenBefore },
               ])}
 
               {renderReviewCard("| Supporting Documents", [
-                { label: "Exam Registration/Confirmation", icon: "checkmark-circle-outline" },
-                { label: "Certificate of Graduation/Candidacy", icon: "checkmark-circle-outline" },
-                { label: "Review Course Enrollment", icon: "checkmark-circle-outline" },
+                { label: "Exam Registration", icon: "checkmark-circle", iconColor: "#2cae57" },
+                { label: "Review Course Enrollment", icon: "remove-circle", iconColor: "#dce1f0" },
               ])}
+
+              <TouchableOpacity 
+                style={styles.checkboxRow} 
+                activeOpacity={0.8} 
+                onPress={() => setConfirmed(!confirmed)}
+              >
+                <Ionicons 
+                  name={confirmed ? "checkbox" : "square-outline"} 
+                  size={20} 
+                  color={confirmed ? "#5b61aa" : "#848baf"} 
+                />
+                <Text style={styles.checkboxText}>
+                  I confirm the details are correct and wish to submit my application.
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         );
@@ -362,27 +437,95 @@ export default function ExamAssistanceScreen({ navigation }) {
     }
   };
 
-  return (
-    <View style={styles.container}>
-      <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity onPress={() => (step > -1 ? setStep(step - 1) : navigation.goBack())} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#5b6095" />
-        </TouchableOpacity>
-        
-        {step === -1 ? (
-          <>
-            <Text style={styles.titleLanding}>Exam{"\n"}Assistance</Text>
-            <TouchableOpacity style={styles.bellBtn} activeOpacity={0.8}>
-              <Ionicons name="notifications-outline" size={24} color="#6a72b2" />
-            </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            <Text style={styles.title}>Board Exam Assistance</Text>
-            <View style={styles.empty} />
-          </>
-        )}
-      </View>
+    if (step === -1) {
+      return (
+        <View style={{ flex: 1, backgroundColor: '#f4f6fa' }}>
+          <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+            {/* Header Area */}
+            <View style={[styles.landingHero, { paddingTop: insets.top + 16 }]}>
+              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.heroBackBtn}>
+                <Ionicons name="arrow-back" size={20} color="#fff" />
+              </TouchableOpacity>
+              <View style={styles.heroBadge}>
+                <Text style={styles.heroBadgeText}>Board Exam / Certification</Text>
+              </View>
+              <Text style={styles.heroTitle}>Board Exam & Certification Assistance</Text>
+              <Text style={styles.heroSub}>From graduation to licensure, we cover review needs and exam costs so you can focus on passing.</Text>
+            </View>
+            
+            {/* Main Content Area */}
+            <View style={styles.landingBodyCard}>
+              <View style={styles.pathwayBadge}>
+                <Text style={styles.pathwayBadgeText}>KKFI Exam Pathway</Text>
+              </View>
+              
+              <Text style={styles.landingSectionTitle}>Background</Text>
+              <View style={styles.landingSectionDivider} />
+              <Text style={styles.landingParagraph}>
+                Assistance is available for review programs, official exam fees, and a one-time incentive after you pass. Funds are limited per cycle, so make sure your documents are ready when you apply.
+              </Text>
+              
+              <Text style={styles.landingSectionTitle}>Eligibility</Text>
+              <View style={styles.landingSectionDivider} />
+              {[
+                "Filipino citizen graduating or graduate from the program",
+                "Targeting a licensure board exam or industry certification within 12 months",
+                "GWA meets program threshold or with clearance from scholar coordinator",
+                "Can submit proof of exam schedule or review enrollment"
+              ].map((text, idx) => (
+                <View style={styles.checkListItem} key={idx}>
+                  <Ionicons name="checkmark-circle" size={20} color="#2cae57" />
+                  <Text style={styles.checkListText}>{text}</Text>
+                </View>
+              ))}
+              
+              <Text style={styles.landingSectionTitle}>What we cover</Text>
+              <View style={styles.landingSectionDivider} />
+              <View style={styles.pillContainer}>
+                {["Review center fees", "Exam application fees", "Study materials and mock exams", "One-time cash incentive after passing"].map((text, idx) => (
+                  <View style={styles.coverPill} key={idx}>
+                    <Text style={styles.coverPillText}>{text}</Text>
+                  </View>
+                ))}
+              </View>
+              
+              <Text style={styles.landingSectionTitle}>How to Apply</Text>
+              <View style={styles.landingSectionDivider} />
+              {[
+                "Choose whether you need review support or a post-exam incentive.",
+                "Prepare your exam schedule or review enrollment slip for validation.",
+                "Submit the application form and upload required documents.",
+                "Wait for coordinator review and confirmation of assistance."
+              ].map((text, idx) => (
+                <View style={styles.stepListItem} key={idx}>
+                  <View style={styles.stepNumberCircle}>
+                    <Text style={styles.stepNumberText}>{idx + 1}</Text>
+                  </View>
+                  <Text style={styles.stepListText}>{text}</Text>
+                </View>
+              ))}
+              
+              <View style={styles.landingFooter}>
+                <Text style={styles.footerNote}>Double-check your exam schedule before applying</Text>
+                <TouchableOpacity style={styles.landingApplyBtn} onPress={() => setStep(0)}>
+                  <Text style={styles.landingApplyBtnText}>Apply Now</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.container}>
+        <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
+          <TouchableOpacity onPress={() => (step > 0 ? setStep(step - 1) : navigation.goBack())} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color="#5b6095" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Board Exam Assistance</Text>
+          <View style={styles.empty} />
+        </View>
 
       {completeStage === "none" && !submitting && step > -1 && (
         <View style={styles.progressBarRow}>
@@ -405,9 +548,22 @@ export default function ExamAssistanceScreen({ navigation }) {
       </ScrollView>
 
       {!submitting && completeStage === "none" && step > -1 && (
-        <View style={{ paddingHorizontal: 24, paddingBottom: 30 }}>
-          <TouchableOpacity style={styles.nextBtn} onPress={advance}>
-            <Text style={styles.nextBtnText}>{step < maxStep ? "Next Step →" : "Submit Application"}</Text>
+        <View style={styles.footerRow}>
+          {step > 0 && (
+            <TouchableOpacity style={styles.backButtonFooter} onPress={() => setStep(step - 1)}>
+              <Text style={styles.backButtonFooterText}>Previous</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity 
+            style={[
+              styles.nextButtonFooter, 
+              step === 0 && { flex: 1, alignItems: "center" },
+              step === maxStep && !confirmed && { backgroundColor: '#aeb4d2', elevation: 0 }
+            ]} 
+            onPress={advance}
+            disabled={step === maxStep && !confirmed}
+          >
+            <Text style={styles.nextButtonFooterText}>{step < maxStep ? "Next Step" : "Submit Application"}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -430,25 +586,37 @@ const styles = StyleSheet.create({
   topSectionHeaderContainer: { borderBottomWidth: 1, borderColor: "#ccd1ed", paddingHorizontal: 24, paddingBottom: 16, marginBottom: 20 },
   topSectionHeader: { fontSize: 18, fontWeight: "600", color: "#5b6095" },
   formContainer: { paddingHorizontal: 24 },
-  landingContainer: { paddingHorizontal: 20, marginTop: 4 },
-  landingHeader: { fontSize: 16, fontWeight: "800", color: "#222", marginBottom: 16, textAlign: "center" },
-  statsCard: { backgroundColor: "#fff", borderRadius: 16, paddingVertical: 20, paddingHorizontal: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2, borderWidth: 1, borderColor: "#eff1f8" },
-  statCol: { alignItems: "center", justifyContent: "center", width: "31%", paddingHorizontal: 2 },
-  statDivider: { width: 1, height: 34, backgroundColor: "#eff1f8" },
-  statLabel: { color: "#8a94b5", fontSize: 12, fontWeight: "600", marginBottom: 6, textAlign: "center" },
-  statValue: { color: "#111", fontSize: 14, fontWeight: "900", textAlign: "center" },
-  infoCard: { backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 16, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2, borderWidth: 1, borderColor: "#eff1f8" },
-  infoCardTitle: { fontSize: 14, fontWeight: "900", color: "#6471c3", marginLeft: 6, letterSpacing: 0.5 },
-  infoCardText: { fontSize: 13, color: "#444", lineHeight: 20, fontWeight: "500" },
-  optionsCard: { backgroundColor: "#fff", borderRadius: 16, padding: 16, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2, borderWidth: 1, borderColor: "#eff1f8" },
-  optionHeader: { fontSize: 16, fontWeight: "900", color: "#111" },
-  optionSubHeader: { fontSize: 12, fontWeight: "600", color: "#8a94b5", marginBottom: 16 },
-  optionListItem: { flexDirection: "row", alignItems: "center", marginBottom: 10, paddingRight: 20 },
-  optionIconBlock: { width: 32, height: 32, borderRadius: 8, justifyContent: "center", alignItems: "center", marginRight: 12 },
-  optionListText: { fontSize: 13, color: "#333", fontWeight: "500", lineHeight: 18, flex: 1 },
-  optionListDivider: { height: 1, backgroundColor: "#f0f2fb", marginBottom: 10, marginLeft: 44 },
-  applyNowBtn: { backgroundColor: "#5b61a7", borderRadius: 12, paddingVertical: 16, alignItems: "center", marginTop: 24, shadowColor: "#4f5fc5", shadowOpacity: 0.3, shadowOffset: { width: 0, height: 4 }, shadowRadius: 8, elevation: 4 },
-  applyNowBtnText: { color: "#fff", fontSize: 16, fontWeight: "900", letterSpacing: 0.5 },
+
+  landingHero: { backgroundColor: "#505786", paddingHorizontal: 24, paddingBottom: 40 },
+  heroBackBtn: { width: 42, height: 42, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.15)", justifyContent: "center", alignItems: "center", marginBottom: 24, borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
+  heroBadge: { backgroundColor: "rgba(255,255,255,0.2)", alignSelf: "flex-start", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, marginBottom: 12 },
+  heroBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+  heroTitle: { fontSize: 26, fontWeight: "800", color: "#fff", marginBottom: 10, letterSpacing: -0.5 },
+  heroSub: { fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 20, paddingRight: 20 },
+  
+  landingBodyCard: { backgroundColor: "#fff", borderTopLeftRadius: 30, borderTopRightRadius: 30, marginTop: -20, paddingHorizontal: 24, paddingTop: 30, paddingBottom: 40 },
+  pathwayBadge: { backgroundColor: "#f3f5fa", alignSelf: "flex-start", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, marginBottom: 24 },
+  pathwayBadgeText: { color: "#5b61aa", fontSize: 11, fontWeight: "700" },
+  landingSectionTitle: { fontSize: 18, fontWeight: "800", color: "#2d3a7c", marginBottom: 10 },
+  landingSectionDivider: { height: 1, backgroundColor: "#f0f2fb", marginBottom: 16 },
+  landingParagraph: { fontSize: 13, color: "#6e7798", lineHeight: 22, marginBottom: 30 },
+  
+  checkListItem: { flexDirection: "row", alignItems: "flex-start", marginBottom: 14 },
+  checkListText: { fontSize: 13, color: "#4f5ec4", lineHeight: 20, flex: 1, marginLeft: 10, fontWeight: "500" },
+  
+  pillContainer: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 30 },
+  coverPill: { borderWidth: 1, borderColor: "#e4e8f6", borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: "#fff" },
+  coverPillText: { fontSize: 12, color: "#3d4076", fontWeight: "600" },
+  
+  stepListItem: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  stepNumberCircle: { width: 26, height: 26, borderRadius: 13, backgroundColor: "#5b61aa", justifyContent: "center", alignItems: "center", marginRight: 14 },
+  stepNumberText: { color: "#fff", fontSize: 12, fontWeight: "800" },
+  stepListText: { fontSize: 13, color: "#6e7798", flex: 1, lineHeight: 20 },
+  
+  landingFooter: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", marginTop: 24 },
+  footerNote: { fontSize: 10, color: "#aeb4bd", marginRight: 14 },
+  landingApplyBtn: { backgroundColor: "#5b61aa", paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12 },
+  landingApplyBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
   content: { flex: 1 },
   row: { marginBottom: 16 },
   label: { fontWeight: "600", color: "#1c2131", fontSize: 13, marginBottom: 8 },
@@ -477,4 +645,36 @@ const styles = StyleSheet.create({
   completeText: { fontSize: 22, fontWeight: "800", color: "#3f4ca8", marginTop: 16, marginBottom: 8 },
   submitBtn: { borderRadius: 12, backgroundColor: "#4f5fc5", paddingVertical: 14, paddingHorizontal: 30, marginTop: 10 },
   submitBtnText: { color: "#fff", fontWeight: "800", fontSize: 16 },
+  calendarModalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" },
+  calendarModalContent: { backgroundColor: "#fff", width: "85%", borderRadius: 16, padding: 20 },
+  calendarHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  calendarHeaderText: { fontSize: 18, fontWeight: "700", color: "#4f5fc5" },
+  calendarWeekDaysRow: { flexDirection: "row", justifyContent: "space-around", marginBottom: 8 },
+  calendarWeekDay: { color: "#848baf", fontSize: 13, fontWeight: "800", width: 40, textAlign: "center" },
+  calendarDaysGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-start" },
+  calendarDay: { width: "14.28%", height: 40, justifyContent: "center", alignItems: "center", marginVertical: 2 },
+  calendarDayText: { color: "#1c2131", fontSize: 16, fontWeight: "600" },
+  calendarCloseBtn: { marginTop: 16, alignSelf: "flex-end", padding: 8, paddingBottom: 0 },
+  calendarCloseText: { color: "#4f5ec4", fontSize: 15, fontWeight: "700" },
+
+  subtextAboveHeader: { fontSize: 11, fontWeight: "700", color: "#5b61a7", textTransform: "uppercase", marginBottom: 6 },
+  sectionHeaderRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
+  verticalPill: { width: 4, height: 20, backgroundColor: "#5b61a7", borderRadius: 2, marginRight: 8 },
+  sectionHeader: { fontSize: 17, fontWeight: "900", color: "#2d3a7c" },
+  rowTwoCol: { flexDirection: "row", gap: 12, marginBottom: 0 },
+  colHalf: { flex: 1 },
+  uploadBoxDashed: { borderWidth: 1, borderColor: "#c2c9d6", borderStyle: "dashed", borderRadius: 10, backgroundColor: "#f8f9fc", width: "100%", height: 75, paddingHorizontal: 12, justifyContent: "center" },
+  uploadBoxTitle: { fontSize: 13, fontWeight: "600", color: "#4f5ec4", marginBottom: 2 },
+  uploadBoxSubtext: { fontSize: 11, color: "#6e7798" },
+  
+  footerRow: { flexDirection: "row", paddingHorizontal: 24, paddingBottom: 30, marginTop: 10 },
+  backButtonFooter: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, borderWidth: 1, borderColor: "#dce1f0", marginRight: 12, backgroundColor: "#fff" },
+  backButtonFooterText: { color: "#4f5fc5", fontSize: 15, fontWeight: "700" },
+  nextButtonFooter: { flex: 1, backgroundColor: "#5b61a7", borderRadius: 12, paddingVertical: 14, alignItems: "center", justifyContent: "center", shadowColor: "#2d3a7c", shadowOpacity: 0.2, shadowOffset: { width: 0, height: 4 }, shadowRadius: 6, elevation: 4 },
+  nextButtonFooterText: { color: "#fff", fontSize: 15, fontWeight: "800" },
+
+  infoBox: { backgroundColor: "#f8f9fc", padding: 14, borderRadius: 10, borderWidth: 1, borderColor: "#e4e8f6", marginBottom: 16 },
+  infoBoxText: { fontSize: 12, color: "#3d4076", lineHeight: 18, fontWeight: "500" },
+  checkboxRow: { flexDirection: "row", alignItems: "center", marginTop: 8, marginBottom: 20 },
+  checkboxText: { marginLeft: 10, fontSize: 13, color: "#2d3a7c", fontWeight: "700" },
 });

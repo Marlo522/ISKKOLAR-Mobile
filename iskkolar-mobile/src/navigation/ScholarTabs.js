@@ -22,7 +22,6 @@ function ScholarDashboardStackScreen() {
   return (
     <DashboardStack.Navigator screenOptions={{ headerShown: false }}>
       <DashboardStack.Screen name="ScholarDashboardMain" component={ScholarDashboardScreen} />
-      <DashboardStack.Screen name="Notifications" component={NotificationsScreen} />
       <DashboardStack.Screen name="ScholarshipRenewal" component={ScholarshipRenewalScreen} />
       <DashboardStack.Screen name="ExamAssistance" component={ExamAssistanceScreen} />
       <DashboardStack.Screen name="GradeCompliance" component={GradeComplianceScreen} />
@@ -59,6 +58,7 @@ export default function ScholarTabs() {
           let iconName;
           if (route.name === "Home") iconName = focused ? "home" : "home-outline";
           else if (route.name === "Activities") iconName = focused ? "clipboard" : "clipboard-outline";
+          else if (route.name === "Notifications") iconName = focused ? "notifications" : "notifications-outline";
           else if (route.name === "Application") iconName = focused ? "document-text" : "document-text-outline";
           else if (route.name === "Profile") iconName = focused ? "person" : "person-outline";
 
@@ -68,6 +68,7 @@ export default function ScholarTabs() {
     >
       <Tab.Screen name="Home" component={ScholarDashboardStackScreen} />
       <Tab.Screen name="Activities" component={ActivitiesScreen} />
+      <Tab.Screen name="Notifications" component={NotificationsScreen} />
       <Tab.Screen name="Application" component={ApplicationScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
