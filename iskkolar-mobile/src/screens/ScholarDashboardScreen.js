@@ -47,7 +47,14 @@ export default function ScholarDashboardScreen({ navigation }) {
     ]).start();
   }, []);
 
-  const fullName = user?.firstName ? `${user.firstName} ${user.lastName}`.toUpperCase() : 'JUAN DELA CRUZ';
+  const fullName = [
+    user?.firstName || user?.first_name,
+    user?.middleName || user?.middle_name,
+    user?.lastName || user?.last_name,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim() || 'Scholar';
 
   return (
     <View style={styles.container}>
