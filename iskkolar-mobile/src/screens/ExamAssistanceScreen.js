@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platfo
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
+import { useExamAssistance } from "../hooks/useExamAssistance";
 
 export default function ExamAssistanceScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -21,8 +22,11 @@ export default function ExamAssistanceScreen({ navigation }) {
     certOfGraduation: "", 
     reviewCourse: "" 
   });
+  const [uploadFiles, setUploadFiles] = useState({
+    examRegistration: null,
+    reviewCourse: null,
+  });
   
-  const [submitting, setSubmitting] = useState(false);
   const [completeStage, setCompleteStage] = useState("none");
   const [selectVisible, setSelectVisible] = useState(false);
   const [selectKey, setSelectKey] = useState(null);
@@ -33,6 +37,15 @@ export default function ExamAssistanceScreen({ navigation }) {
   const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  const {
+    submitting,
+    error,
+    fieldErrors,
+    clearFieldError,
+    validateStep,
+    submitApplication: submitExamAssistanceApplication,
+  } = useExamAssistance();
 
   const spinAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
@@ -78,34 +91,52 @@ export default function ExamAssistanceScreen({ navigation }) {
 
   const maxStep = 2; // Step 0, Step 1, Step 2
 
-  const advance = () => {
-    if (step < maxStep) setStep((s) => s + 1);
-    else submitApplication();
+  const advance = async () => {
+    if (step < maxStep) {
+      const isValid = validateStep(step, values, uploadFiles);
+      if (!isValid) return;
+      setStep((s) => s + 1);
+      return;
+    }
+
+    await submitApplication();
   };
 
-  const submitApplication = () => {
-    setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
+  const submitApplication = async () => {
+    const isValid = validateStep(1, values, uploadFiles);
+    if (!isValid) {
+      Alert.alert("Missing Requirement", "Please complete required fields before submitting.");
+      return;
+    }
+
+    try {
+      await submitExamAssistanceApplication(values, uploadFiles);
       setCompleteStage("preAssessment");
-    }, 1500);
+    } catch (error) {
+      const message = error?.message || "Failed to submit exam assistance application.";
+      Alert.alert("Submission Failed", message);
+    }
   };
 
   const renderInput = (label, key, placeholder = null) => (
-    <View style={styles.row}>
+    <View style={[styles.row, fieldErrors[key] && styles.rowWithError]}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
         value={values[key]}
         placeholder={placeholder || `Enter ${label}`}
-        onChangeText={(text) => setValues({ ...values, [key]: text })}
+        onChangeText={(text) => {
+          setValues({ ...values, [key]: text });
+          clearFieldError(key);
+        }}
         style={styles.input}
       />
+      {fieldErrors[key] ? <Text style={styles.errorText}>{fieldErrors[key]}</Text> : null}
     </View>
   );
 
   const renderSelect = (label, key, options) => (
     <>
-      <View style={styles.row}>
+      <View style={[styles.row, fieldErrors[key] && styles.rowWithError]}>
         <Text style={styles.label}>{label}</Text>
         <TouchableOpacity
           style={styles.yearPickerInput}
@@ -146,6 +177,7 @@ export default function ExamAssistanceScreen({ navigation }) {
                     ]}
                     onPress={() => {
                       setValues({ ...values, [key]: opt });
+                      clearFieldError(key);
                       setSelectVisible(false);
                     }}
                   >
@@ -164,6 +196,7 @@ export default function ExamAssistanceScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+      {fieldErrors[key] ? <Text style={styles.errorText}>{fieldErrors[key]}</Text> : null}
     </>
   );
 
@@ -195,6 +228,7 @@ export default function ExamAssistanceScreen({ navigation }) {
              const d = i < 10 ? `0${i}` : i;
              const dateStr = `${m < 10 ? '0'+m : m}/${d}/${selectedYear}`;
              setValues({...values, [dateKey]: dateStr});
+             clearFieldError(dateKey);
              setDateVisible(false);
            }}
          >
@@ -207,7 +241,7 @@ export default function ExamAssistanceScreen({ navigation }) {
 
   const renderDatePickerField = (label, key) => (
     <>
-      <View style={styles.row}>
+      <View style={[styles.row, fieldErrors[key] && styles.rowWithError]}>
         <Text style={styles.label}>{label}</Text>
         <TouchableOpacity
           style={styles.yearPickerInput}
@@ -241,6 +275,7 @@ export default function ExamAssistanceScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+      {fieldErrors[key] ? <Text style={styles.errorText}>{fieldErrors[key]}</Text> : null}
     </>
   );
 
@@ -264,7 +299,10 @@ export default function ExamAssistanceScreen({ navigation }) {
       });
       if (result.canceled) return;
       if (result.assets && result.assets.length > 0) {
-        setUploadText(prev => ({ ...prev, [key]: result.assets[0].name }));
+        const selectedFile = result.assets[0];
+        setUploadText(prev => ({ ...prev, [key]: selectedFile.name }));
+        setUploadFiles((prev) => ({ ...prev, [key]: selectedFile }));
+        clearFieldError(key);
       }
     } catch (error) {
       console.log("Error picking file:", error);
@@ -273,7 +311,7 @@ export default function ExamAssistanceScreen({ navigation }) {
   };
 
   const renderFileUploadBox = (label, subtext, key) => (
-    <View style={{ marginBottom: 16 }}>
+    <View style={[styles.uploadRow, fieldErrors[key] && styles.rowWithError]}>
       <Text style={styles.label}>{label}</Text>
       <TouchableOpacity style={styles.uploadBoxDashed} onPress={() => handleFileUpload(key)}>
         <Text style={[styles.uploadBoxTitle, uploadText[key] && { color: "#2cae57" }]}>
@@ -283,6 +321,7 @@ export default function ExamAssistanceScreen({ navigation }) {
           {uploadText[key] || subtext}
         </Text>
       </TouchableOpacity>
+      {fieldErrors[key] ? <Text style={styles.errorText}>{fieldErrors[key]}</Text> : null}
     </View>
   );
 
@@ -347,11 +386,11 @@ export default function ExamAssistanceScreen({ navigation }) {
               <Text style={styles.topSectionHeader}>Examination Information</Text>
             </View>
             <View style={styles.formContainer}>
-              {renderSelect("Type of Assistance", "assistanceType", ["Board Exam", "Bar Exam", "Certification"])}
+              {renderSelect("Type of Assistance", "assistanceType", ["Review Support", "Cash Incentive"])}
               {renderInput("Exam / Certification Type", "examType", "Exam / Certification Type")}
               {renderDatePickerField("Exam Date", "examDate")}
               {renderInput("Testing Center / Location", "testingCenter", "City / Testing center")}
-              {renderSelect("Have you taken this exam/certification before?", "takenBefore", ["No, this is my first attempt", "Yes, I have taken it before"])}
+              {renderSelect("Have you taken this exam/certification before?", "takenBefore", ["Yes, this is my first attempt", "No, I have taken it before"])}
             </View>
           </View>
         );
@@ -401,6 +440,11 @@ export default function ExamAssistanceScreen({ navigation }) {
               <View style={styles.infoBox}>
                 <Text style={styles.infoBoxText}>Please review your details below. Ensure information and documents reflect your exam application.</Text>
               </View>
+              {error ? (
+                <View style={styles.errorBanner}>
+                  <Text style={styles.errorBannerText}>{error}</Text>
+                </View>
+              ) : null}
 
               {renderReviewCard("| Exam Information", [
                 { label: "Assistance Type", value: values.assistanceType },
@@ -619,16 +663,18 @@ const styles = StyleSheet.create({
   landingApplyBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
   content: { flex: 1 },
   row: { marginBottom: 16 },
-  label: { fontWeight: "600", color: "#1c2131", fontSize: 13, marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, paddingHorizontal: 16, paddingVertical: Platform.OS === "ios" ? 14 : 12, backgroundColor: "#ffffff", color: "#555", fontSize: 15 },
-  uploadBtn: { borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, height: 50, justifyContent: "center", paddingHorizontal: 16, backgroundColor: "#ffffff" },
+  uploadRow: { marginBottom: 16 },
+  rowWithError: { marginBottom: 3 },
+  label: { fontWeight: "600", color: "#1c2131", fontSize: 13, marginBottom: 6 },
+  input: { borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, paddingHorizontal: 16, paddingVertical: Platform.OS === "ios" ? 13 : 11, minHeight: 48, backgroundColor: "#ffffff", color: "#555", fontSize: 15 },
+  uploadBtn: { borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, height: 48, justifyContent: "center", paddingHorizontal: 16, backgroundColor: "#ffffff" },
   uploadText: { color: "#777", fontSize: 15, alignSelf: "center" },
   reviewCard: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#dbe2f6", borderRadius: 10, padding: 16, marginBottom: 16, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
   reviewCardTitle: { fontSize: 17, fontWeight: "900", color: "#4f5fc5", marginBottom: 4 },
   reviewRowCardItem: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8, alignItems: "center" },
   reviewLabel: { color: "#848baf", fontSize: 13, fontWeight: "600" },
   reviewValueCard: { fontSize: 12, color: "#1c2131", fontWeight: "700" },
-  yearPickerInput: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, paddingHorizontal: 16, paddingVertical: Platform.OS === "ios" ? 14 : 12, backgroundColor: "#ffffff", height: 50 },
+  yearPickerInput: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, paddingHorizontal: 16, paddingVertical: Platform.OS === "ios" ? 13 : 11, backgroundColor: "#ffffff", height: 48 },
   yearPickerText: { color: "#555", fontSize: 15, fontWeight: "500" },
   yearPickerModal: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
   yearPickerContent: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "80%", paddingTop: 16 },
@@ -675,6 +721,9 @@ const styles = StyleSheet.create({
 
   infoBox: { backgroundColor: "#f8f9fc", padding: 14, borderRadius: 10, borderWidth: 1, borderColor: "#e4e8f6", marginBottom: 16 },
   infoBoxText: { fontSize: 12, color: "#3d4076", lineHeight: 18, fontWeight: "500" },
+  errorText: { color: "#dc2626", fontSize: 12, marginTop: 2, marginBottom: 0, fontWeight: "600", lineHeight: 14 },
+  errorBanner: { backgroundColor: "#fee2e2", borderWidth: 1, borderColor: "#fecaca", padding: 12, borderRadius: 10, marginBottom: 14 },
+  errorBannerText: { color: "#b91c1c", fontSize: 12, fontWeight: "600" },
   checkboxRow: { flexDirection: "row", alignItems: "center", marginTop: 8, marginBottom: 20 },
   checkboxText: { marginLeft: 10, fontSize: 13, color: "#2d3a7c", fontWeight: "700" },
 });
