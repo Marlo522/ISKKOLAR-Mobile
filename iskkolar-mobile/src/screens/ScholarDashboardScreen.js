@@ -16,7 +16,7 @@ export default function ScholarDashboardScreen({ navigation }) {
   ];
 
   const quickLinks = [
-    { title: "Grade Compliance", route: "GradeCompliance", icon: "clipboard-outline", iconBg: "#e7f6ea", iconColor: "#39a751" },
+    { title: "COR & Grade Compliance", route: "GradeCompliance", icon: "clipboard-outline", iconBg: "#e7f6ea", iconColor: "#39a751" },
     { title: "Financial Records", route: "FinancialRecords", icon: "receipt-outline", iconBg: "#fcefe9", iconColor: "#e96e5e" },
     { title: "My Profile", route: "Profile", icon: "person-outline", iconBg: "#f4effe", iconColor: "#7e52d8" },
     { title: "Activities", route: "Activities", icon: "calendar-outline", iconBg: "#eefafc", iconColor: "#41b5bd" }
@@ -24,6 +24,7 @@ export default function ScholarDashboardScreen({ navigation }) {
 
   const services = [
     { title: "Scholarship Renewal", sub: "Renew for AY 2026-2027", route: "ScholarshipRenewal", icon: "sync", iconBg: "#f4effe", iconColor: "#7e52d8" },
+    { title: "Transfer School", sub: "Update your school or program", route: "TransferSchool", icon: "swap-horizontal", iconBg: "#fff0f0", iconColor: "#e96e5e" },
     { title: "Board Exam/Certification Assistance", sub: "Up to P12,000 support", route: "ExamAssistance", icon: "checkmark-circle-outline", iconBg: "#eefafc", iconColor: "#41b5bd" }
   ];
 

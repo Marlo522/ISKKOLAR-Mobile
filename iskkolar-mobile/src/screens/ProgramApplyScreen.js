@@ -91,7 +91,7 @@ function DatePickerModal({ visible, dateStr, onConfirm, onClose }) {
               <Ionicons name="close" size={24} color="#4f5fc5" />
             </TouchableOpacity>
           </View>
-          
+
           <View style={{ flexDirection: "row", height: 200, marginTop: 16 }}>
             <ScrollView style={{ flex: 1.2 }} showsVerticalScrollIndicator={false}>
               {months.map((m, idx) => (
@@ -132,10 +132,10 @@ function DatePickerModal({ visible, dateStr, onConfirm, onClose }) {
 
           <TouchableOpacity
             style={[styles.nextBtn, { marginHorizontal: 0, marginTop: 24 }]}
-            onPress={() => { 
-                const d = new Date(year, month, day);
-                const formatted = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-                onConfirm(formatted); 
+            onPress={() => {
+              const d = new Date(year, month, day);
+              const formatted = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+              onConfirm(formatted);
             }}
           >
             <Text style={styles.nextBtnText}>Confirm Selection</Text>
@@ -730,7 +730,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderSelect("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th"])}
           {renderSelect("Term", "term",
             values.termType === "Quarter System" ? ["1st", "2nd", "3rd", "4th"] :
-            values.termType === "Trimester" ? ["1st", "2nd", "3rd"] : ["1st", "2nd"]
+              values.termType === "Trimester" ? ["1st", "2nd", "3rd"] : ["1st", "2nd"]
           )}
           {renderYearInput("Expected Year of Graduation", "expectedGradYear")}
           {renderUpload("COR", "cor")}
@@ -928,7 +928,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderSelect("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th"])}
           {renderSelect("Term", "term",
             values.termType === "Quarter System" ? ["1st", "2nd", "3rd", "4th"] :
-            values.termType === "Trimester" ? ["1st", "2nd", "3rd"] : ["1st", "2nd"]
+              values.termType === "Trimester" ? ["1st", "2nd", "3rd"] : ["1st", "2nd"]
           )}
           {renderYearInput("Expected Year of Graduation", "expectedGradYear")}
           {renderUpload("COR", "cor")}
@@ -1056,13 +1056,13 @@ export default function ProgramApplyScreen({ navigation, route }) {
       {selectedProgram === "employeeChild" && (
         <>
           {renderReviewSection("Academic Path", "trail-sign-outline", [
-             ...(!isChildDesignation ? [{ label: "Education Path", value: values.educPath, icon: "map-outline" }] : []),
-             { label: "New Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
+            ...(!isChildDesignation ? [{ label: "Education Path", value: values.educPath, icon: "map-outline" }] : []),
+            { label: "New Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
           ])}
           {renderReviewSection("Staff Information", "id-card-outline", [
-             { label: "Staff ID", value: values.staffId, icon: "barcode-outline" },
-             { label: "Staff Employee", value: `${values.firstName} ${values.lastName}`, icon: "person-outline" },
-             { label: "Position", value: values.position, icon: "briefcase-outline" },
+            { label: "Staff ID", value: values.staffId, icon: "barcode-outline" },
+            { label: "Staff Employee", value: `${values.firstName} ${values.lastName}`, icon: "person-outline" },
+            { label: "Position", value: values.position, icon: "briefcase-outline" },
           ])}
         </>
       )}
@@ -1072,7 +1072,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           <Ionicons name="document-text-outline" size={20} color="#3d4fa0" />
           <Text style={styles.declarationTitle}>Declaration & Agreement</Text>
         </View>
-        
+
         <View style={styles.declarationItems}>
           <TouchableOpacity style={styles.declRow} activeOpacity={0.7} onPress={() => setDeclarations((d) => ({ ...d, agree1: !d.agree1 }))}>
             <View style={[styles.modernCheckbox, declarations.agree1 && styles.modernCheckboxChecked]}>
@@ -1109,13 +1109,13 @@ export default function ProgramApplyScreen({ navigation, route }) {
     const reportData = qualificationOutcome?.qualification_report;
     const rules = reportData?.rule_results
       ? Object.keys(reportData.rule_results).map((ruleKey) => {
-          const res = reportData.rule_results[ruleKey];
-          return {
-            rule: ruleKey.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-            status: res.status === "passed" ? "passed" : "failed",
-            feedback: res.message,
-          };
-        })
+        const res = reportData.rule_results[ruleKey];
+        return {
+          rule: ruleKey.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+          status: res.status === "passed" ? "passed" : "failed",
+          feedback: res.message,
+        };
+      })
       : [];
 
     const isQualified = reportData?.final_result === "qualified";
@@ -1123,8 +1123,8 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
     const finalStatusText =
       isQualified ? "Qualified" :
-      reportData?.final_result === "not_qualified" ? "Not Qualified" :
-      "For Review of Staff";
+        reportData?.final_result === "not_qualified" ? "Not Qualified" :
+          "For Review of Staff";
 
     const statusColor = isQualified ? "#1a9e6a" : (isReview ? "#e8a030" : "#e03a3a");
     const statusBg = isQualified ? "#e6fff5" : (isReview ? "#fff7e6" : "#fff0f0");
@@ -1161,7 +1161,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
                 <Text style={{ color: "#8a94b5", marginTop: 10, fontWeight: "600" }}>Application submitted successfully.</Text>
               </View>
             )}
-            
+
             {rules.map((item, idx) => {
               const passed = item.status === "passed";
               return (
@@ -1248,8 +1248,8 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {selectedProgram === "employeeChild"
             ? isChildDesignation ? "KKFI Employee-Child Education Grant" : "Employee Child Grant"
             : selectedProgram === "vocational"
-            ? "VOCATIONAL AND TECHNOLOGY SCHOLARSHIP"
-            : "Tertiary Scholarship Program"}
+              ? "VOCATIONAL AND TECHNOLOGY SCHOLARSHIP"
+              : "Tertiary Scholarship Program"}
         </Text>
         <View style={styles.empty} />
       </View>
@@ -1296,16 +1296,20 @@ export default function ProgramApplyScreen({ navigation, route }) {
         </TouchableOpacity>
       )}
 
-      <Modal visible={selectVisible} transparent animationType="slide" onRequestClose={closeSelect}>
+      <Modal visible={selectVisible} transparent animationType="slide" statusBarTranslucent onRequestClose={closeSelect}>
         <View style={styles.modalRoot}>
-          <View style={styles.modalCard}>
+          <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={closeSelect} />
+          <View style={[styles.modalCard, { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Option</Text>
               <TouchableOpacity onPress={closeSelect}>
                 <Ionicons name="close" size={24} color="#4f5fc5" />
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+            <ScrollView 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
               {(selectContext?.options || []).map((opt, idx) => {
                 const isSelected =
                   selectContext?.type === "member"
@@ -1314,10 +1318,17 @@ export default function ProgramApplyScreen({ navigation, route }) {
                 return (
                   <TouchableOpacity
                     key={idx}
-                    style={[styles.modalOption, isSelected && styles.modalOptionActive]}
+                    style={[
+                      styles.modalOption, 
+                      { flexDirection: 'row', justifyContent: 'center' },
+                      isSelected && styles.modalOptionActive
+                    ]}
                     onPress={() => applySelect(opt)}
                   >
                     <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextActive]}>{opt}</Text>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ position: 'absolute', right: 16 }} />
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -1395,7 +1406,7 @@ const styles = StyleSheet.create({
   reviewRowCardItem: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8, alignItems: "flex-start" },
   reviewLabel: { color: "#6b7280", fontSize: 13, fontWeight: "600" },
   reviewValueCard: { fontSize: 13, color: "#2d3a7c", fontWeight: "800", textAlign: "right" },
-  
+
   // New Premium Review Styles
   sectionTitle: { fontSize: 22, fontWeight: "900", color: "#1c2131", marginBottom: 6 },
   sectionSubtitle: { fontSize: 13, color: "#6b7280", lineHeight: 18, marginBottom: 24 },
@@ -1408,7 +1419,7 @@ const styles = StyleSheet.create({
   reviewRowIconWrapper: { width: 30, height: 30, borderRadius: 8, backgroundColor: "rgba(91,95,151,0.06)", justifyContent: "center", alignItems: "center", marginRight: 12 },
   reviewDataContent: { flex: 1 },
   reviewDivider: { height: 1, backgroundColor: "#f1f3f9", marginLeft: 42 },
-  
+
   premiumReviewCard: { backgroundColor: "rgba(91,95,151,0.04)", borderRadius: 24, padding: 20, borderWidth: 1, borderColor: "rgba(91,95,151,0.1)", marginTop: 10 },
   declarationHeader: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
   declarationTitle: { fontSize: 16, fontWeight: "800", color: "#3d4fa0", marginLeft: 10 },

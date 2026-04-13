@@ -185,30 +185,27 @@ export default function GradeComplianceScreen({ navigation }) {
         <View style={styles.todoContentRow}>
           <View style={styles.todoCol}>
             <Text style={styles.todoLabel}>Academic Year</Text>
-            <Text style={styles.todoValue}>{academicYear || "--"}</Text>
+            <Text style={styles.todoValue}>{academicYear || "2025-2026"}</Text>
           </View>
           <View style={styles.todoCol}>
             <Text style={styles.todoLabel}>Requirement</Text>
             <Text style={styles.todoValue}>Official Grades</Text>
           </View>
-        </View>
-
-        <View style={styles.todoContentRow}>
-          <View style={styles.todoCol}>
+          <View style={[styles.todoCol, { flex: 1.5 }]}>
             <Text style={styles.todoLabel}>Documents</Text>
-            <Text style={styles.todoValue}>Grade Report + COR</Text>
+            <Text style={[styles.todoValue, { lineHeight: 20 }]}>Step 1: COR •{"\n"}Step 2: Grades</Text>
           </View>
           <View style={styles.todoCol}>
             <Text style={styles.todoLabel}>Submission</Text>
             <Text style={[styles.todoValue, { color: termItem.status === "Submitted" ? "#0d7c47" : "#b5850a" }]}>
-              {termItem.status === "Submitted" ? "Submitted" : "Not Submitted"}
+              {termItem.status === "Submitted" ? "Submitted" : termItem.status}
             </Text>
           </View>
         </View>
 
         {termItem.status === "Submitted" || termItem.status === "Approved" || termItem.status === "Rejected" ? (
-          <View style={[styles.submitBtnAction, { backgroundColor: '#e0e0e0' }]}>
-            <Text style={[styles.submitBtnActionText, { color: '#888' }]}>Already Submitted</Text>
+          <View style={[styles.submitBtnAction, { backgroundColor: '#b6bdd9' }]}>
+            <Text style={[styles.submitBtnActionText, { color: '#ffffff' }]}>Already Submitted</Text>
           </View>
         ) : (
           <TouchableOpacity 
@@ -289,7 +286,10 @@ export default function GradeComplianceScreen({ navigation }) {
     if (!selectedTermId) {
       return (
         <View style={styles.landingContainer}>
-          <Text style={styles.landingHeader}>Pending Compliance</Text>
+          <Text style={[styles.landingHeader, { marginBottom: 4 }]}>COR & Grade Compliance</Text>
+          <Text style={{ fontSize: 13, color: '#6870a3', marginBottom: 20, marginLeft: 2, fontWeight: '500' }}>
+            Academic Year: {academicYear || "2025-2026"}
+          </Text>
           
           {fieldErrors.term ? (
             <View style={styles.errorBanner}>
@@ -341,7 +341,7 @@ export default function GradeComplianceScreen({ navigation }) {
         </TouchableOpacity>
         
         <View style={{ flex: 1, marginLeft: 16 }}>
-          <Text style={styles.titleLanding}>Grade Compliance</Text>
+          <Text style={styles.titleLanding}>COR & Grade Compliance</Text>
           <Text style={styles.subtitleLanding} numberOfLines={1}>
             {selectedTerm ? `Submit grades for ${selectedTerm.termLabel}` : "Track your academic standing"}
           </Text>
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
   
   row: { marginBottom: 16 },
   label: { fontWeight: "500", color: "#555", fontSize: 14, marginBottom: 8 },
-  inputReadOnly: { borderWidth: 1, borderColor: "#e0e0e0", borderRadius: 12, paddingHorizontal: 16, paddingVertical: Platform.OS === "ios" ? 14 : 12, backgroundColor: "#fafafa" },
+  inputReadOnly: { borderWidth: 1, borderColor: "#e0e0e0", borderRadius: 12, paddingHorizontal: 16, height: 50, backgroundColor: "#fafafa", justifyContent: 'center' },
   inputReadOnlyText: { color: "#666", fontSize: 14 },
   
   uploadBtn: { borderWidth: 1, borderStyle: "dashed", borderColor: "#ccc", borderRadius: 12, height: 50, justifyContent: "center", paddingHorizontal: 16, backgroundColor: "#fafafa" },

@@ -16,17 +16,17 @@ export default function ExamAssistanceScreen({ navigation }) {
     takenBefore: "",
     additionalNotes: "",
   });
-  
-  const [uploadText, setUploadText] = useState({ 
-    examRegistration: "", 
-    certOfGraduation: "", 
-    reviewCourse: "" 
+
+  const [uploadText, setUploadText] = useState({
+    examRegistration: "",
+    certOfGraduation: "",
+    reviewCourse: ""
   });
   const [uploadFiles, setUploadFiles] = useState({
     examRegistration: null,
     reviewCourse: null,
   });
-  
+
   const [completeStage, setCompleteStage] = useState("none");
   const [selectVisible, setSelectVisible] = useState(false);
   const [selectKey, setSelectKey] = useState(null);
@@ -34,7 +34,7 @@ export default function ExamAssistanceScreen({ navigation }) {
 
   const [dateVisible, setDateVisible] = useState(false);
   const [dateKey, setDateKey] = useState(null);
-  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
@@ -152,12 +152,13 @@ export default function ExamAssistanceScreen({ navigation }) {
 
       <Modal
         visible={selectVisible && selectKey === key}
-        transparent
+        statusBarTranslucent
         animationType="slide"
         onRequestClose={() => setSelectVisible(false)}
       >
         <View style={styles.yearPickerModal}>
-          <View style={styles.yearPickerContent}>
+          <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={() => setSelectVisible(false)} />
+          <View style={[styles.yearPickerContent, { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <View style={styles.yearPickerHeader}>
               <Text style={styles.yearPickerTitle}>Select Option</Text>
               <TouchableOpacity onPress={() => setSelectVisible(false)}>
@@ -165,33 +166,33 @@ export default function ExamAssistanceScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.yearPickerScroll} showsVerticalScrollIndicator={true}>
-              <View style={{ flexDirection: "column", paddingBottom: 20 }}>
-                {options.map((opt, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    style={[
-                      styles.yearPickerOption,
-                      { width: "100%", marginBottom: 8, paddingVertical: 14 },
-                      values[key] === opt && styles.yearPickerOptionActive,
-                    ]}
-                    onPress={() => {
-                      setValues({ ...values, [key]: opt });
-                      clearFieldError(key);
-                      setSelectVisible(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.yearPickerOptionText,
-                        values[key] === opt && styles.yearPickerOptionTextActive,
-                      ]}
-                    >
-                      {opt}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+            <ScrollView 
+              style={styles.yearPickerScroll} 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
+              {options.map((opt, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={[
+                    styles.yearPickerOption,
+                    { width: "100%", marginBottom: 8, paddingVertical: 14, flexDirection: 'row', justifyContent: 'center' },
+                    values[key] === opt && styles.yearPickerOptionActive,
+                  ]}
+                  onPress={() => {
+                    setValues({ ...values, [key]: opt });
+                    clearFieldError(key);
+                    setSelectVisible(false);
+                  }}
+                >
+                  <Text style={[styles.yearPickerOptionText, values[key] === opt && { color: "#fff" }]}>
+                    {opt}
+                  </Text>
+                  {values[key] === opt && (
+                    <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ position: 'absolute', right: 16 }} />
+                  )}
+                </TouchableOpacity>
+              ))}
             </ScrollView>
           </View>
         </View>
@@ -219,22 +220,22 @@ export default function ExamAssistanceScreen({ navigation }) {
     let days = [];
     for (let i = 0; i < firstDay; i++) days.push(<View key={`empty-${i}`} style={styles.calendarDay} />);
     for (let i = 1; i <= daysInMonth; i++) {
-       days.push(
-         <TouchableOpacity 
-           key={`day-${i}`} 
-           style={styles.calendarDay}
-           onPress={() => {
-             const m = selectedMonth + 1;
-             const d = i < 10 ? `0${i}` : i;
-             const dateStr = `${m < 10 ? '0'+m : m}/${d}/${selectedYear}`;
-             setValues({...values, [dateKey]: dateStr});
-             clearFieldError(dateKey);
-             setDateVisible(false);
-           }}
-         >
-           <Text style={styles.calendarDayText}>{i}</Text>
-         </TouchableOpacity>
-       );
+      days.push(
+        <TouchableOpacity
+          key={`day-${i}`}
+          style={styles.calendarDay}
+          onPress={() => {
+            const m = selectedMonth + 1;
+            const d = i < 10 ? `0${i}` : i;
+            const dateStr = `${m < 10 ? '0' + m : m}/${d}/${selectedYear}`;
+            setValues({ ...values, [dateKey]: dateStr });
+            clearFieldError(dateKey);
+            setDateVisible(false);
+          }}
+        >
+          <Text style={styles.calendarDayText}>{i}</Text>
+        </TouchableOpacity>
+      );
     }
     return days;
   };
@@ -264,7 +265,7 @@ export default function ExamAssistanceScreen({ navigation }) {
               </TouchableOpacity>
             </View>
             <View style={styles.calendarWeekDaysRow}>
-              {['S','M','T','W','T','F','S'].map((d, i) => <Text key={i} style={styles.calendarWeekDay}>{d}</Text>)}
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <Text key={i} style={styles.calendarWeekDay}>{d}</Text>)}
             </View>
             <View style={styles.calendarDaysGrid}>
               {renderCalendarGrid()}
@@ -459,15 +460,15 @@ export default function ExamAssistanceScreen({ navigation }) {
                 { label: "Review Course Enrollment", icon: "remove-circle", iconColor: "#dce1f0" },
               ])}
 
-              <TouchableOpacity 
-                style={styles.checkboxRow} 
-                activeOpacity={0.8} 
+              <TouchableOpacity
+                style={styles.checkboxRow}
+                activeOpacity={0.8}
                 onPress={() => setConfirmed(!confirmed)}
               >
-                <Ionicons 
-                  name={confirmed ? "checkbox" : "square-outline"} 
-                  size={20} 
-                  color={confirmed ? "#5b61aa" : "#848baf"} 
+                <Ionicons
+                  name={confirmed ? "checkbox" : "square-outline"}
+                  size={20}
+                  color={confirmed ? "#5b61aa" : "#848baf"}
                 />
                 <Text style={styles.checkboxText}>
                   I confirm the details are correct and wish to submit my application.
@@ -481,95 +482,95 @@ export default function ExamAssistanceScreen({ navigation }) {
     }
   };
 
-    if (step === -1) {
-      return (
-        <View style={{ flex: 1, backgroundColor: '#f4f6fa' }}>
-          <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
-            {/* Header Area */}
-            <View style={[styles.landingHero, { paddingTop: insets.top + 16 }]}>
-              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.heroBackBtn}>
-                <Ionicons name="arrow-back" size={20} color="#fff" />
-              </TouchableOpacity>
-              <View style={styles.heroBadge}>
-                <Text style={styles.heroBadgeText}>Board Exam / Certification</Text>
-              </View>
-              <Text style={styles.heroTitle}>Board Exam & Certification Assistance</Text>
-              <Text style={styles.heroSub}>From graduation to licensure, we cover review needs and exam costs so you can focus on passing.</Text>
-            </View>
-            
-            {/* Main Content Area */}
-            <View style={styles.landingBodyCard}>
-              <View style={styles.pathwayBadge}>
-                <Text style={styles.pathwayBadgeText}>KKFI Exam Pathway</Text>
-              </View>
-              
-              <Text style={styles.landingSectionTitle}>Background</Text>
-              <View style={styles.landingSectionDivider} />
-              <Text style={styles.landingParagraph}>
-                Assistance is available for review programs, official exam fees, and a one-time incentive after you pass. Funds are limited per cycle, so make sure your documents are ready when you apply.
-              </Text>
-              
-              <Text style={styles.landingSectionTitle}>Eligibility</Text>
-              <View style={styles.landingSectionDivider} />
-              {[
-                "Filipino citizen graduating or graduate from the program",
-                "Targeting a licensure board exam or industry certification within 12 months",
-                "GWA meets program threshold or with clearance from scholar coordinator",
-                "Can submit proof of exam schedule or review enrollment"
-              ].map((text, idx) => (
-                <View style={styles.checkListItem} key={idx}>
-                  <Ionicons name="checkmark-circle" size={20} color="#2cae57" />
-                  <Text style={styles.checkListText}>{text}</Text>
-                </View>
-              ))}
-              
-              <Text style={styles.landingSectionTitle}>What we cover</Text>
-              <View style={styles.landingSectionDivider} />
-              <View style={styles.pillContainer}>
-                {["Review center fees", "Exam application fees", "Study materials and mock exams", "One-time cash incentive after passing"].map((text, idx) => (
-                  <View style={styles.coverPill} key={idx}>
-                    <Text style={styles.coverPillText}>{text}</Text>
-                  </View>
-                ))}
-              </View>
-              
-              <Text style={styles.landingSectionTitle}>How to Apply</Text>
-              <View style={styles.landingSectionDivider} />
-              {[
-                "Choose whether you need review support or a post-exam incentive.",
-                "Prepare your exam schedule or review enrollment slip for validation.",
-                "Submit the application form and upload required documents.",
-                "Wait for coordinator review and confirmation of assistance."
-              ].map((text, idx) => (
-                <View style={styles.stepListItem} key={idx}>
-                  <View style={styles.stepNumberCircle}>
-                    <Text style={styles.stepNumberText}>{idx + 1}</Text>
-                  </View>
-                  <Text style={styles.stepListText}>{text}</Text>
-                </View>
-              ))}
-              
-              <View style={styles.landingFooter}>
-                <Text style={styles.footerNote}>Double-check your exam schedule before applying</Text>
-                <TouchableOpacity style={styles.landingApplyBtn} onPress={() => setStep(0)}>
-                  <Text style={styles.landingApplyBtnText}>Apply Now</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </ScrollView>
-        </View>
-      );
-    }
-
+  if (step === -1) {
     return (
-      <View style={styles.container}>
-        <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
-          <TouchableOpacity onPress={() => (step > 0 ? setStep(step - 1) : navigation.goBack())} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#5b6095" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Board Exam Assistance</Text>
-          <View style={styles.empty} />
-        </View>
+      <View style={{ flex: 1, backgroundColor: '#f4f6fa' }}>
+        <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+          {/* Header Area */}
+          <View style={[styles.landingHero, { paddingTop: insets.top + 16 }]}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.heroBackBtn}>
+              <Ionicons name="arrow-back" size={20} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.heroBadge}>
+              <Text style={styles.heroBadgeText}>Board Exam / Certification</Text>
+            </View>
+            <Text style={styles.heroTitle}>Board Exam & Certification Assistance</Text>
+            <Text style={styles.heroSub}>From graduation to licensure, we cover review needs and exam costs so you can focus on passing.</Text>
+          </View>
+
+          {/* Main Content Area */}
+          <View style={styles.landingBodyCard}>
+            <View style={styles.pathwayBadge}>
+              <Text style={styles.pathwayBadgeText}>KKFI Exam Pathway</Text>
+            </View>
+
+            <Text style={styles.landingSectionTitle}>Background</Text>
+            <View style={styles.landingSectionDivider} />
+            <Text style={styles.landingParagraph}>
+              Assistance is available for review programs, official exam fees, and a one-time incentive after you pass. Funds are limited per cycle, so make sure your documents are ready when you apply.
+            </Text>
+
+            <Text style={styles.landingSectionTitle}>Eligibility</Text>
+            <View style={styles.landingSectionDivider} />
+            {[
+              "Filipino citizen graduating or graduate from the program",
+              "Targeting a licensure board exam or industry certification within 12 months",
+              "GWA meets program threshold or with clearance from scholar coordinator",
+              "Can submit proof of exam schedule or review enrollment"
+            ].map((text, idx) => (
+              <View style={styles.checkListItem} key={idx}>
+                <Ionicons name="checkmark-circle" size={20} color="#2cae57" />
+                <Text style={styles.checkListText}>{text}</Text>
+              </View>
+            ))}
+
+            <Text style={styles.landingSectionTitle}>What we cover</Text>
+            <View style={styles.landingSectionDivider} />
+            <View style={styles.pillContainer}>
+              {["Review center fees", "Exam application fees", "Study materials and mock exams", "One-time cash incentive after passing"].map((text, idx) => (
+                <View style={styles.coverPill} key={idx}>
+                  <Text style={styles.coverPillText}>{text}</Text>
+                </View>
+              ))}
+            </View>
+
+            <Text style={styles.landingSectionTitle}>How to Apply</Text>
+            <View style={styles.landingSectionDivider} />
+            {[
+              "Choose whether you need review support or a post-exam incentive.",
+              "Prepare your exam schedule or review enrollment slip for validation.",
+              "Submit the application form and upload required documents.",
+              "Wait for coordinator review and confirmation of assistance."
+            ].map((text, idx) => (
+              <View style={styles.stepListItem} key={idx}>
+                <View style={styles.stepNumberCircle}>
+                  <Text style={styles.stepNumberText}>{idx + 1}</Text>
+                </View>
+                <Text style={styles.stepListText}>{text}</Text>
+              </View>
+            ))}
+
+            <View style={styles.landingFooter}>
+              <Text style={styles.footerNote}>Double-check your exam schedule before applying</Text>
+              <TouchableOpacity style={styles.landingApplyBtn} onPress={() => setStep(0)}>
+                <Text style={styles.landingApplyBtnText}>Apply Now</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
+        <TouchableOpacity onPress={() => (step > 0 ? setStep(step - 1) : navigation.goBack())} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color="#5b6095" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Board Exam Assistance</Text>
+        <View style={styles.empty} />
+      </View>
 
       {completeStage === "none" && !submitting && step > -1 && (
         <View style={styles.progressBarRow}>
@@ -598,12 +599,12 @@ export default function ExamAssistanceScreen({ navigation }) {
               <Text style={styles.backButtonFooterText}>Previous</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
-              styles.nextButtonFooter, 
+              styles.nextButtonFooter,
               step === 0 && { flex: 1, alignItems: "center" },
               step === maxStep && !confirmed && { backgroundColor: '#aeb4d2', elevation: 0 }
-            ]} 
+            ]}
             onPress={advance}
             disabled={step === maxStep && !confirmed}
           >
@@ -637,26 +638,26 @@ const styles = StyleSheet.create({
   heroBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
   heroTitle: { fontSize: 26, fontWeight: "800", color: "#fff", marginBottom: 10, letterSpacing: -0.5 },
   heroSub: { fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 20, paddingRight: 20 },
-  
+
   landingBodyCard: { backgroundColor: "#fff", borderTopLeftRadius: 30, borderTopRightRadius: 30, marginTop: -20, paddingHorizontal: 24, paddingTop: 30, paddingBottom: 40 },
   pathwayBadge: { backgroundColor: "#f3f5fa", alignSelf: "flex-start", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, marginBottom: 24 },
   pathwayBadgeText: { color: "#5b61aa", fontSize: 11, fontWeight: "700" },
   landingSectionTitle: { fontSize: 18, fontWeight: "800", color: "#2d3a7c", marginBottom: 10 },
   landingSectionDivider: { height: 1, backgroundColor: "#f0f2fb", marginBottom: 16 },
   landingParagraph: { fontSize: 13, color: "#6e7798", lineHeight: 22, marginBottom: 30 },
-  
+
   checkListItem: { flexDirection: "row", alignItems: "flex-start", marginBottom: 14 },
   checkListText: { fontSize: 13, color: "#4f5ec4", lineHeight: 20, flex: 1, marginLeft: 10, fontWeight: "500" },
-  
+
   pillContainer: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 30 },
   coverPill: { borderWidth: 1, borderColor: "#e4e8f6", borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: "#fff" },
   coverPillText: { fontSize: 12, color: "#3d4076", fontWeight: "600" },
-  
+
   stepListItem: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
   stepNumberCircle: { width: 26, height: 26, borderRadius: 13, backgroundColor: "#5b61aa", justifyContent: "center", alignItems: "center", marginRight: 14 },
   stepNumberText: { color: "#fff", fontSize: 12, fontWeight: "800" },
   stepListText: { fontSize: 13, color: "#6e7798", flex: 1, lineHeight: 20 },
-  
+
   landingFooter: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", marginTop: 24 },
   footerNote: { fontSize: 10, color: "#aeb4bd", marginRight: 14 },
   landingApplyBtn: { backgroundColor: "#5b61aa", paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12 },
@@ -712,7 +713,7 @@ const styles = StyleSheet.create({
   uploadBoxDashed: { borderWidth: 1, borderColor: "#c2c9d6", borderStyle: "dashed", borderRadius: 10, backgroundColor: "#f8f9fc", width: "100%", height: 75, paddingHorizontal: 12, justifyContent: "center" },
   uploadBoxTitle: { fontSize: 13, fontWeight: "600", color: "#4f5ec4", marginBottom: 2 },
   uploadBoxSubtext: { fontSize: 11, color: "#6e7798" },
-  
+
   footerRow: { flexDirection: "row", paddingHorizontal: 24, paddingBottom: 30, marginTop: 10 },
   backButtonFooter: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, borderWidth: 1, borderColor: "#dce1f0", marginRight: 12, backgroundColor: "#fff" },
   backButtonFooterText: { color: "#4f5fc5", fontSize: 15, fontWeight: "700" },

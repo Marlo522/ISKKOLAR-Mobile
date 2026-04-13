@@ -122,19 +122,7 @@ export default function FinancialRecordsScreen({ navigation }) {
     </View>
   );
 
-  const renderReceiptUploadArea = () => (
-    <View style={styles.row}>
-      <Text style={styles.sectionTitleHeader}>|Upload Official Receipt</Text>
-      <TouchableOpacity 
-        style={styles.receiptUploadBox}
-        onPress={() => Alert.alert("Upload", "Camera/Gallery picker stub.")}
-      >
-        <Text style={styles.receiptUploadBoxTitle}>Tap to Upload Receipt</Text>
-        <Text style={styles.receiptUploadBoxSub}>Take a clear photo or upload from gallery.</Text>
-        <Text style={styles.receiptUploadBoxSub}>Make sure the amount and date are visible.</Text>
-      </TouchableOpacity>
-    </View>
-  );
+
 
   const renderStep = () => {
     if (completeStage === "preAssessment") {
@@ -245,16 +233,7 @@ export default function FinancialRecordsScreen({ navigation }) {
               <Text style={styles.sectionSubtitle}>For study-related needs</Text>
             </View>
 
-            <TouchableOpacity style={styles.actionBlock} onPress={() => setStep(10)}>
-              <Ionicons name="add-circle-outline" size={30} color="#fff" />
-              <View style={styles.actionBlockTextCol}>
-                <Text style={styles.actionBlockTitle}>Other Study Needs</Text>
-                <Text style={styles.actionBlockSub}>Books, Uniforms, School Supplies & other</Text>
-              </View>
-              <Ionicons name="arrow-forward" size={24} color="#fff" />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.actionBlock, { backgroundColor: '#29d0a5', marginTop: 12 }]} onPress={() => setStep(20)}>
+            <TouchableOpacity style={[styles.actionBlock, { backgroundColor: '#29d0a5', marginTop: 0 }]} onPress={() => setStep(20)}>
               <Ionicons name="receipt-outline" size={30} color="#fff" />
               <View style={styles.actionBlockTextCol}>
                 <Text style={styles.actionBlockTitle}>Submit Receipt</Text>
@@ -265,37 +244,66 @@ export default function FinancialRecordsScreen({ navigation }) {
           </View>
         );
 
-      case 10:
-        return (
-          <View style={styles.formContainer}>
-            <Text style={styles.sectionTitleHeader}>|Item Details</Text>
-            {renderInput("Item / Description", "itemDescription")}
-            {renderInput("Subject / Course", "subjectCourse")}
-            {renderInput("Where to Purchase", "whereToPurchase")}
-            
-            <Text style={styles.sectionTitleHeader}>|Amount Requested</Text>
-            {renderInput("", "amountRequested", "Php 500")}
-            
-            <Text style={styles.sectionTitleHeader}>|Purpose / Justification</Text>
-            {renderTextArea("", "purpose", "Explain why this is needed")}
-            
-            {renderUpload("Supporting Document (Optional)", "supportingDocument")}
-          </View>
-        );
-        
       case 20: 
         return (
           <View style={styles.formContainer}>
-            {renderReceiptUploadArea()}
-            {renderInput("Purchase Date", "purchaseDate", "March 2, 2026")}
+            <Text style={[styles.sectionTitleHeader, { marginBottom: 16 }]}>| Expense Details</Text>
+            {renderInput("Item / Description", "itemDescription", "Calculus 10th Edition")}
+            {renderInput("Subject / Course", "subjectCourse", "Calculus 1")}
+            {renderInput("Where to Purchase", "whereToPurchase", "National Bookstore")}
+            {renderInput("Amount Requested", "amountRequested", "Php 500")}
+            {renderTextArea("Purpose / Justification", "purpose", "Explain why this is needed")}
             
+            <Text style={styles.label}>Supporting Document (Optional)</Text>
+            <TouchableOpacity 
+              style={[styles.receiptUploadBox, { paddingVertical: 20, marginBottom: 32, borderStyle: 'dashed' }]}
+              onPress={() => Alert.alert("Upload", "File picker stub.")}
+            >
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#f4f6fc', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+                 <Ionicons name="push-outline" size={20} color="#4f5fc5" />
+              </View>
+              <Text style={[styles.receiptUploadBoxTitle, { fontSize: 14 }]}>Upload PDF or Image</Text>
+              <Text style={styles.receiptUploadBoxSub}>Attach price quote, syllabus, or approval memo</Text>
+            </TouchableOpacity>
+
+            <Text style={[styles.sectionTitleHeader, { marginBottom: 16 }]}>| Upload Official Receipt</Text>
+            
+            <View style={{ borderWidth: 1, borderColor: '#e4e8f8', borderRadius: 12, padding: 16, marginBottom: 16, backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#4f5ec4', marginBottom: 4 }}>Receipt #1</Text>
+              <Text style={{ fontSize: 13, color: '#6b72aa', marginBottom: 16 }}>Upload the official receipt and add purchase date.</Text>
+              
+              <TouchableOpacity 
+                style={[styles.receiptUploadBox, { marginBottom: 16, borderStyle: 'dashed' }]}
+                onPress={() => Alert.alert("Upload", "Camera/Gallery picker stub.")}
+              >
+                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#f2f4fc', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+                  <Ionicons name="push-outline" size={20} color="#4f5fc5" />
+                </View>
+                <Text style={styles.receiptUploadBoxTitle}>Tap to Upload Receipt</Text>
+                <Text style={styles.receiptUploadBoxSub}>Clear photo or PDF with amount and date</Text>
+              </TouchableOpacity>
+              
+              <Text style={styles.label}>Purchase Date</Text>
+              <TouchableOpacity style={[styles.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Platform.OS === "ios" ? 14 : 12, marginBottom: 16 }]}>
+                <Text style={{ color: values.purchaseDate ? '#111' : '#a9b1c0', fontSize: 15 }}>
+                  {values.purchaseDate || "dd/mm/yyyy"}
+                </Text>
+                <Ionicons name="calendar-outline" size={20} color="#111" />
+              </TouchableOpacity>
+              
+              {renderTextArea("Additional Notes (Optional)", "additionalNotes", "e.g. Bought at National Bookstore SM City. Receipt stapled with price tag.")}
+            </View>
+
             <TouchableOpacity style={styles.addAnotherBtn}>
-              <Ionicons name="add-circle-outline" size={20} color="#4f5fc5" style={{marginRight: 6}}/>
+              <Ionicons name="add-circle-outline" size={20} color="#5b61a7" style={{marginRight: 6}}/>
               <Text style={styles.addAnotherText}>Add Another Receipt</Text>
             </TouchableOpacity>
             
-            <Text style={styles.sectionTitleHeader}>|Additional Notes (Optional)</Text>
-            {renderTextArea("", "additionalNotes", "e.g. Bought at National Bookstore SM City. Receipt stapled together with price tag...")}
+            <View style={{ backgroundColor: '#f9fafc', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#e4e8f8', marginBottom: 24 }}>
+              <Text style={{ fontSize: 13, color: '#6b72aa', lineHeight: 20 }}>
+                Keep receipts clear and readable. If you do not have a receipt yet, add a justification and upload once available.
+              </Text>
+            </View>
           </View>
         );
 
@@ -322,12 +330,24 @@ export default function FinancialRecordsScreen({ navigation }) {
           </View>
         </View>
       ) : (
-        <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
+        <View style={[styles.progressHeader, { paddingTop: insets.top + 16, alignItems: 'flex-start' }]}>
           <TouchableOpacity onPress={() => setStep(-1)} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#5b6095" />
           </TouchableOpacity>
-          <Text style={styles.titleLanding}>Financial Assistance</Text>
-          <View style={styles.empty} />
+          <View style={{ flex: 1, marginLeft: 16, marginTop: 2 }}>
+            <Text style={{ fontSize: 11, fontWeight: '800', color: '#8a94b5', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 2 }}>
+              Study Needs
+            </Text>
+            <Text style={{ fontSize: 20, fontWeight: '900', color: '#1c2131', marginBottom: 2 }}>
+              Submit proof of expense
+            </Text>
+            <Text style={{ fontSize: 13, color: '#6b72aa', fontWeight: '500' }}>
+              Category: Study Needs
+            </Text>
+          </View>
+          <View style={{ backgroundColor: '#f0f2fb', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, marginTop: 4 }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#5b61aa' }}>For scholars</Text>
+          </View>
         </View>
       )}
 
@@ -337,18 +357,19 @@ export default function FinancialRecordsScreen({ navigation }) {
         </Animated.View>
       </ScrollView>
 
-      {!submitting && completeStage === "none" && step === 10 && (
-        <View style={styles.bottomBtnContainer}>
-          <TouchableOpacity style={styles.nextBtn} onPress={submitApplication}>
-            <Text style={styles.nextBtnText}>Submit Application</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      
       {!submitting && completeStage === "none" && step === 20 && (
-        <View style={styles.bottomBtnContainer}>
-          <TouchableOpacity style={styles.nextBtn} onPress={submitReceipt}>
-            <Text style={styles.nextBtnText}>Submit Receipt</Text>
+        <View style={[styles.bottomBtnContainer, { flexDirection: "row", justifyContent: "flex-end", paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <TouchableOpacity 
+            style={[styles.nextBtn, { backgroundColor: "#fff", borderWidth: 1, borderColor: "#d4dae8", paddingHorizontal: 24, marginRight: 12, elevation: 0, shadowOpacity: 0 }]} 
+            onPress={() => setStep(-1)}
+          >
+            <Text style={[styles.nextBtnText, { color: "#5b61a7" }]}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.nextBtn, { paddingHorizontal: 24 }]} 
+            onPress={submitReceipt}
+          >
+            <Text style={styles.nextBtnText}>Submit Proof</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -413,7 +434,7 @@ const styles = StyleSheet.create({
   sectionTitleHeader: { fontSize: 18, fontWeight: "900", color: "#4f5fc5", marginBottom: 12, marginTop: 4 },
   row: { marginBottom: 16 },
   label: { fontWeight: "600", color: "#1c2131", fontSize: 13, marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, paddingHorizontal: 16, paddingVertical: Platform.OS === "ios" ? 14 : 12, backgroundColor: "#ffffff", color: "#555", fontSize: 15 },
+  input: { borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, paddingHorizontal: 16, backgroundColor: "#ffffff", color: "#555", fontSize: 15, height: 50 },
   uploadBtn: { borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, height: 50, justifyContent: "center", paddingHorizontal: 16, backgroundColor: "#ffffff" },
   uploadText: { color: "#777", fontSize: 15, alignSelf: "center" },
   
@@ -424,7 +445,7 @@ const styles = StyleSheet.create({
   addAnotherBtn: { flexDirection: "row", alignItems: "center", marginBottom: 24 },
   addAnotherText: { color: "#4f5fc5", fontSize: 14, fontWeight: "800" },
   
-  bottomBtnContainer: { paddingHorizontal: 24, paddingBottom: 30 },
+  bottomBtnContainer: { paddingHorizontal: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#e4e8f8', backgroundColor: '#fff' },
   nextBtn: { backgroundColor: "#5b61a7", borderRadius: 14, paddingVertical: 16, alignItems: "center", shadowColor: "#2d3a7c", shadowOpacity: 0.2, shadowOffset: { width: 0, height: 4 }, shadowRadius: 6, elevation: 4 },
   nextBtnText: { color: "#fff", fontSize: 16, fontWeight: "800" },
   
