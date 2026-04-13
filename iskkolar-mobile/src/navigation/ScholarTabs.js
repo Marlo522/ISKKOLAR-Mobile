@@ -13,6 +13,7 @@ import ScholarshipRenewalScreen from "../screens/ScholarshipRenewalScreen";
 import ExamAssistanceScreen from "../screens/ExamAssistanceScreen";
 import GradeComplianceScreen from "../screens/GradeComplianceScreen";
 import FinancialRecordsScreen from "../screens/FinancialRecordsScreen";
+import TransferSchoolScreen from "../screens/TransferSchoolScreen";
 
 const Tab = createBottomTabNavigator();
 const DashboardStack = createNativeStackNavigator();
@@ -26,6 +27,7 @@ function ScholarDashboardStackScreen() {
       <DashboardStack.Screen name="ExamAssistance" component={ExamAssistanceScreen} />
       <DashboardStack.Screen name="GradeCompliance" component={GradeComplianceScreen} />
       <DashboardStack.Screen name="FinancialRecords" component={FinancialRecordsScreen} />
+      <DashboardStack.Screen name="TransferSchool" component={TransferSchoolScreen} />
     </DashboardStack.Navigator>
   );
 }

@@ -93,6 +93,35 @@ export default function ScholarshipRenewalScreen({ navigation }) {
     }, 1500);
   };
 
+  const isPreFilled = !!user; // Logic for "already passed a form"
+
+  const renderReadOnly = (label, value) => (
+    <View style={styles.row}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={[styles.input, { backgroundColor: '#f4f5f8', borderColor: '#eaecf0', justifyContent: 'center' }]}>
+        <Text style={{ color: '#8a94b5', fontSize: 13 }}>{value}</Text>
+      </View>
+    </View>
+  );
+
+  const renderGwaField = () => {
+    const hasGwa = !!user?.gwa;
+    const val = hasGwa ? user.gwa : "Auto-filled from grade compliance";
+    return (
+      <View style={[styles.row, { marginBottom: 8 }]}>
+        <Text style={styles.label}>Current GWA</Text>
+        <View style={[styles.input, { backgroundColor: '#f4f5f8', borderColor: '#eaecf0', justifyContent: 'center' }]}>
+          <Text style={{ color: '#8a94b5', fontSize: 13 }}>{val}</Text>
+        </View>
+        {!hasGwa && (
+          <Text style={{ color: '#dc2626', fontSize: 11, marginTop: 6, fontWeight: '500' }}>
+            Auto-filled from grade compliance. Submit grade compliance to proceed.
+          </Text>
+        )}
+      </View>
+    );
+  };
+
   const renderInput = (label, key, placeholder = null) => (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
@@ -123,12 +152,13 @@ export default function ScholarshipRenewalScreen({ navigation }) {
 
       <Modal
         visible={selectVisible && selectKey === key}
-        transparent
+        statusBarTranslucent
         animationType="slide"
         onRequestClose={() => setSelectVisible(false)}
       >
         <View style={styles.yearPickerModal}>
-          <View style={styles.yearPickerContent}>
+          <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={() => setSelectVisible(false)} />
+          <View style={[styles.yearPickerContent, { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <View style={styles.yearPickerHeader}>
               <Text style={styles.yearPickerTitle}>Select Option</Text>
               <TouchableOpacity onPress={() => setSelectVisible(false)}>
@@ -136,32 +166,32 @@ export default function ScholarshipRenewalScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.yearPickerScroll} showsVerticalScrollIndicator={true}>
-              <View style={{ flexDirection: "column", paddingBottom: 20 }}>
-                {options.map((opt, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    style={[
-                      styles.yearPickerOption,
-                      { width: "100%", marginBottom: 8, paddingVertical: 14 },
-                      values[key] === opt && styles.yearPickerOptionActive,
-                    ]}
-                    onPress={() => {
-                      setValues({ ...values, [key]: opt });
-                      setSelectVisible(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.yearPickerOptionText,
-                        values[key] === opt && styles.yearPickerOptionTextActive,
-                      ]}
-                    >
-                      {opt}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+            <ScrollView 
+              style={styles.yearPickerScroll} 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
+              {options.map((opt, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={[
+                    styles.yearPickerOption,
+                    { width: "100%", marginBottom: 8, paddingVertical: 14, flexDirection: 'row', justifyContent: 'center' },
+                    values[key] === opt && styles.yearPickerOptionActive,
+                  ]}
+                  onPress={() => {
+                    setValues({ ...values, [key]: opt });
+                    setSelectVisible(false);
+                  }}
+                >
+                  <Text style={[styles.yearPickerOptionText, values[key] === opt && { color: "#fff" }]}>
+                    {opt}
+                  </Text>
+                  {values[key] === opt && (
+                    <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ position: 'absolute', right: 16 }} />
+                  )}
+                </TouchableOpacity>
+              ))}
             </ScrollView>
           </View>
         </View>
@@ -266,36 +296,60 @@ export default function ScholarshipRenewalScreen({ navigation }) {
         return (
           <View>
             <View style={styles.formContainer}>
-              <Text style={styles.subtextAboveHeader}>Scholar Status</Text>
               <View style={styles.sectionHeaderRow}>
                 <View style={styles.verticalPill} />
                 <Text style={styles.sectionHeader}>Academic Information</Text>
               </View>
 
-              <View style={styles.rowTwoCol}>
-                <View style={styles.colHalf}>
-                  {renderInput("Academic Year", "academicYear")}
-                </View>
-                <View style={styles.colHalf}>
-                  {renderSelect("Term", "term", termOptions)}
-                </View>
-              </View>
+              {isPreFilled ? (
+                <>
+                  <View style={styles.rowTwoCol}>
+                    <View style={styles.colHalf}>
+                      {renderReadOnly("Academic Year", "2025-2026")}
+                    </View>
+                    <View style={styles.colHalf}>
+                      {renderReadOnly("Term", "Auto-filled from latest term")}
+                    </View>
+                  </View>
 
-              <View style={styles.rowTwoCol}>
-                <View style={styles.colHalf}>
-                  {renderInput("School", "school")}
-                </View>
-                <View style={styles.colHalf}>
-                  {renderInput("Program / Course", "program")}
-                </View>
-              </View>
+                  <View style={styles.rowTwoCol}>
+                    <View style={styles.colHalf}>
+                      {renderReadOnly("School", "Auto-filled from application")}
+                    </View>
+                    <View style={styles.colHalf}>
+                      {renderReadOnly("Program / Course", "Auto-filled from application")}
+                    </View>
+                  </View>
 
-              <View style={styles.rowTwoCol}>
-                <View style={styles.colHalf}>
-                  {renderInput("Current GWA", "gwa", "e.g. 1.75")}
-                </View>
-              </View>
+                  {renderGwaField()}
+                </>
+              ) : (
+                <>
+                  <View style={styles.rowTwoCol}>
+                    <View style={styles.colHalf}>
+                      {renderInput("Academic Year", "academicYear")}
+                    </View>
+                    <View style={styles.colHalf}>
+                      {renderSelect("Term", "term", termOptions)}
+                    </View>
+                  </View>
 
+                  <View style={styles.rowTwoCol}>
+                    <View style={styles.colHalf}>
+                      {renderInput("School", "school")}
+                    </View>
+                    <View style={styles.colHalf}>
+                      {renderInput("Program / Course", "program")}
+                    </View>
+                  </View>
+
+                  <View style={styles.rowTwoCol}>
+                    <View style={styles.colHalf}>
+                      {renderInput("Current GWA", "gwa", "e.g. 1.75")}
+                    </View>
+                  </View>
+                </>
+              )}
             </View>
           </View>
         );
@@ -467,7 +521,7 @@ const styles = StyleSheet.create({
   sectionHeader: { fontSize: 17, fontWeight: "800", color: "#2d3a7c" },
   row: { marginBottom: 16 },
   label: { fontWeight: "600", color: "#1c2131", fontSize: 13, marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: "#dce1f0", borderRadius: 10, paddingHorizontal: 12, paddingVertical: Platform.OS === "ios" ? 12 : 10, backgroundColor: "#ffffff", color: "#555", fontSize: 13 },
+  input: { borderWidth: 1, borderColor: "#dce1f0", borderRadius: 10, paddingHorizontal: 12, backgroundColor: "#ffffff", color: "#555", fontSize: 13, height: 50 },
   uploadBtn: { borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, height: 50, justifyContent: "center", paddingHorizontal: 16, backgroundColor: "#ffffff" },
   uploadText: { color: "#777", fontSize: 15, alignSelf: "center" },
   uploadBoxDashed: { borderWidth: 1, borderColor: "#c2c9d6", borderStyle: "dashed", borderRadius: 10, backgroundColor: "#f8f9fc", width: "100%", height: 75, paddingHorizontal: 12, justifyContent: "center" },
@@ -486,7 +540,7 @@ const styles = StyleSheet.create({
   checkboxText: { marginLeft: 10, fontSize: 13, color: "#2d3a7c", fontWeight: "700" },
   rowTwoCol: { flexDirection: "row", gap: 12, marginBottom: 0 }, // no bottom margin since elements inside have row margin
   colHalf: { flex: 1 },
-  yearPickerInput: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, paddingHorizontal: 16, paddingVertical: Platform.OS === "ios" ? 14 : 12, backgroundColor: "#ffffff", height: 50 },
+  yearPickerInput: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, paddingHorizontal: 16, backgroundColor: "#ffffff", height: 50 },
   yearPickerText: { color: "#555", fontSize: 15, fontWeight: "500" },
   yearPickerModal: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
   yearPickerContent: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "80%", paddingTop: 16 },

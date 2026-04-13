@@ -73,10 +73,10 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose }) {
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent>
       <View style={modalStyles.yearPickerModal}>
-        <TouchableOpacity 
-          activeOpacity={1} 
-          style={StyleSheet.absoluteFill} 
-          onPress={onClose} 
+        <TouchableOpacity
+          activeOpacity={1}
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
         />
         <View style={[modalStyles.yearPickerContent, { paddingBottom: Math.max(insets.bottom, 20) }]}>
           <View style={modalStyles.yearPickerHeader}>
@@ -85,8 +85,8 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose }) {
               <Ionicons name="close" size={24} color="#3d4076" />
             </TouchableOpacity>
           </View>
-          <ScrollView 
-            style={modalStyles.yearPickerScroll} 
+          <ScrollView
+            style={modalStyles.yearPickerScroll}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 20 }}
           >
