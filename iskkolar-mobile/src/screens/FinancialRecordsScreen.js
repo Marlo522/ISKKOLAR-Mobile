@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert, Animated } from "react-native";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert, Animated, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
 import { AuthContext } from "../context/AuthContext";
+import { useFinancialAssistance } from "../hooks/useFinancialAssistance";
 
 export default function FinancialRecordsScreen({ navigation }) {
   const { user } = useContext(AuthContext);
@@ -14,17 +16,30 @@ export default function FinancialRecordsScreen({ navigation }) {
     whereToPurchase: "",
     amountRequested: "",
     purpose: "",
-    purchaseDate: "",
-    additionalNotes: ""
   });
   
-  const [uploadText, setUploadText] = useState({ 
-    supportingDocument: "",
-    officialReceipt: "" 
-  });
+  const [receiptItems, setReceiptItems] = useState([
+    { file: null, purchaseDate: "", additionalNotes: "" }
+  ]);
   
-  const [submitting, setSubmitting] = useState(false);
+  const [supportingDocument, setSupportingDocument] = useState(null);
   const [completeStage, setCompleteStage] = useState("none");
+  
+  const [dateVisible, setDateVisible] = useState(false);
+  const [dateIndex, setDateIndex] = useState(null);
+  
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  const {
+    submitting,
+    error,
+    fieldErrors,
+    clearFieldError,
+    validateForm,
+    submitApplication,
+  } = useFinancialAssistance();
 
   const spinAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
@@ -68,61 +83,156 @@ export default function FinancialRecordsScreen({ navigation }) {
     outputRange: ["0deg", "360deg"],
   });
 
-  const submitApplication = () => {
-    setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
-      setCompleteStage("preAssessment");
-    }, 1500);
-  };
-  
-  const submitReceipt = () => {
-    setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
-      setCompleteStage("success");
-    }, 1500);
+  const pickDocument = async (isSupporting) => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*",
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const file = result.assets[0];
+        if (isSupporting) {
+          setSupportingDocument(file);
+        } else {
+          Alert.alert("Error", "Use pickReceipt for receipts");
+        }
+      }
+    } catch (err) {
+      Alert.alert("Error", "Failed to pick document.");
+    }
   };
 
-  const renderInput = (label, key, placeholder = null) => (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
+  const pickReceipt = async (index) => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["image/*", "application/pdf"],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const file = result.assets[0];
+        const newReceiptItems = [...receiptItems];
+        newReceiptItems[index].file = file;
+        setReceiptItems(newReceiptItems);
+        clearFieldError(`receipt_file_${index}`);
+      }
+    } catch (err) {
+      Alert.alert("Error", "Failed to pick receipt.");
+    }
+  };
+
+  const addReceiptItem = () => {
+    setReceiptItems([...receiptItems, { file: null, purchaseDate: "", additionalNotes: "" }]);
+  };
+
+  const removeReceiptItem = (index) => {
+    if (receiptItems.length > 1) {
+      const newReceiptItems = [...receiptItems];
+      newReceiptItems.splice(index, 1);
+      setReceiptItems(newReceiptItems);
+    }
+  };
+
+  const updateReceiptField = (index, field, value) => {
+    const newReceiptItems = [...receiptItems];
+    newReceiptItems[index][field] = value;
+    setReceiptItems(newReceiptItems);
+  };
+
+  const submitReceipt = async () => {
+    if (!validateForm(values, receiptItems)) {
+      return;
+    }
+    
+    try {
+      await submitApplication(values, receiptItems, supportingDocument);
+      setCompleteStage("success");
+    } catch (err) {
+      if (!err?.isValidationError) {
+         Alert.alert("Submission Failed", err?.message || "An error occurred.");
+      }
+    }
+  };
+
+  const getDaysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (month, year) => new Date(year, month, 1).getDay();
+
+  const handlePrevMonth = () => {
+    if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear(selectedYear - 1); }
+    else setSelectedMonth(selectedMonth - 1);
+  };
+
+  const handleNextMonth = () => {
+    if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear(selectedYear + 1); }
+    else setSelectedMonth(selectedMonth + 1);
+  };
+
+  const renderCalendarGrid = () => {
+    const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
+    const firstDay = getFirstDayOfMonth(selectedMonth, selectedYear);
+    let days = [];
+    for (let i = 0; i < firstDay; i++) days.push(<View key={`empty-${i}`} style={styles.calendarDay} />);
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(
+        <TouchableOpacity
+          key={`day-${i}`}
+          style={styles.calendarDay}
+          onPress={() => {
+            const m = selectedMonth + 1;
+            const d = i < 10 ? `0${i}` : i;
+            const dateStr = `${m < 10 ? '0' + m : m}/${d}/${selectedYear}`;
+            updateReceiptField(dateIndex, 'purchaseDate', dateStr);
+            clearFieldError(`receipt_date_${dateIndex}`);
+            setDateVisible(false);
+          }}
+        >
+          <Text style={styles.calendarDayText}>{i}</Text>
+        </TouchableOpacity>
+      );
+    }
+    return days;
+  };
+
+  const renderInput = (label, key, placeholder = null, keyboardType = "default") => (
+    <View style={[styles.row, fieldErrors[key] && styles.rowWithError]}>
+      <Text style={styles.label}>{label} <Text style={{color: 'red'}}>*</Text></Text>
       <TextInput
         value={values[key]}
         placeholder={placeholder || `Enter ${label}`}
-        onChangeText={(text) => setValues({ ...values, [key]: text })}
-        style={styles.input}
+        keyboardType={keyboardType}
+        onChangeText={(text) => {
+          const sanitizedText = keyboardType === "numeric" ? text.replace(/[^0-9.]/g, '') : text;
+          setValues({ ...values, [key]: sanitizedText });
+          clearFieldError(key);
+        }}
+        style={[styles.input, fieldErrors[key] && { borderColor: 'red' }]}
       />
+      {fieldErrors[key] && <Text style={styles.errorText}>{fieldErrors[key]}</Text>}
     </View>
   );
 
-  const renderTextArea = (label, key, placeholder) => (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        value={values[key]}
-        placeholder={placeholder}
-        multiline
-        numberOfLines={4}
-        onChangeText={(text) => setValues({ ...values, [key]: text })}
-        style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
-      />
-    </View>
-  );
-
-  const renderUpload = (label, key) => (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <TouchableOpacity
-        style={styles.uploadBtn}
-        onPress={() => Alert.alert("File upload", "File picker stub.")}
-      >
-        <Text style={styles.uploadText}>{uploadText[key] || "File Upload"}</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-
+  const renderTextArea = (label, key, placeholder, isValueState = true) => {
+    const val = isValueState ? values[key] : key;
+    const onChange = isValueState 
+      ? (text) => { setValues({ ...values, [key]: text }); clearFieldError(key); } 
+      : placeholder;
+    
+    return (
+      <View style={[styles.row, isValueState && fieldErrors[key] && styles.rowWithError]}>
+        <Text style={styles.label}>{label} {isValueState && <Text style={{color: 'red'}}>*</Text>}</Text>
+        <TextInput
+          value={val}
+          placeholder={isValueState ? placeholder : key}
+          multiline
+          numberOfLines={4}
+          onChangeText={onChange}
+          style={[styles.input, { height: 100, textAlignVertical: 'top' }, isValueState && fieldErrors[key] && { borderColor: 'red' }]}
+        />
+        {isValueState && fieldErrors[key] && <Text style={styles.errorText}>{fieldErrors[key]}</Text>}
+      </View>
+    );
+  };
 
   const renderStep = () => {
     if (completeStage === "preAssessment") {
@@ -251,50 +361,80 @@ export default function FinancialRecordsScreen({ navigation }) {
             {renderInput("Item / Description", "itemDescription", "Calculus 10th Edition")}
             {renderInput("Subject / Course", "subjectCourse", "Calculus 1")}
             {renderInput("Where to Purchase", "whereToPurchase", "National Bookstore")}
-            {renderInput("Amount Requested", "amountRequested", "Php 500")}
+            {renderInput("Amount Requested", "amountRequested", "500", "numeric")}
             {renderTextArea("Purpose / Justification", "purpose", "Explain why this is needed")}
             
             <Text style={styles.label}>Supporting Document (Optional)</Text>
             <TouchableOpacity 
               style={[styles.receiptUploadBox, { paddingVertical: 20, marginBottom: 32, borderStyle: 'dashed' }]}
-              onPress={() => Alert.alert("Upload", "File picker stub.")}
+              onPress={() => pickDocument(true)}
             >
               <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#f4f6fc', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
                  <Ionicons name="push-outline" size={20} color="#4f5fc5" />
               </View>
-              <Text style={[styles.receiptUploadBoxTitle, { fontSize: 14 }]}>Upload PDF or Image</Text>
-              <Text style={styles.receiptUploadBoxSub}>Attach price quote, syllabus, or approval memo</Text>
+              <Text style={[styles.receiptUploadBoxTitle, { fontSize: 14 }]}>
+                {supportingDocument ? supportingDocument.name : "Upload PDF or Image"}
+              </Text>
+              {!supportingDocument && <Text style={styles.receiptUploadBoxSub}>Attach price quote, syllabus, or approval memo</Text>}
             </TouchableOpacity>
 
             <Text style={[styles.sectionTitleHeader, { marginBottom: 16 }]}>| Upload Official Receipt</Text>
             
-            <View style={{ borderWidth: 1, borderColor: '#e4e8f8', borderRadius: 12, padding: 16, marginBottom: 16, backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: '800', color: '#4f5ec4', marginBottom: 4 }}>Receipt #1</Text>
-              <Text style={{ fontSize: 13, color: '#6b72aa', marginBottom: 16 }}>Upload the official receipt and add purchase date.</Text>
-              
-              <TouchableOpacity 
-                style={[styles.receiptUploadBox, { marginBottom: 16, borderStyle: 'dashed' }]}
-                onPress={() => Alert.alert("Upload", "Camera/Gallery picker stub.")}
-              >
-                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#f2f4fc', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
-                  <Ionicons name="push-outline" size={20} color="#4f5fc5" />
+            {receiptItems.map((item, idx) => (
+              <View key={`receipt_${idx}`} style={{ borderWidth: 1, borderColor: '#e4e8f8', borderRadius: 12, padding: 16, marginBottom: 16, backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: '#4f5ec4' }}>Receipt #{idx + 1}</Text>
+                  {receiptItems.length > 1 && (
+                    <TouchableOpacity onPress={() => removeReceiptItem(idx)}>
+                      <Ionicons name="trash-outline" size={20} color="#ff4444" />
+                    </TouchableOpacity>
+                  )}
                 </View>
-                <Text style={styles.receiptUploadBoxTitle}>Tap to Upload Receipt</Text>
-                <Text style={styles.receiptUploadBoxSub}>Clear photo or PDF with amount and date</Text>
-              </TouchableOpacity>
-              
-              <Text style={styles.label}>Purchase Date</Text>
-              <TouchableOpacity style={[styles.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Platform.OS === "ios" ? 14 : 12, marginBottom: 16 }]}>
-                <Text style={{ color: values.purchaseDate ? '#111' : '#a9b1c0', fontSize: 15 }}>
-                  {values.purchaseDate || "dd/mm/yyyy"}
-                </Text>
-                <Ionicons name="calendar-outline" size={20} color="#111" />
-              </TouchableOpacity>
-              
-              {renderTextArea("Additional Notes (Optional)", "additionalNotes", "e.g. Bought at National Bookstore SM City. Receipt stapled with price tag.")}
-            </View>
+                <Text style={{ fontSize: 13, color: '#6b72aa', marginBottom: 16 }}>Upload the official receipt and add purchase date.</Text>
+                
+                <View style={[fieldErrors[`receipt_file_${idx}`] && styles.rowWithError]}>
+                  <TouchableOpacity 
+                    style={[styles.receiptUploadBox, { marginBottom: 16, borderStyle: 'dashed' }, fieldErrors[`receipt_file_${idx}`] && { borderColor: '#dc2626', backgroundColor: '#fff3f3' }]}
+                    onPress={() => pickReceipt(idx)}
+                  >
+                    <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: fieldErrors[`receipt_file_${idx}`] ? '#ffe5e5' : '#f2f4fc', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+                      <Ionicons name="push-outline" size={20} color={fieldErrors[`receipt_file_${idx}`] ? '#dc2626' : '#4f5fc5'} />
+                    </View>
+                    <Text style={styles.receiptUploadBoxTitle}>
+                      {item.file ? item.file.name : "Tap to Upload Receipt"}
+                    </Text>
+                    {!item.file && <Text style={[styles.receiptUploadBoxSub, fieldErrors[`receipt_file_${idx}`] && { color: '#dc2626' }]}>Clear photo or PDF with amount and date</Text>}
+                  </TouchableOpacity>
+                  {fieldErrors[`receipt_file_${idx}`] && <Text style={[styles.errorText, { marginTop: -12, marginBottom: 16 }]}>{fieldErrors[`receipt_file_${idx}`]}</Text>}
+                </View>
+                
+                <Text style={styles.label}>Purchase Date <Text style={{color: 'red'}}>*</Text></Text>
+                <View style={[styles.row, fieldErrors[`receipt_date_${idx}`] && styles.rowWithError]}>
+                  <TouchableOpacity
+                    style={[styles.datePickerInput, fieldErrors[`receipt_date_${idx}`] && { borderColor: 'red' }]}
+                    onPress={() => { setDateIndex(idx); setDateVisible(true); }}
+                  >
+                    <Text style={[styles.datePickerText, !item.purchaseDate && { color: "#a9b1c0" }]}>{item.purchaseDate || "mm/dd/yyyy"}</Text>
+                    <Ionicons name="calendar-outline" size={20} color="#555" />
+                  </TouchableOpacity>
+                  {fieldErrors[`receipt_date_${idx}`] && <Text style={styles.errorText}>{fieldErrors[`receipt_date_${idx}`]}</Text>}
+                </View>
+                
+                <Text style={styles.label}>Additional Notes (Optional)</Text>
+                <View style={styles.row}>
+                  <TextInput
+                    value={item.additionalNotes}
+                    placeholder="e.g. Bought at National Bookstore..."
+                    multiline
+                    numberOfLines={4}
+                    onChangeText={(text) => updateReceiptField(idx, 'additionalNotes', text)}
+                    style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
+                  />
+                </View>
+              </View>
+            ))}
 
-            <TouchableOpacity style={styles.addAnotherBtn}>
+            <TouchableOpacity style={styles.addAnotherBtn} onPress={addReceiptItem}>
               <Ionicons name="add-circle-outline" size={20} color="#5b61a7" style={{marginRight: 6}}/>
               <Text style={styles.addAnotherText}>Add Another Receipt</Text>
             </TouchableOpacity>
@@ -304,6 +444,31 @@ export default function FinancialRecordsScreen({ navigation }) {
                 Keep receipts clear and readable. If you do not have a receipt yet, add a justification and upload once available.
               </Text>
             </View>
+
+            <Modal visible={dateVisible && dateIndex !== null} transparent animationType="fade">
+              <View style={styles.calendarModalOverlay}>
+                <View style={styles.calendarModalContent}>
+                  <View style={styles.calendarHeader}>
+                    <TouchableOpacity onPress={handlePrevMonth} style={{ padding: 4 }}>
+                      <Ionicons name="chevron-back" size={24} color="#4f5fc5" />
+                    </TouchableOpacity>
+                    <Text style={styles.calendarHeaderText}>{months[selectedMonth]} {selectedYear}</Text>
+                    <TouchableOpacity onPress={handleNextMonth} style={{ padding: 4 }}>
+                      <Ionicons name="chevron-forward" size={24} color="#4f5fc5" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.calendarWeekDaysRow}>
+                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <Text key={i} style={styles.calendarWeekDay}>{d}</Text>)}
+                  </View>
+                  <View style={styles.calendarDaysGrid}>
+                    {renderCalendarGrid()}
+                  </View>
+                  <TouchableOpacity onPress={() => setDateVisible(false)} style={styles.calendarCloseBtn}>
+                    <Text style={styles.calendarCloseText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
           </View>
         );
 
@@ -454,4 +619,22 @@ const styles = StyleSheet.create({
   completeText: { fontSize: 22, fontWeight: "800", color: "#3f4ca8", marginTop: 16, marginBottom: 8 },
   submitBtnOk: { borderRadius: 12, backgroundColor: "#4f5fc5", paddingVertical: 14, paddingHorizontal: 30, marginTop: 10 },
   submitBtnOkText: { color: "#fff", fontWeight: "800", fontSize: 16 },
+  
+  rowWithError: { marginBottom: 3 },
+  errorText: { color: "#dc2626", fontSize: 12, marginTop: 2, marginBottom: 0, fontWeight: "600", lineHeight: 14 },
+  
+  datePickerInput: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, paddingHorizontal: 16, paddingVertical: Platform.OS === "ios" ? 13 : 11, backgroundColor: "#ffffff", height: 50 },
+  datePickerText: { color: "#555", fontSize: 15 },
+  calendarModalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" },
+  calendarModalContent: { backgroundColor: "#fff", width: "85%", borderRadius: 16, padding: 20 },
+  calendarHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  calendarHeaderText: { fontSize: 18, fontWeight: "700", color: "#4f5fc5" },
+  calendarWeekDaysRow: { flexDirection: "row", justifyContent: "space-around", marginBottom: 8 },
+  calendarWeekDay: { color: "#848baf", fontSize: 13, fontWeight: "800", width: 40, textAlign: "center" },
+  calendarDaysGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-start" },
+  calendarDay: { width: "14.28%", height: 40, justifyContent: "center", alignItems: "center", marginVertical: 2 },
+  calendarDayText: { color: "#1c2131", fontSize: 16, fontWeight: "600" },
+  calendarCloseBtn: { marginTop: 16, alignSelf: "flex-end", padding: 8, paddingBottom: 0 },
+  calendarCloseText: { color: "#4f5ec4", fontSize: 15, fontWeight: "700" },
 });
+
