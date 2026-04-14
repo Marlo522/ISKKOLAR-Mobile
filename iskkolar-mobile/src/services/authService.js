@@ -117,6 +117,7 @@ export const login = async (email, password) => {
     return {
       token,
       user: {
+        ...profile, // Pass all profile attributes including school, program, course, etc.
         id: profile.userId || profile.id,
         firstName: profile.firstName,
         lastName: profile.lastName,
@@ -187,6 +188,7 @@ export const getCurrentUser = async () => {
     const profile = response?.data || response;
     
     return {
+      ...profile,
       id: profile.userId || profile.id,
       firstName: profile.firstName,
       lastName: profile.lastName,
