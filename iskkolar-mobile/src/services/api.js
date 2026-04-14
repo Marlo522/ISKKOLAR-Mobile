@@ -7,7 +7,7 @@ import Constants from 'expo-constants';
 // iOS simulator: localhost works fine
 const expoHost = Constants.expoConfig?.hostUri?.split(':')?.[0];
 const BASE_URL = __DEV__
-  ? `http://${expoHost || '192.168.1.8'}:5000/api`
+  ? `http://${expoHost || '192.168.1.5'}:5000/api`
   : 'https://your-production-url.com/api'; // MUST be HTTPS in prod
 
 // Critical Production Security Constraint
@@ -15,7 +15,8 @@ if (!__DEV__ && !BASE_URL.startsWith('https://')) {
   console.warn("⚠️ SECURITY WARNING: You are attempting to make a production request over insecure HTTP.");
 }
 
-const DEFAULT_TIMEOUT_MS = 10000; // 10 seconds
+const DEFAULT_TIMEOUT_MS = 15000;       // 15 seconds for regular requests
+const UPLOAD_TIMEOUT_MS = 60000;        // 60 seconds for multipart file uploads
 const MAX_RETRIES = 2; // For safe methods (GET)
 
 // Recursive network request wrapper with Retry & Timeout functionality
@@ -71,6 +72,8 @@ const api = async (endpoint, options = {}) => {
   const config = {
     ...options,
     headers,
+    // Give file uploads significantly more time to complete
+    timeout: isFormData ? UPLOAD_TIMEOUT_MS : DEFAULT_TIMEOUT_MS,
   };
 
   try {
@@ -91,6 +94,7 @@ const api = async (endpoint, options = {}) => {
         code: data?.code || "REQUEST_FAILED",
         message: data?.message || "An unexpected error occurred processing your request.",
         errors: data?.errors || [],
+        details: data?.details || data?.errors || null,
         data: data?.data || null
       };
     }
