@@ -16,12 +16,13 @@ import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import useTertiaryApplication from "../hooks/useTertiaryApplication";
 import useStaffApplication from "../hooks/useStaffApplication";
+import useVocationalApplication from "../hooks/useVocationalApplication";
 import ApplicationSubmissionGuard from "../components/ApplicationSubmissionGuard";
 import { checkAnyOngoingApplication } from "../services/applicationGuardService";
 
 const infoFields = {
   educPath: "Tertiary",
-  scholarshipType: "TESDA",
+  scholarshipType: "", // set dynamically below based on the selected program
   incomingFreshman: "No",
   schoolName: "",
   strand: "STEM",
@@ -153,7 +154,13 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const isChildDesignation = selectedProgram === "employeeChild" && option === "Option 2";
 
   const [step, setStep] = useState(0);
-  const [values, setValues] = useState(infoFields);
+  const [values, setValues] = useState({
+    ...infoFields,
+    // Tertiary → "Manila Scholars", vocational → "TESDA", everything else → blank
+    scholarshipType:
+      selectedProgram === "tertiary" ? "Manila Scholars" :
+      selectedProgram === "vocational" ? "TESDA" : "",
+  });
   const [familyMembers, setFamilyMembers] = useState([]);
   const [uploadText, setUploadText] = useState({
     cor: null,
@@ -199,17 +206,44 @@ export default function ProgramApplyScreen({ navigation, route }) {
     verifyStaffById,
   } = useStaffApplication(isChildDesignation);
 
+  const {
+    submitting: vocationalSubmitting,
+    error: vocationalError,
+    fieldErrors: vocationalFieldErrors,
+    clearFieldError: clearVocationalFieldError,
+    qualificationOutcome: vocationalQualificationOutcome,
+    submitApplication: submitVocational,
+    validateStep: validateVocationalStep,
+  } = useVocationalApplication();
+
   const isEmployeeChildFlow = selectedProgram === "employeeChild";
-  const apiSubmitting = selectedProgram === "tertiary" ? tertiarySubmitting : isEmployeeChildFlow ? staffSubmitting : false;
-  const apiError = selectedProgram === "tertiary" ? tertiaryError : isEmployeeChildFlow ? staffError : null;
-  const fieldErrors = selectedProgram === "tertiary" ? tertiaryFieldErrors : isEmployeeChildFlow ? staffFieldErrors : {};
-  const clearFieldError = selectedProgram === "tertiary" ? clearTertiaryFieldError : clearStaffFieldError;
+  const isVocationalFlow = selectedProgram === "vocational";
+
+  // Pick the active set of state based on the current program
+  const apiSubmitting =
+    selectedProgram === "tertiary" ? tertiarySubmitting :
+    isVocationalFlow ? vocationalSubmitting :
+    isEmployeeChildFlow ? staffSubmitting : false;
+
+  const apiError =
+    selectedProgram === "tertiary" ? tertiaryError :
+    isVocationalFlow ? vocationalError :
+    isEmployeeChildFlow ? staffError : null;
+
+  const fieldErrors =
+    selectedProgram === "tertiary" ? tertiaryFieldErrors :
+    isVocationalFlow ? vocationalFieldErrors :
+    isEmployeeChildFlow ? staffFieldErrors : {};
+
+  const clearFieldError =
+    selectedProgram === "tertiary" ? clearTertiaryFieldError :
+    isVocationalFlow ? clearVocationalFieldError :
+    clearStaffFieldError;
+
   const qualificationOutcome =
-    selectedProgram === "tertiary"
-      ? tertiaryQualificationOutcome
-      : isEmployeeChildFlow
-        ? staffQualificationOutcome
-        : null;
+    selectedProgram === "tertiary" ? tertiaryQualificationOutcome :
+    isVocationalFlow ? vocationalQualificationOutcome :
+    isEmployeeChildFlow ? staffQualificationOutcome : null;
 
   const isSubmittingNow = localSubmitting || apiSubmitting;
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -403,15 +437,23 @@ export default function ProgramApplyScreen({ navigation, route }) {
     clearFieldError("familyMembers");
   };
 
-  // advance() — for tertiary, validates steps 0, 1, 2 against the server.
-  // Step 3 (Review/Declaration) has no server validation — just submit.
-  // For other programs, no server validation — advance freely.
+  // advance() — validates the current step before moving to the next.
+  // Tertiary and Vocational both run server-side + pre-flight validation.
+  // EmployeeChild runs staff-specific validation.
   const advance = async () => {
     if (selectedProgram === "tertiary") {
-      // Steps 0, 1, 2 require server validation before advancing
-      // Step 3 is Review — no validate call needed, handled by submitApplication
+      // Steps 0, 1, 2 validate against server; step 3 is Review with no validate call
       if (step < maxStep) {
         const isValid = await validateTertiaryStep(step, values, uploadText, familyMembers);
+        if (isValid) setStep((s) => s + 1);
+      }
+      return;
+    }
+
+    if (isVocationalFlow) {
+      // Same step structure as tertiary — steps 0, 1, 2 validate; step 3 is Review
+      if (step < maxStep) {
+        const isValid = await validateVocationalStep(step, values, uploadText, familyMembers);
         if (isValid) setStep((s) => s + 1);
       }
       return;
@@ -443,6 +485,8 @@ export default function ProgramApplyScreen({ navigation, route }) {
     try {
       if (selectedProgram === "tertiary") {
         await submitTertiary(values, uploadText, familyMembers);
+      } else if (isVocationalFlow) {
+        await submitVocational(values, uploadText, familyMembers);
       } else if (selectedProgram === "employeeChild") {
         await submitStaff(values, uploadText);
       } else {

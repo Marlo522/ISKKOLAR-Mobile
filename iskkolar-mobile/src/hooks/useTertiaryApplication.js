@@ -159,7 +159,7 @@ export const useTertiaryApplication = () => {
     setError(null);
     setFieldErrors({});
 
-    const apiStep = uiStep === 2 ? 2 : 1;
+    const apiStep = uiStep + 1;
 
     // --- SUPPLEMENTAL FRONTEND PRE-FLIGHT VALIDATION ---
     // Why this exists: The backend Zod schema allows empty strings for family fields and completely ignores `req.files` during `/validate-step`.
