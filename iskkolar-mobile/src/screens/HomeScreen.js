@@ -58,7 +58,7 @@ export default function HomeScreen({ navigation }) {
       <Animated.View style={[styles.headerRow, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }], paddingTop: insets.top + 8 }]}>
         <View>
           <Text style={styles.userSubtitle}>Hello,</Text>
-          <Text style={styles.userTitle}>Dominic</Text>
+          <Text style={styles.userTitle}>{user?.name || "User"}</Text>
         </View>
         <TouchableOpacity style={styles.iconBubble} activeOpacity={0.8} onPress={() => navigation.navigate("Notifications")}>
           <Ionicons name="notifications-outline" size={24} color="#1d2e57" />
