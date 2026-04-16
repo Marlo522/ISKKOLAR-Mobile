@@ -5,6 +5,14 @@ import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { AuthContext } from "../context/AuthContext";
 import { useSchoolTransfer } from "../hooks/useSchoolTransfer";
+import { getMyApplications as getMyTertiaryApplications } from "../services/tertiaryAppService";
+import { getMyVocationalApplications } from "../services/vocationalAppService";
+import {
+  getMyChildDesignationApplications,
+  getMyStaffAdvancementApplications,
+} from "../services/StaffApplication";
+import { getGradeComplianceTerms } from "../services/gradeComplianceService";
+import { getScholarDashboardSummary } from "../services/scholarDashboardService";
 
 const YEAR_LEVELS = ["1st", "2nd", "3rd", "4th", "5th"];
 const TERM_TYPES = ["Semester", "Trimester", "Quarter System"];
@@ -14,6 +22,9 @@ const TERMS = ["1st Semester", "2nd Semester", "Summer"];
 export default function TransferSchoolScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
+  const [educationProfile, setEducationProfile] = useState(null);
+  const [gradeComplianceSummary, setGradeComplianceSummary] = useState(null);
+  const [dashboardSummary, setDashboardSummary] = useState(null);
 
   const [values, setValues] = useState({
     newSchool: "",
@@ -87,6 +98,115 @@ export default function TransferSchoolScreen({ navigation }) {
     outputRange: ["0deg", "360deg"],
   });
 
+  const getFirstItem = (value) => (Array.isArray(value) ? value[0] : value);
+
+  const buildEducationProfileFromTables = (sources) => {
+    const sortedByDateDesc = (items) =>
+      [...(items || [])].sort(
+        (a, b) => new Date(b.submitted_at || b.created_at || 0) - new Date(a.submitted_at || a.created_at || 0)
+      );
+
+    const tertiary = getFirstItem(sortedByDateDesc(sources.tertiaryApplications));
+    const vocational = getFirstItem(sortedByDateDesc(sources.vocationalApplications));
+    const kkfiChild = getFirstItem(sortedByDateDesc(sources.kkfiChildApplications));
+    const kkfiStaff = getFirstItem(sortedByDateDesc(sources.kkfiStaffApplications));
+
+    const tertiaryEducation =
+      getFirstItem(tertiary?.tertiary_education) ||
+      getFirstItem(kkfiChild?.tertiary_education) ||
+      getFirstItem(kkfiStaff?.tertiary_education);
+
+    const vocationalEducation = getFirstItem(vocational?.vocational_education);
+    const mastersEducation = getFirstItem(kkfiStaff?.masters_education);
+
+    const selected = tertiaryEducation || vocationalEducation || mastersEducation || null;
+
+    if (!selected) {
+      return null;
+    }
+
+    return {
+      school: selected.school_name || null,
+      program: selected.program || null,
+      yearLevel: selected.year_level || null,
+      term: selected.term || null,
+      termType: selected.term_type || null,
+      gradeScale: selected.grade_scale || null,
+      gwa: selected.gwa || null,
+    };
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadAutofillSources = async () => {
+      const [
+        summaryRes,
+        gradeComplianceRes,
+        tertiaryRes,
+        vocationalRes,
+        childRes,
+        staffRes,
+      ] = await Promise.allSettled([
+        getScholarDashboardSummary(),
+        getGradeComplianceTerms(),
+        getMyTertiaryApplications(),
+        getMyVocationalApplications(),
+        getMyChildDesignationApplications(),
+        getMyStaffAdvancementApplications(),
+      ]);
+
+      if (!mounted) return;
+
+      if (summaryRes.status === "fulfilled") {
+        setDashboardSummary(summaryRes.value?.data || summaryRes.value || null);
+      }
+
+      if (gradeComplianceRes.status === "fulfilled") {
+        setGradeComplianceSummary(gradeComplianceRes.value?.data || gradeComplianceRes.value || null);
+      }
+
+      const profileFromTables = buildEducationProfileFromTables({
+        tertiaryApplications: tertiaryRes.status === "fulfilled" ? tertiaryRes.value || [] : [],
+        vocationalApplications: vocationalRes.status === "fulfilled" ? vocationalRes.value || [] : [],
+        kkfiChildApplications: childRes.status === "fulfilled" ? childRes.value || [] : [],
+        kkfiStaffApplications: staffRes.status === "fulfilled" ? staffRes.value || [] : [],
+      });
+
+      if (profileFromTables) {
+        setEducationProfile(profileFromTables);
+      }
+
+      if (__DEV__) {
+        const rejectedSources = [
+          ["dashboardSummary", summaryRes],
+          ["gradeCompliance", gradeComplianceRes],
+          ["tertiaryApplications", tertiaryRes],
+          ["vocationalApplications", vocationalRes],
+          ["childDesignationApplications", childRes],
+          ["staffAdvancementApplications", staffRes],
+        ]
+          .filter(([, result]) => result.status === "rejected")
+          .map(([name]) => name);
+
+        if (rejectedSources.length > 0) {
+          console.warn("Transfer autofill partially loaded. Failed sources:", rejectedSources.join(", "));
+        }
+      }
+    };
+
+    void loadAutofillSources();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const gradeComplianceLatest = gradeComplianceSummary?.latestSubmission || null;
+  const currentSchool = educationProfile?.school || user?.school || "";
+  const currentProgram = educationProfile?.program || user?.course || user?.program || "";
+  const currentGwa = dashboardSummary?.currentGwa ?? gradeComplianceLatest?.gwa ?? educationProfile?.gwa ?? user?.gwa ?? "";
+
   // ─── Field helpers ──────────────────────────────────────────
   const setField = (key, val) => {
     setValues((prev) => ({ ...prev, [key]: val }));
@@ -117,8 +237,8 @@ export default function TransferSchoolScreen({ navigation }) {
 
   // ─── Submit ─────────────────────────────────────────────────
   const handleSubmit = async () => {
-    const prevSchool = user?.educationProfile?.school || user?.school || "";
-    const prevProgram = user?.educationProfile?.program || user?.course || user?.program || "";
+    const prevSchool = currentSchool;
+    const prevProgram = currentProgram;
 
     const payload = {
       ...values,
@@ -263,14 +383,14 @@ export default function TransferSchoolScreen({ navigation }) {
 
             <View style={styles.rowTwoCol}>
               <View style={styles.colHalf}>
-                {renderReadOnly("Current School", user?.educationProfile?.school || user?.school || "Auto-filled")}
+                {renderReadOnly("Current School", currentSchool || "Auto-filled")}
               </View>
               <View style={styles.colHalf}>
-                {renderReadOnly("Current Program", user?.educationProfile?.program || user?.course || user?.program || "Auto-filled")}
+                {renderReadOnly("Current Program", currentProgram || "Auto-filled")}
               </View>
             </View>
 
-            {renderReadOnly("Current GWA", user?.educationProfile?.gwa || user?.gwa || "Auto-filled from grade compliance")}
+            {renderReadOnly("Current GWA", currentGwa || "Auto-filled from grade compliance")}
           </View>
 
           {/* Transfer Details */}
