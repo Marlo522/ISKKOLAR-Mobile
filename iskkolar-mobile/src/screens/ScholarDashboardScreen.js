@@ -1,19 +1,51 @@
-import React, { useEffect, useRef, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, ScrollView, Platform } from 'react-native';
+import React, { useEffect, useRef, useContext, useState, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
+import { getScholarDashboardSummary } from '../services/scholarDashboardService';
+import { getGradeComplianceTerms } from '../services/gradeComplianceService';
+
+const getNextAcademicYear = (value) => {
+  const match = /^(\d{4})-(\d{4})$/.exec((value || '').trim());
+  if (!match) return '';
+
+  const start = Number(match[1]);
+  const end = Number(match[2]);
+
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return '';
+
+  return `${start + 1}-${end + 1}`;
+};
 
 export default function ScholarDashboardScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
+  const [dashboardSummary, setDashboardSummary] = useState(null);
+  const [gradeComplianceSummary, setGradeComplianceSummary] = useState(null);
 
-  const stats = [
-    { title: "1st", sub: "BSIT", icon: "book-outline", iconBg: "#f4effe", iconColor: "#7e52d8" },
-    { title: "--", sub: "Current GWA", icon: "checkmark-circle-outline", iconBg: "#e7f6ea", iconColor: "#39a751" },
-    { title: "0", sub: "Applications Submitted", icon: "calendar-outline", iconBg: "#eefafc", iconColor: "#41b5bd" },
-    { title: "1st", sub: "Current Term", icon: "book-outline", iconBg: "#f4effe", iconColor: "#7e52d8" }
-  ];
+  const currentYearLevel = dashboardSummary?.currentYearLevel || user?.yearLevel || 'Not set';
+  const currentProgram = dashboardSummary?.currentProgram || user?.program || user?.scholarshipType || '--';
+  const currentGwaValue = dashboardSummary?.currentGwa;
+  const currentGwa = Number.isFinite(Number(currentGwaValue)) ? Number(currentGwaValue).toFixed(2) : '--';
+  const submittedApplications = Number(dashboardSummary?.submittedApplicationsCount);
+  const applicationsSubmitted = Number.isFinite(submittedApplications) ? String(submittedApplications) : '0';
+  const gradeComplianceTerms = gradeComplianceSummary?.terms || [];
+  const nextPendingGradeComplianceTerm = gradeComplianceTerms.find(
+    (item) => String(item?.status || '').toLowerCase() === 'pending'
+  )?.term;
+  const gradeComplianceLatestTerm = gradeComplianceSummary?.latestSubmission?.term;
+  const currentTerm = nextPendingGradeComplianceTerm || dashboardSummary?.currentTerm || gradeComplianceLatestTerm || user?.term || '--';
+
+  const stats = useMemo(
+    () => [
+      { title: currentYearLevel, sub: currentProgram, icon: 'book-outline', iconBg: '#f4effe', iconColor: '#7e52d8' },
+      { title: currentGwa, sub: 'Current GWA', icon: 'checkmark-circle-outline', iconBg: '#e7f6ea', iconColor: '#39a751' },
+      { title: applicationsSubmitted, sub: 'Applications Submitted', icon: 'calendar-outline', iconBg: '#eefafc', iconColor: '#41b5bd' },
+      { title: currentTerm, sub: 'Current Term', icon: 'book-outline', iconBg: '#f4effe', iconColor: '#7e52d8' },
+    ],
+    [applicationsSubmitted, currentGwa, currentProgram, currentTerm, currentYearLevel]
+  );
 
   const quickLinks = [
     { title: "COR & Grade Compliance", route: "GradeCompliance", icon: "clipboard-outline", iconBg: "#e7f6ea", iconColor: "#39a751" },
@@ -22,10 +54,20 @@ export default function ScholarDashboardScreen({ navigation }) {
     { title: "Activities", route: "Activities", icon: "calendar-outline", iconBg: "#eefafc", iconColor: "#41b5bd" }
   ];
 
+  const baseAcademicYear = dashboardSummary?.currentAcademicYear || user?.academicYear || '';
+  const nextAcademicYear = getNextAcademicYear(baseAcademicYear);
+
   const services = [
-    { title: "Scholarship Renewal", sub: "Renew for AY 2026-2027", route: "ScholarshipRenewal", icon: "sync", iconBg: "#f4effe", iconColor: "#7e52d8" },
-    { title: "Transfer School", sub: "Update your school or program", route: "TransferSchool", icon: "swap-horizontal", iconBg: "#fff0f0", iconColor: "#e96e5e" },
-    { title: "Board Exam/Certification Assistance", sub: "Up to P12,000 support", route: "ExamAssistance", icon: "checkmark-circle-outline", iconBg: "#eefafc", iconColor: "#41b5bd" }
+    {
+      title: 'Scholarship Renewal',
+      sub: nextAcademicYear ? `Renew for AY ${nextAcademicYear}` : 'Renew for next academic year',
+      route: 'ScholarshipRenewal',
+      icon: 'sync',
+      iconBg: '#f4effe',
+      iconColor: '#7e52d8',
+    },
+    { title: 'Transfer School', sub: 'Update your school or program', route: 'TransferSchool', icon: 'swap-horizontal', iconBg: '#fff0f0', iconColor: '#e96e5e' },
+    { title: 'Board Exam/Certification Assistance', sub: 'Up to P12,000 support', route: 'ExamAssistance', icon: 'checkmark-circle-outline', iconBg: '#eefafc', iconColor: '#41b5bd' }
   ];
 
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -46,6 +88,34 @@ export default function ScholarDashboardScreen({ navigation }) {
         useNativeDriver: true,
       })
     ]).start();
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadDashboardMeta = async () => {
+      try {
+        const [summary, gradeCompliance] = await Promise.all([
+          getScholarDashboardSummary(),
+          getGradeComplianceTerms(),
+        ]);
+
+        if (!isMounted) return;
+
+        setDashboardSummary(summary?.data || summary || null);
+        setGradeComplianceSummary(gradeCompliance?.data || gradeCompliance || null);
+      } catch (error) {
+        if (__DEV__) {
+          console.warn('Failed to load scholar dashboard data', error?.message || error);
+        }
+      }
+    };
+
+    void loadDashboardMeta();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const fullName = [
