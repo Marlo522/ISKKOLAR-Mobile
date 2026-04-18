@@ -1,324 +1,516 @@
-import React, { useState, useRef, useMemo, useCallback } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Animated, ScrollView, ImageBackground, RefreshControl } from "react-native";
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Animated, ScrollView, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import api from "../services/api";
 
-const APPLICATION_STEPS = [
-  { key: "submitted", label: "Submitted" },
-  { key: "under_review", label: "Under Review" },
-  { key: "approved", label: "Approved" },
-];
-
-const STATUS_LABEL = {
-  pending: "submitted",
-  submitted: "submitted",
-  under_review: "under_review",
-  approved: "approved",
-  rejected: "submitted",
-};
-
-const STATUS_BADGE_LABEL = {
-  pending: "Submitted",
-  submitted: "Submitted",
-  under_review: "Under Review",
-  approved: "Approved",
-  rejected: "Rejected",
-};
-
-const TERTIARY_FALLBACK_IMAGE = "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=600&auto=format&fit=crop";
-const EMPLOYEE_CHILD_FALLBACK_IMAGE = "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=600&auto=format&fit=crop";
-
-const PROGRAM_META = {
-  tertiary: {
-    tag: "Tertiary Program",
-    image: TERTIARY_FALLBACK_IMAGE,
+// MOCK DATA for the new layout
+const APPLICATIONS_DATA = [
+  {
+    id: "grade_compliance",
+    title: "Grade Compliance",
+    icon: "document-text-outline",
+    color: "#10b981",
+    lightBg: "#d1fae5",
+    topColor: "#a7f3d0",
+    status: "Submitted",
+    statusColor: "#3b82f6", // blue dot
+    statusBg: "#eff6ff",
+    steps: ["Submitted", "Under Review", "Approved", "Completed"],
+    currentStep: 0,
+    routeName: "GradeCompliance"
   },
-  employeeChild: {
-    tag: "KKFI Staff Program",
-    image: EMPLOYEE_CHILD_FALLBACK_IMAGE,
-    title: "Employee Child Grant",
+  {
+    id: "transfer_school",
+    title: "Transfer of School",
+    icon: "swap-horizontal-outline",
+    color: "#3b82f6",
+    lightBg: "#dbeafe",
+    topColor: "#bfdbfe",
+    status: "Not Started",
+    statusColor: "#9ca3af",
+    statusBg: "#f3f4f6",
+    routeName: "TransferSchool"
   },
-  staffAdvancement: {
-    tag: "KKFI Staff Program",
-    image: EMPLOYEE_CHILD_FALLBACK_IMAGE,
-    title: "Staff Advancement Grant",
+  {
+    id: "exam_assistance",
+    title: "Exam Assistance",
+    icon: "checkmark-circle-outline",
+    color: "#8b5cf6",
+    lightBg: "#ede9fe",
+    topColor: "#ddd6fe",
+    status: "Not Started",
+    statusColor: "#9ca3af",
+    statusBg: "#f3f4f6",
+    routeName: "ExamAssistance"
   },
-};
-
-const formatDate = (value) => {
-  if (!value) return "--";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "--";
-  return date.toLocaleDateString("en-PH", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-};
-
-const ensureArray = (value) => (Array.isArray(value) ? value : []);
-
-const normalizeApplicationStatus = (status) => {
-  return STATUS_LABEL[status] || "submitted";
-};
-
-const toApplicationCardData = (app) => {
-  const isChildDesignation = Boolean(app.kkfi_grant_details);
-  
-  if (isChildDesignation) {
-    const details = Array.isArray(app.kkfi_grant_details)
-      ? app.kkfi_grant_details[0]
-      : app.kkfi_grant_details;
-    const isSelfAdvancement = details?.applicant_category === "self_advancement";
-    const meta = isSelfAdvancement ? PROGRAM_META.staffAdvancement : PROGRAM_META.employeeChild;
-
-    return {
-      id: "child-" + app.id,
-      status: normalizeApplicationStatus(app.status),
-      rawStatus: app.status || "submitted",
-      title: meta.title,
-      tag: meta.tag,
-      image: meta.image,
-      submittedAt: formatDate(app.submitted_at || app.created_at),
-    };
+  {
+    id: "scholarship_renewal",
+    title: "Scholarship Renewal",
+    icon: "refresh-outline",
+    color: "#f59e0b",
+    lightBg: "#fef3c7",
+    topColor: "#fde68a",
+    status: "Not Started",
+    statusColor: "#9ca3af",
+    statusBg: "#f3f4f6",
+    submittedDate: "Submitted Apr 16, 2026",
+    routeName: "ScholarshipRenewal"
+  },
+  {
+    id: "receipt_submission",
+    title: "Receipt Submission",
+    icon: "receipt-outline",
+    color: "#ec4899",
+    lightBg: "#fce7f3",
+    topColor: "#fbcfe8",
+    status: "Not Started",
+    statusColor: "#9ca3af",
+    statusBg: "#f3f4f6",
+    routeName: "FinancialRecords"
   }
-
-  const details = Array.isArray(app.tertiary_application_details)
-    ? app.tertiary_application_details[0]
-    : app.tertiary_application_details;
-
-  return {
-    id: "tert-" + app.id,
-    status: normalizeApplicationStatus(app.status),
-    rawStatus: app.status || "submitted",
-    title: details?.scholarship_type || "Tertiary Scholarship",
-    tag: PROGRAM_META.tertiary.tag,
-    image: PROGRAM_META.tertiary.image,
-    submittedAt: formatDate(app.submitted_at || app.created_at),
-  };
-};
+];
 
 export default function ApplicationScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const [applications, setApplications] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState("");
+  const [filter, setFilter] = useState("All");
+
+  const [expandedCards, setExpandedCards] = useState({ grade_compliance: true });
+  const [dropdownVisible, setDropdownVisible] = useState(false);
 
   const slideAnim = useRef(new Animated.Value(20)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const dropdownAnim = useRef(new Animated.Value(0)).current;
 
-  const loadApplications = useCallback(async (isRefresh = false) => {
-    try {
-      if (!isRefresh) setLoading(true);
-      setError("");
+  // Logical Stats
+  const activeCount = useMemo(() => APPLICATIONS_DATA.filter((app) => app.status !== "Not Started" && app.status !== "Completed" && app.status !== "Approved").length, []);
+  const completedCount = useMemo(() => APPLICATIONS_DATA.filter((app) => app.status === "Completed" || app.status === "Approved").length, []);
+  const totalCount = APPLICATIONS_DATA.length;
 
-      const [tertiaryResult, employeeChildResult, staffAdvancementResult] = await Promise.allSettled([
-        api("/scholarships/tertiary/my-applications", { method: "GET" }).catch(() => ({ data: [] })),
-        api("/scholarships/child-designation/my-applications", { method: "GET" }).catch(() => ({ data: [] })),
-        api("/scholarships/staff-advancement/my-applications", { method: "GET" }).catch(() => ({ data: [] })),
-      ]);
+  const filteredApps = useMemo(() => {
+    return APPLICATIONS_DATA.filter(app => {
+      if (filter === "All") return true;
+      const isCompleted = app.status === "Completed" || app.status === "Approved";
+      const isActive = app.status !== "Not Started" && !isCompleted;
 
-      const tertApps = tertiaryResult.status === "fulfilled" && tertiaryResult.value?.data ? ensureArray(tertiaryResult.value.data) : [];
-      const childApps = employeeChildResult.status === "fulfilled" && employeeChildResult.value?.data ? ensureArray(employeeChildResult.value.data) : [];
-      const staffApps =
-        staffAdvancementResult.status === "fulfilled" && staffAdvancementResult.value?.data
-          ? ensureArray(staffAdvancementResult.value.data)
-          : [];
+      if (filter === "Active") return isActive;
+      if (filter === "Completed") return isCompleted;
+      return true;
+    });
+  }, [filter]);
 
-      setApplications([...tertApps, ...childApps, ...staffApps]);
-    } catch (err) {
-      setError(err?.message || "Failed to load applications.");
-    } finally {
-      if (isRefresh) setRefreshing(false);
-      setLoading(false);
-    }
+  useEffect(() => {
+    slideAnim.setValue(20);
+    fadeAnim.setValue(0);
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
+    ]).start();
   }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadApplications();
-      slideAnim.setValue(20);
-      fadeAnim.setValue(0);
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
-      ]).start();
-    }, [loadApplications])
-  );
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadApplications(true);
+    setTimeout(() => setRefreshing(false), 800);
   };
 
-  const mappedApplications = useMemo(() => applications.map(toApplicationCardData), [applications]);
+  const toggleCard = (id) => {
+    setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
-  const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <View style={styles.emptyIconBox}>
-        <Ionicons name="document-text-outline" size={48} color="#5b5f97" />
-      </View>
-      <Text style={styles.emptyTitle}>Nothing to see here... Yet!</Text>
-      <Text style={styles.emptySubText}>
-        You haven't submitted a scholarship application. Start your application now to be considered for the KKFI scholarship program.
-      </Text>
-      <TouchableOpacity style={styles.browseBtn} onPress={() => navigation.navigate("HomeMain")}>
-        <Text style={styles.browseBtnText}>Browse Scholarships</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  const toggleDropdown = () => {
+    if (dropdownVisible) {
+      Animated.timing(dropdownAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => setDropdownVisible(false));
+    } else {
+      setDropdownVisible(true);
+      Animated.timing(dropdownAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+    }
+  };
 
-  const renderCard = (app) => {
-    const isRejected = app.rawStatus === "rejected";
-    const currentStepIndex = APPLICATION_STEPS.findIndex((s) => s.key === app.status);
-    const safeStepIndex = currentStepIndex >= 0 ? currentStepIndex : 0;
-    const progressWidth = ((safeStepIndex + 1) / APPLICATION_STEPS.length) * 100;
-
+  const renderStepper = (app) => {
     return (
-      <View key={app.id} style={styles.card}>
-        <ImageBackground source={{ uri: app.image }} style={styles.cardHeader} imageStyle={{ opacity: 0.85 }}>
-          <View style={styles.cardHeaderOverlay}>
-            <View style={styles.tagWrap}>
-              <Text style={styles.tagText}>{app.tag}</Text>
-            </View>
-            <Text style={styles.cardTitle}>{app.title}</Text>
-          </View>
-        </ImageBackground>
+      <View style={styles.stepperContainer}>
+        {app.steps.map((stepLabel, index) => {
+          const isCompleted = index <= app.currentStep;
+          const isCurrent = index === app.currentStep;
+          const isLast = index === app.steps.length - 1;
 
-        <View style={styles.cardBody}>
-          <View style={styles.cardTopRow}>
-            <View style={[styles.statusBadge, isRejected ? { backgroundColor: "#fee2e2" } : {}]}>
-              <Text style={[styles.statusBadgeText, isRejected ? { color: "#b91c1c" } : {}]}>
-                {STATUS_BADGE_LABEL[app.rawStatus] || "Submitted"}
-              </Text>
-            </View>
-            <Text style={styles.submittedDate}>Submitted: {app.submittedAt}</Text>
-          </View>
-
-          <Text style={styles.cardDesc}>
-            {isRejected
-              ? "Your application was not approved. You may review your details and submit a new application if allowed."
-              : "Your scholarship application is currently in progress. Please wait for further updates."}
-          </Text>
-
-          {/* Stepper */}
-          <View style={styles.stepperContainer}>
-            {APPLICATION_STEPS.map((step, i) => {
-              const isCompleted = i <= safeStepIndex;
-              const isCurrent = i === safeStepIndex;
-              return (
-                <View key={step.key} style={styles.stepItem}>
-                  <View style={[styles.stepCircle, isCompleted ? styles.stepCircleActive : {}]}>
-                    {isCompleted ? (
-                      <Ionicons name="checkmark" size={16} color="#fff" />
-                    ) : (
-                      <Text style={styles.stepCircleTextInactive}>{i + 1}</Text>
-                    )}
-                  </View>
-                  <Text style={[styles.stepLabel, isCurrent ? styles.stepLabelCurrent : isCompleted ? styles.stepLabelActive : {}]}>
-                    {step.label}
+          return (
+            <View key={stepLabel} style={styles.stepWrapper}>
+              <View style={styles.stepIndicator}>
+                <View style={[styles.stepCircle, isCompleted ? styles.stepCircleActive : {}]}>
+                  <Text style={[styles.stepCircleText, isCompleted ? styles.stepCircleTextActive : {}]}>
+                    {index + 1}
                   </Text>
                 </View>
-              );
-            })}
-          </View>
-
-          <View style={styles.progressBarTrack}>
-            <View style={[styles.progressBarFill, { width: `${progressWidth}%`, backgroundColor: isRejected ? "#ef4444" : "#5b5f97" }]} />
-          </View>
-        </View>
+                {!isLast && (
+                  <View style={[styles.stepLine, isCompleted && !isCurrent ? styles.stepLineActive : {}]} />
+                )}
+              </View>
+              <Text style={[styles.stepLabel, isCurrent ? styles.stepLabelCurrent : isCompleted ? styles.stepLabelActive : {}]}>
+                {stepLabel}
+              </Text>
+            </View>
+          );
+        })}
       </View>
     );
   };
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <View style={styles.headerTop}>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.title}>Application History</Text>
-            <Text style={styles.subtitle}>Track your submissions</Text>
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 16, zIndex: 100, elevation: 15 }]}>
+        <Text style={styles.title}>Application</Text>
+
+        {/* Stats Row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statPill}>
+            <View style={[styles.statDot, { backgroundColor: "#3b82f6" }]} />
+            <Text style={styles.statText}>{activeCount} Active</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate("Notifications")} style={styles.bellBtn} activeOpacity={0.8}>
-            <Ionicons name="notifications-outline" size={24} color="#5b6095" />
-          </TouchableOpacity>
+          <View style={styles.statPill}>
+            <View style={[styles.statDot, { backgroundColor: "#10b981" }]} />
+            <Text style={styles.statText}>{completedCount} Completed</Text>
+          </View>
+          <View style={styles.statPill}>
+            <View style={[styles.statDot, { backgroundColor: "#9ca3af" }]} />
+            <Text style={styles.statText}>{totalCount} Total</Text>
+          </View>
+        </View>
+
+        {/* Filters Row */}
+        <View style={styles.filterRow}>
+          <View style={styles.segmentControl}>
+            {["All", "Active", "Completed"].map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.segmentBtn, filter === tab && styles.segmentBtnActive]}
+                onPress={() => setFilter(tab)}
+              >
+                <Text style={[styles.segmentText, filter === tab && styles.segmentTextActive]}>{tab}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={{ position: 'relative', zIndex: 100, elevation: 15 }}>
+            <TouchableOpacity style={styles.dropdownBtn} onPress={toggleDropdown}>
+              <Text style={styles.dropdownText}>All Applications</Text>
+              <Ionicons name={dropdownVisible ? "chevron-up" : "chevron-down"} size={14} color="#6b7280" />
+            </TouchableOpacity>
+
+            {dropdownVisible && (
+              <Animated.View style={[
+                styles.dropdownMenu,
+                { opacity: dropdownAnim, transform: [{ translateY: dropdownAnim.interpolate({ inputRange: [0, 1], outputRange: [-10, 0] }) }] }
+              ]}>
+                <TouchableOpacity style={styles.dropdownMenuItem} onPress={toggleDropdown}>
+                  <Text style={styles.dropdownMenuItemTextActive}>All Applications</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.dropdownMenuItem} onPress={toggleDropdown}>
+                  <Text style={styles.dropdownMenuItemText}>Primary Programs</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.dropdownMenuItem} onPress={toggleDropdown}>
+                  <Text style={styles.dropdownMenuItemText}>Post-Award Services</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+          </View>
         </View>
       </View>
 
       <Animated.ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+        style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], zIndex: 1, elevation: 1 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {loading ? (
-          <View style={{ marginTop: 60, alignItems: "center" }}>
-            <Text style={{ color: "#8a94b5", fontSize: 16 }}>Loading applications...</Text>
+        {filteredApps.length === 0 ? (
+          <View style={{ alignItems: 'center', marginTop: 40 }}>
+            <Ionicons name="documents-outline" size={48} color="#d1d5db" />
+            <Text style={{ color: '#9ca3af', marginTop: 12, fontSize: 15, fontWeight: '500' }}>No specific records found.</Text>
           </View>
-        ) : error ? (
-          <View style={{ marginTop: 60, alignItems: "center" }}>
-            <Text style={{ color: "#d91e1e", fontSize: 16, marginBottom: 12 }}>{error}</Text>
-            <TouchableOpacity style={styles.browseBtn} onPress={() => loadApplications()}>
-              <Text style={styles.browseBtnText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : mappedApplications.length === 0 ? (
-          renderEmpty()
-        ) : (
-          <View>
-            <Text style={styles.sectionTitleHeader}>My Applications</Text>
-            {mappedApplications.map((app) => renderCard(app))}
-          </View>
-        )}
+        ) : null}
+
+        {filteredApps.map((app) => {
+          const isStarted = app.status !== "Not Started";
+          const isExpanded = !!expandedCards[app.id];
+
+          return (
+            <View key={app.id} style={styles.cardContainer}>
+              {/* Colored Top Border effect */}
+              <View style={[styles.cardTopBorder, { backgroundColor: app.topColor }]} />
+
+              <View style={styles.card}>
+                {/* Card Header Layer */}
+                <TouchableOpacity
+                  style={styles.cardHeader}
+                  activeOpacity={0.7}
+                  onPress={() => toggleCard(app.id)}
+                >
+                  <View style={styles.cardHeaderLeft}>
+                    <View style={[styles.iconBox, { backgroundColor: app.lightBg }]}>
+                      <Ionicons name={app.icon} size={20} color={app.color} />
+                    </View>
+                    <View>
+                      <Text style={styles.cardTitle}>{app.title}</Text>
+                      {!!app.submittedDate && (
+                        <Text style={styles.cardSubtitle}>{app.submittedDate}</Text>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Status Badge */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={[styles.statusBadge, { backgroundColor: app.statusBg, marginRight: 8 }]}>
+                      <View style={[styles.statusBadgeDot, { backgroundColor: app.statusColor }]} />
+                      <Text style={[styles.statusBadgeText, { color: app.statusColor }]}>{app.status}</Text>
+                    </View>
+                    <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={18} color="#d1d5db" />
+                  </View>
+                </TouchableOpacity>
+
+                {/* Card Content Layer - only shown if expanded */}
+                {isExpanded && (
+                  <View style={styles.cardBodyContainer}>
+                    <View style={styles.divider} />
+                    {isStarted ? (
+                      renderStepper(app)
+                    ) : (
+                      <View style={styles.emptyStateBox}>
+                        <Ionicons name="time-outline" size={16} color="#9ca3af" style={{ marginRight: 6 }} />
+                        <Text style={styles.emptyStateText}>No application submitted yet</Text>
+                      </View>
+                    )}
+
+                    {/* Navigation Action Button */}
+                    <TouchableOpacity
+                      style={[styles.startBtn, { backgroundColor: app.color }]}
+                      activeOpacity={0.8}
+                      onPress={() => navigation.navigate(app.routeName)}
+                    >
+                      <Text style={styles.startBtnText}>
+                        {isStarted ? "View Progress" : "Start Application"}
+                      </Text>
+                      <Ionicons name="arrow-forward" size={16} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </View>
+          );
+        })}
       </Animated.ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#eff2f9" },
-  header: { paddingBottom: 24, paddingHorizontal: 24, backgroundColor: "#fff", borderBottomLeftRadius: 24, borderBottomRightRadius: 24, shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 4, marginBottom: 10, zIndex: 10 },
-  headerTop: { flexDirection: "row", alignItems: "center" },
-  headerTextContainer: { flex: 1 },
-  title: { fontSize: 22, fontWeight: "900", color: "#4f5ec4", letterSpacing: -0.3 },
-  subtitle: { fontSize: 13, color: "#7a82a0", marginTop: 2, fontWeight: "500" },
-  bellBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#f5f7fc", justifyContent: "center", alignItems: "center" },
-  content: { padding: 20, paddingBottom: 120 },
-  sectionTitleHeader: { fontSize: 18, fontWeight: "900", color: "#4f568e", marginBottom: 16 },
+  container: { flex: 1, backgroundColor: "#f8f9fc" },
+  header: {
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    backgroundColor: "#f8f9fc",
+    zIndex: 100,
+    elevation: 10
+  },
+  title: { fontSize: 24, fontWeight: "900", color: "#111827", letterSpacing: -0.5, marginBottom: 16 },
 
-  emptyContainer: { flex: 1, alignItems: "center", justifyContent: "center", marginTop: 80 },
-  emptyIconBox: { width: 96, height: 96, borderRadius: 48, backgroundColor: "#f0eef9", justifyContent: "center", alignItems: "center", marginBottom: 24 },
-  emptyTitle: { fontSize: 20, fontWeight: "bold", color: "#1a1a2e", marginBottom: 8 },
-  emptySubText: { fontSize: 14, color: "#6e7798", textAlign: "center", lineHeight: 22, paddingHorizontal: 20, marginBottom: 32 },
-  browseBtn: { backgroundColor: "#5b5f97", paddingVertical: 14, paddingHorizontal: 32, borderRadius: 12 },
-  browseBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  statsRow: { flexDirection: "row", gap: 12, marginBottom: 20 },
+  statPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#f3f4f6"
+  },
+  statDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
+  statText: { fontSize: 13, fontWeight: "600", color: "#4b5563" },
 
-  card: { backgroundColor: "#fff", borderRadius: 20, overflow: "hidden", marginBottom: 20, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  cardHeader: { minHeight: 120, backgroundColor: "#25364f" },
-  cardHeaderOverlay: { flex: 1, backgroundColor: "rgba(91, 95, 151, 0.5)", padding: 24, justifyContent: "flex-end" },
-  tagWrap: { alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20, marginBottom: 8 },
-  tagText: { color: "#fff", fontSize: 12, fontWeight: "600" },
-  cardTitle: { color: "#fff", fontSize: 20, fontWeight: "bold" },
+  filterRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    zIndex: 100,
+    elevation: 10
+  },
+  segmentControl: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: "#f3f4f6"
+  },
+  segmentBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
+  segmentBtnActive: { backgroundColor: "#f3f4f6" },
+  segmentText: { fontSize: 13, fontWeight: "600", color: "#6b7280" },
+  segmentTextActive: { color: "#111827" },
 
-  cardBody: { padding: 24 },
-  cardTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  statusBadge: { backgroundColor: "#eef0fb", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
-  statusBadgeText: { color: "#4f568e", fontSize: 12, fontWeight: "800" },
-  submittedDate: { fontSize: 12, color: "#8a94b5", fontWeight: "600" },
-  cardDesc: { color: "#6b7280", fontSize: 14, lineHeight: 22, marginBottom: 24 },
+  dropdownBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#f3f4f6",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6
+  },
+  dropdownText: { fontSize: 13, fontWeight: "600", color: "#111827" },
 
-  stepperContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16, paddingHorizontal: 8 },
-  stepItem: { alignItems: "center", flex: 1 },
-  stepCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#e5e7eb", justifyContent: "center", alignItems: "center", marginBottom: 8 },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 40,
+    right: 0,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 8,
+    minWidth: 180,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
+    zIndex: 999
+  },
+  dropdownMenuItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  dropdownMenuItemText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#4b5563',
+  },
+  dropdownMenuItemTextActive: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#3b82f6',
+  },
+
+  content: { padding: 20, paddingBottom: 100 },
+
+  cardContainer: {
+    marginBottom: 20,
+    position: 'relative'
+  },
+  cardTopBorder: {
+    position: 'absolute',
+    top: -4,
+    left: 0,
+    right: 0,
+    height: 10,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  cardHeaderLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
+  iconBox: {
+    width: 40, height: 40,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12
+  },
+  cardTitle: { fontSize: 16, fontWeight: "700", color: "#1f2937" },
+  cardSubtitle: { fontSize: 12, color: "#6b7280", marginTop: 2, fontWeight: "500" },
+
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20
+  },
+  statusBadgeDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
+  statusBadgeText: { fontSize: 12, fontWeight: "700" },
+
+  cardBodyContainer: {
+    marginTop: 16,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#f3f4f6',
+    marginBottom: 16,
+    marginHorizontal: -20,
+  },
+
+  emptyStateBox: {
+    flexDirection: 'row',
+    backgroundColor: "#f9fafb",
+    borderRadius: 8,
+    paddingVertical: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16
+  },
+  emptyStateText: { fontSize: 13, color: "#9ca3af", fontWeight: "500" },
+
+  startBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 8,
+    marginTop: 8
+  },
+  startBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+
+  stepperContainer: { flexDirection: "row", justifyContent: "space-between", marginTop: 10, paddingHorizontal: 4, marginBottom: 20 },
+  stepWrapper: { flex: 1, alignItems: "center", position: "relative" },
+  stepIndicator: { flexDirection: "row", alignItems: "center", width: "100%" },
+  stepCircle: {
+    width: 28, height: 28,
+    borderRadius: 14,
+    backgroundColor: "#f3f4f6",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 2
+  },
   stepCircleActive: { backgroundColor: "#5b5f97" },
-  stepCircleTextInactive: { color: "#9ca3af", fontSize: 13, fontWeight: "bold" },
-  stepLabel: { fontSize: 12, fontWeight: "600", color: "#9ca3af", textAlign: "center" },
-  stepLabelCurrent: { color: "#5b5f97" },
-  stepLabelActive: { color: "#3d4076" },
+  stepCircleText: { fontSize: 12, fontWeight: "700", color: "#9ca3af" },
+  stepCircleTextActive: { color: "#fff" },
 
-  progressBarTrack: { height: 8, backgroundColor: "#e5e7eb", borderRadius: 4, overflow: "hidden" },
-  progressBarFill: { height: "100%", borderRadius: 4 },
+  stepLine: {
+    position: "absolute",
+    left: "50%",
+    right: "-50%",
+    height: 2,
+    backgroundColor: "#f3f4f6",
+    zIndex: 1
+  },
+  stepLineActive: { backgroundColor: "#e5e7eb" },
+
+  stepLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#9ca3af",
+    textAlign: "center",
+    marginTop: 8,
+    width: "120%"
+  },
+  stepLabelCurrent: { color: "#9ca3af" }, // In mock, "Under Review", "Approved" etc are grey if not active
+  stepLabelActive: { color: "#9ca3af" },
 });
