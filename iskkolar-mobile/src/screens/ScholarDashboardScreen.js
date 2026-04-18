@@ -28,7 +28,8 @@ export default function ScholarDashboardScreen({ navigation }) {
   const currentProgram = dashboardSummary?.currentProgram || user?.program || user?.scholarshipType || '--';
   const currentGwaValue = dashboardSummary?.currentGwa;
   const currentGwa = Number.isFinite(Number(currentGwaValue)) ? Number(currentGwaValue).toFixed(2) : '--';
-  const submittedApplications = Number(dashboardSummary?.submittedApplicationsCount);
+  const rawAppsCount = dashboardSummary?.totalApplications ?? dashboardSummary?.applicationsSubmitted ?? dashboardSummary?.submittedApplicationsCount ?? dashboardSummary?.submittedApplications ?? dashboardSummary?.total_applications ?? dashboardSummary?.applications_submitted ?? dashboardSummary?.applicationsCount;
+  const submittedApplications = Number(rawAppsCount);
   const applicationsSubmitted = Number.isFinite(submittedApplications) ? String(submittedApplications) : '0';
   const gradeComplianceTerms = gradeComplianceSummary?.terms || [];
   const nextPendingGradeComplianceTerm = gradeComplianceTerms.find(

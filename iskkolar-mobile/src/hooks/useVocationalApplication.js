@@ -293,7 +293,7 @@ export const useVocationalApplication = () => {
 
       (dynamicFamilyMembers || []).forEach((mem, idx) => {
         if (requiresProof(mem.status) && !uploads[`incomeMember_${idx}`]) {
-          preFlightErrors[`dynFamily_${idx}_income`] = "Income certificate required.";
+          preFlightErrors[`incomeMember_${idx}`] = "Income certificate required.";
         }
       });
     }

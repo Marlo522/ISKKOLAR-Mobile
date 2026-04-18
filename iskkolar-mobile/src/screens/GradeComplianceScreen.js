@@ -23,6 +23,7 @@ export default function GradeComplianceScreen({ navigation }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState({ gradeReport: "", cor: "", term: "" });
+  const [step, setStep] = useState(1);
 
   const [selectedTermId, setSelectedTermId] = useState(null);
   const [gradeReportFile, setGradeReportFile] = useState(null);
@@ -103,6 +104,7 @@ export default function GradeComplianceScreen({ navigation }) {
     setSelectedTermId(null);
     setGradeReportFile(null);
     setCorFile(null);
+    setStep(1);
     setFieldErrors({ gradeReport: "", cor: "", term: "" });
     if (clearFeedback) setSuccessMessage("");
   };
@@ -215,7 +217,7 @@ export default function GradeComplianceScreen({ navigation }) {
               clearFieldError("term");
             }}
           >
-            <Text style={styles.submitBtnActionText}>Submit Grades</Text>
+            <Text style={styles.submitBtnActionText}>Start Submission</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -225,21 +227,17 @@ export default function GradeComplianceScreen({ navigation }) {
   const renderUpload = (label, fileObj, type, errorMsg) => (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
-      <TouchableOpacity style={styles.uploadBtn} onPress={() => pickFile(type)}>
-        <Text style={[styles.uploadText, fileObj ? { color: "#111" } : null]} numberOfLines={1}>
-          {fileObj ? fileObj.name : "Choose File"}
-        </Text>
+      <TouchableOpacity style={[styles.uploadWrapper, errorMsg && styles.errorInput]} onPress={() => pickFile(type)}>
+        <View style={styles.chooseFileBtn}>
+          <Text style={styles.chooseFileText}>Choose File</Text>
+        </View>
+        <View style={styles.fileNameBox}>
+          <Text style={[styles.fileNameText, fileObj && { color: "#111" }]} numberOfLines={1}>
+            {fileObj ? fileObj.name || "Selected File" : "No file chosen"}
+          </Text>
+        </View>
       </TouchableOpacity>
       {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
-    </View>
-  );
-
-  const renderInput = (label, val) => (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.inputReadOnly}>
-        <Text style={styles.inputReadOnlyText}>{val || "--"}</Text>
-      </View>
     </View>
   );
 
@@ -309,60 +307,131 @@ export default function GradeComplianceScreen({ navigation }) {
     }
 
     return (
-      <View style={styles.formContainer}>
-        <View style={styles.underlinedTitleWrapper}>
-          <Text style={styles.underlinedTitle}>{selectedTerm?.termLabel}</Text>
+      <View style={styles.formCard}>
+        <View style={styles.progressBarWrapper}>
+          <View style={styles.progressBarRow}>
+            <View style={[styles.progressStep, styles.progressStepActive]} />
+            <View style={[styles.progressStep, step === 2 ? styles.progressStepActive : styles.progressStepInactive]} />
+          </View>
+          <View style={styles.progressBarLabelRow}>
+            <Text style={styles.progressTextActive}>COR Submission</Text>
+            <Text style={step === 2 ? styles.progressTextActive : styles.progressTextInactive}>Grade Submission</Text>
+          </View>
         </View>
-        {renderInput("Current Scholarship", currentScholarship)}
-        {renderInput("Current Academic Year", academicYear)}
-        {renderUpload("Grade Report", gradeReportFile, "gradeReport", fieldErrors.gradeReport)}
-        {renderUpload("Certificate of Registration (COR)", corFile, "cor", fieldErrors.cor)}
+        
+        <View style={styles.stepHeaderRow}>
+          <Text style={styles.termTitle}>{selectedTerm?.termLabel}</Text>
+          <View style={styles.stepBadge}>
+            <Text style={styles.stepBadgeText}>Step {step}: {step === 1 ? "COR Submission" : "Grade Submission"}</Text>
+          </View>
+        </View>
+
+        <View style={styles.twoColRow}>
+          <View style={styles.col}>
+            <Text style={styles.label}>Current Scholarship</Text>
+            <View style={styles.inputReadOnly}>
+              <Text style={styles.inputReadOnlyText}>{currentScholarship || "--"}</Text>
+            </View>
+          </View>
+          <View style={styles.col}>
+            <Text style={styles.label}>Academic Year</Text>
+            <View style={styles.inputReadOnly}>
+              <Text style={styles.inputReadOnlyText}>{academicYear || "2025-2026"}</Text>
+            </View>
+          </View>
+        </View>
+
+        {step === 1 && renderUpload("Certificate of Registration (COR)", corFile, "cor", fieldErrors.cor)}
+        {step === 2 && renderUpload("Grade Report", gradeReportFile, "gradeReport", fieldErrors.gradeReport)}
       </View>
     );
   };
 
   return (
     <View style={styles.container}>
-      <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity 
-          onPress={() => {
-            if (completeStage === "preAssessment") {
-              setCompleteStage("none");
-              resetFormState();
-            } else if (selectedTermId) {
-              resetFormState();
-            } else {
-              navigation.goBack();
-            }
-          }} 
-          style={styles.backBtn}
-        >
-          <Ionicons name="arrow-back" size={24} color="#5b6095" />
-        </TouchableOpacity>
-        
-        <View style={{ flex: 1, marginLeft: 16 }}>
-          <Text style={styles.titleLanding}>COR & Grade Compliance</Text>
-          <Text style={styles.subtitleLanding} numberOfLines={1}>
-            {selectedTerm ? `Submit grades for ${selectedTerm.termLabel}` : "Track your academic standing"}
-          </Text>
+      {selectedTermId && step === 2 && completeStage === "none" ? (
+        <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 10 }}>
+          <TouchableOpacity onPress={() => setStep(1)} style={styles.textBackBtn}>
+            <Ionicons name="arrow-back" size={16} color="#5b6095" style={{ marginRight: 8 }} />
+            <Text style={styles.textBackBtnText}>Back to COR Submission</Text>
+          </TouchableOpacity>
         </View>
-        
-        <TouchableOpacity style={styles.bellBtn} activeOpacity={0.8}>
-          <Ionicons name="notifications-outline" size={24} color="#6a72b2" />
-        </TouchableOpacity>
-      </View>
+      ) : (
+        <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
+          <TouchableOpacity 
+            onPress={() => {
+              if (completeStage === "preAssessment") {
+                setCompleteStage("none");
+                resetFormState();
+              } else if (selectedTermId) {
+                resetFormState();
+              } else {
+                navigation.goBack();
+              }
+            }} 
+            style={styles.backBtn}
+          >
+            <Ionicons name="arrow-back" size={24} color="#5b6095" />
+          </TouchableOpacity>
+          
+          <View style={{ flex: 1, marginLeft: 16 }}>
+            <Text style={styles.titleLanding}>COR & Grade Compliance</Text>
+            <Text style={styles.subtitleLanding} numberOfLines={1}>
+              {selectedTerm ? `Submit grades for ${selectedTerm.termLabel}` : "Track your academic standing"}
+            </Text>
+          </View>
+          
+          <TouchableOpacity style={styles.bellBtn} activeOpacity={0.8}>
+            <Ionicons name="notifications-outline" size={24} color="#6a72b2" />
+          </TouchableOpacity>
+        </View>
+      )}
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 60 }}>
+      {selectedTermId && step === 2 && completeStage === "none" && (
+        <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
+          <Text style={styles.titleLanding}>COR & Grade Compliance</Text>
+        </View>
+      )}
+
+      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 60, paddingTop: (!selectedTermId || step === 1) ? 20 : 0 }}>
         <Animated.View style={{ opacity: stepAnim, transform: [{ translateY: stepAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
           {renderContent()}
         </Animated.View>
       </ScrollView>
 
       {!isSubmitting && completeStage === "none" && selectedTermId && (
-        <View style={{ paddingHorizontal: 24, paddingBottom: 30 }}>
-          <TouchableOpacity style={styles.nextBtn} onPress={handleSubmit}>
-            <Text style={styles.nextBtnText}>Submit Application</Text>
+        <View style={styles.footerActionRow}>
+          <TouchableOpacity 
+            style={styles.cancelBtn} 
+            onPress={() => {
+              setCompleteStage("none");
+              resetFormState();
+            }}
+          >
+            <Text style={styles.cancelBtnText}>Cancel</Text>
           </TouchableOpacity>
+
+          {step === 1 ? (
+            <TouchableOpacity 
+              style={[styles.nextBtn, { flex: 1.5 }]} 
+              onPress={() => {
+                if (!corFile) {
+                  setFieldErrors(prev => ({ ...prev, cor: "COR is required." }));
+                  return;
+                }
+                setStep(2);
+              }}
+            >
+              <Text style={styles.nextBtnText}>Continue to Grade Submission</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={[styles.nextBtn, { flex: 1.5 }]} 
+              onPress={handleSubmit}
+            >
+              <Text style={styles.nextBtnText}>Submit Grade Compliance</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </View>
@@ -376,7 +445,23 @@ const styles = StyleSheet.create({
   titleLanding: { fontSize: 18, fontWeight: "900", color: "#1a1a2e" },
   subtitleLanding: { fontSize: 13, color: "#666", marginTop: 2 },
   bellBtn: { width: 42, height: 42, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e4e8f6", justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
-  formContainer: { paddingHorizontal: 24, paddingTop: 20 },
+  formCard: { backgroundColor: "#fff", borderRadius: 12, padding: 20, shadowColor: "#000", shadowOpacity: 0.05, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, elevation: 3, marginHorizontal: 20, marginBottom: 20 },
+  stepHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24, marginTop: 10 },
+  termTitle: { flex: 1, fontSize: 18, fontWeight: "900", color: "#1a1a2e", marginRight: 12 },
+  stepBadge: { backgroundColor: "#f4effe", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+  stepBadgeText: { color: "#7e52d8", fontSize: 12, fontWeight: "700" },
+  twoColRow: { flexDirection: "row", gap: 16, marginBottom: 20 },
+  col: { flex: 1 },
+  progressBarWrapper: { marginBottom: 20 },
+  progressBarLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  progressTextActive: { fontSize: 11, color: '#3d4fa0', fontWeight: '800' },
+  progressTextInactive: { fontSize: 11, color: '#6a72b2', fontWeight: '500' },
+  progressBarRow: { flexDirection: "row", justifyContent: "space-between" },
+  progressStep: { height: 6, flex: 1, marginHorizontal: 2, borderRadius: 3 },
+  progressStepActive: { backgroundColor: '#5b5f97' },
+  progressStepInactive: { backgroundColor: '#e4e8f6' },
+  textBackBtn: { flexDirection: 'row', alignItems: 'center', borderColor: '#dbe2f6', borderWidth: 1, alignSelf: 'flex-start', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, backgroundColor: '#fff' },
+  textBackBtnText: { fontSize: 13, fontWeight: '700', color: '#5b6095' },
   landingContainer: { paddingHorizontal: 20, paddingTop: 20 },
   landingHeader: { fontSize: 18, fontWeight: "900", color: "#111", marginBottom: 16, marginLeft: 2 },
   
@@ -400,11 +485,15 @@ const styles = StyleSheet.create({
   
   row: { marginBottom: 16 },
   label: { fontWeight: "500", color: "#555", fontSize: 14, marginBottom: 8 },
-  inputReadOnly: { borderWidth: 1, borderColor: "#e0e0e0", borderRadius: 12, paddingHorizontal: 16, height: 50, backgroundColor: "#fafafa", justifyContent: 'center' },
-  inputReadOnlyText: { color: "#666", fontSize: 14 },
+  inputReadOnly: { borderWidth: 1, borderColor: "#e0e0e0", borderRadius: 12, paddingHorizontal: 16, minHeight: 50, paddingVertical: 12, backgroundColor: "#fafafa", justifyContent: 'center' },
+  inputReadOnlyText: { color: "#666", fontSize: 14, lineHeight: 20 },
   
-  uploadBtn: { borderWidth: 1, borderStyle: "dashed", borderColor: "#ccc", borderRadius: 12, height: 50, justifyContent: "center", paddingHorizontal: 16, backgroundColor: "#fafafa" },
-  uploadText: { color: "#888", fontSize: 14 },
+  uploadWrapper: { flexDirection: "row", borderWidth: 1, borderStyle: "dashed", borderColor: "#ccc", borderRadius: 8, backgroundColor: "#fff", overflow: "hidden" },
+  chooseFileBtn: { backgroundColor: "#5b5f97", paddingHorizontal: 16, paddingVertical: 12, justifyContent: "center", alignItems: "center", borderRightWidth: 1, borderRightColor: '#ccc' },
+  chooseFileText: { color: "#fff", fontSize: 13, fontWeight: "700" },
+  fileNameBox: { flex: 1, paddingHorizontal: 12, justifyContent: "center" },
+  fileNameText: { color: "#888", fontSize: 13 },
+  errorInput: { borderColor: "#dc2626", borderWidth: 2 },
   errorText: { color: "#dc2626", fontSize: 12, marginTop: 4, fontWeight: "500" },
   
   errorBanner: { backgroundColor: "#fff1f2", borderColor: "#fecaca", borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 16 },
@@ -414,8 +503,11 @@ const styles = StyleSheet.create({
   
   loadingText: { color: "#666", fontSize: 16 },
   
-  nextBtn: { backgroundColor: "#5b5f97", borderRadius: 14, paddingVertical: 16, alignItems: "center", shadowColor: "#2d3a7c", shadowOpacity: 0.2, shadowOffset: { width: 0, height: 4 }, shadowRadius: 6, elevation: 4 },
-  nextBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  footerActionRow: { flexDirection: 'row', paddingHorizontal: 20, paddingBottom: 30, gap: 12 },
+  cancelBtn: { flex: 1, backgroundColor: "#fff", borderWidth: 1, borderColor: "#ccc", borderRadius: 10, paddingVertical: 14, alignItems: "center", justifyContent: 'center' },
+  cancelBtnText: { color: "#333", fontSize: 14, fontWeight: "600" },
+  nextBtn: { backgroundColor: "#5b5f97", borderRadius: 10, paddingVertical: 14, alignItems: "center", justifyContent: 'center', shadowColor: "#2d3a7c", shadowOpacity: 0.2, shadowOffset: { width: 0, height: 4 }, shadowRadius: 6, elevation: 4 },
+  nextBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
   
   centered: { alignItems: "center", justifyContent: "center", marginTop: 120 },
   completeText: { fontSize: 22, fontWeight: "800", color: "#3f4ca8", marginTop: 16, marginBottom: 8 },
