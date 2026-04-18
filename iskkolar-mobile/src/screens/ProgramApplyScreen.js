@@ -932,6 +932,17 @@ export default function ProgramApplyScreen({ navigation, route }) {
             ? renderUpload("Income Certificate (Mother)", "incomeMother")
             : <Text style={styles.skippedDoc}>Income certificate not required for Mother ({values.motherStatus}).</Text>}
 
+          {familyMembers.map((member, idx) =>
+            requiresIncomeProof(member.status) ? (
+              <View key={"member-doc-" + idx}>
+                {renderUpload(
+                  "Income Certificate (" + (member.name || "Family Member " + (idx + 1)) + ")",
+                  "incomeMember_" + idx
+                )}
+              </View>
+            ) : null
+          )}
+
           {renderUpload("Recommendation Letter Form (Optional)", "recommendation")}
           {renderUpload("Essay", "essay")}
         </View>
@@ -1070,11 +1081,33 @@ export default function ProgramApplyScreen({ navigation, route }) {
             ...(values.motherStatus !== "Deceased" && requiresIncomeProof(values.motherStatus) ? [
               { label: "Mother Income", value: values.motherIncome, icon: "cash-outline" }
             ] : []),
+            ...familyMembers.map((member, idx) => ({
+              label: `Family Member ${idx + 1} (${member.name || 'Unnamed'})`,
+              value: `${member.relationship} - ${member.status}`,
+              icon: "person-outline"
+            })),
           ])}
 
           {renderReviewSection("Supporting Documents", "document-text-outline", [
+            { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" },
+            { label: "COR", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
+            ...(values.incomingFreshman === "No" ? [
+              { label: "Current Term Grade Report", value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached", icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle" }
+            ] : []),
             { label: "Certificate of Indigency", value: uploadText.indigency ? "Attached" : "Not Attached", icon: uploadText.indigency ? "checkmark-circle" : "close-circle" },
             { label: "Birth Certificate", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
+            ...(requiresIncomeProof(values.fatherStatus) ? [
+              { label: "Income Certificate (Father)", value: uploadText.incomeFather ? "Attached" : "Not Attached", icon: uploadText.incomeFather ? "checkmark-circle" : "close-circle" }
+            ] : []),
+            ...(requiresIncomeProof(values.motherStatus) ? [
+              { label: "Income Certificate (Mother)", value: uploadText.incomeMother ? "Attached" : "Not Attached", icon: uploadText.incomeMother ? "checkmark-circle" : "close-circle" }
+            ] : []),
+            ...familyMembers.filter(m => requiresIncomeProof(m.status)).map((member, idx) => ({
+              label: `Income Certificate (${member.name || `Member ${idx + 1}`})`,
+              value: uploadText[`incomeMember_${idx}`] ? "Attached" : "Not Attached",
+              icon: uploadText[`incomeMember_${idx}`] ? "checkmark-circle" : "close-circle"
+            })),
+            { label: "Recommendation Letter", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
             { label: "Personal Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
           ])}
         </>
@@ -1084,15 +1117,54 @@ export default function ProgramApplyScreen({ navigation, route }) {
         <>
           {renderReviewSection("Program Assignment", "construct-outline", [
             { label: "Scholarship Type", value: values.scholarshipType, icon: "ribbon-outline" },
-            { label: "Fund Source", value: values.fundType, icon: "wallet-outline" },
           ])}
           {renderReviewSection("Educational History", "school-outline", [
             { label: "HS School Name", value: values.schoolName, icon: "business-outline" },
             { label: "Strand / Track", value: values.strand, icon: "bookmarks-outline" },
+            { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
           ])}
           {renderReviewSection("Vocational Details", "flask-outline", [
             { label: "Technical School", value: values.vocationalSchoolName, icon: "business-outline" },
             { label: "Technical Program", value: values.vocationalProgram, icon: "list-outline" },
+            { label: "Course Duration", value: values.courseDuration, icon: "time-outline" },
+            { label: "Completion Date", value: values.completionDate, icon: "calendar-outline" },
+          ])}
+          {renderReviewSection("Family Background", "people-outline", [
+            { label: "Father's Name", value: values.fatherName, icon: "man-outline" },
+            { label: "Father Status", value: values.fatherStatus, icon: "information-circle-outline" },
+            ...(values.fatherStatus !== "Deceased" && requiresIncomeProof(values.fatherStatus) ? [
+              { label: "Father Income", value: values.fatherIncome, icon: "cash-outline" }
+            ] : []),
+            { label: "Mother's Name", value: values.motherName, icon: "woman-outline" },
+            { label: "Mother Status", value: values.motherStatus, icon: "information-circle-outline" },
+            ...(values.motherStatus !== "Deceased" && requiresIncomeProof(values.motherStatus) ? [
+              { label: "Mother Income", value: values.motherIncome, icon: "cash-outline" }
+            ] : []),
+            ...familyMembers.map((member, idx) => ({
+              label: `Family Member ${idx + 1} (${member.name || 'Unnamed'})`,
+              value: `${member.relationship} - ${member.status}`,
+              icon: "person-outline"
+            })),
+          ])}
+
+          {renderReviewSection("Supporting Documents", "document-text-outline", [
+            { label: "Report Card", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" },
+            { label: "COR", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
+            { label: "Certificate of Indigency", value: uploadText.indigency ? "Attached" : "Not Attached", icon: uploadText.indigency ? "checkmark-circle" : "close-circle" },
+            { label: "Birth Certificate", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
+            ...(requiresIncomeProof(values.fatherStatus) ? [
+              { label: "Income Certificate (Father)", value: uploadText.incomeFather ? "Attached" : "Not Attached", icon: uploadText.incomeFather ? "checkmark-circle" : "close-circle" }
+            ] : []),
+            ...(requiresIncomeProof(values.motherStatus) ? [
+              { label: "Income Certificate (Mother)", value: uploadText.incomeMother ? "Attached" : "Not Attached", icon: uploadText.incomeMother ? "checkmark-circle" : "close-circle" }
+            ] : []),
+            ...familyMembers.filter(m => requiresIncomeProof(m.status)).map((member, idx) => ({
+              label: `Income Certificate (${member.name || `Member ${idx + 1}`})`,
+              value: uploadText[`incomeMember_${idx}`] ? "Attached" : "Not Attached",
+              icon: uploadText[`incomeMember_${idx}`] ? "checkmark-circle" : "close-circle"
+            })),
+            { label: "Recommendation Letter", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
+            { label: "Personal Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
           ])}
         </>
       )}

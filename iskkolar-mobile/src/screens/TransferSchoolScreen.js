@@ -203,9 +203,9 @@ export default function TransferSchoolScreen({ navigation }) {
   }, []);
 
   const gradeComplianceLatest = gradeComplianceSummary?.latestSubmission || null;
-  const currentSchool = educationProfile?.school || user?.school || "";
-  const currentProgram = educationProfile?.program || user?.course || user?.program || "";
-  const currentGwa = dashboardSummary?.currentGwa ?? gradeComplianceLatest?.gwa ?? educationProfile?.gwa ?? user?.gwa ?? "";
+  const currentSchool = dashboardSummary?.currentSchool || dashboardSummary?.school || educationProfile?.school || user?.school || user?.university || "";
+  const currentProgram = dashboardSummary?.currentProgram || dashboardSummary?.program || educationProfile?.program || user?.course || user?.program || "";
+  const currentGwa = dashboardSummary?.currentGwa ?? dashboardSummary?.gwa ?? gradeComplianceLatest?.gwa ?? educationProfile?.gwa ?? user?.gwa ?? "";
 
   // ─── Field helpers ──────────────────────────────────────────
   const setField = (key, val) => {

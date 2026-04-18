@@ -28,9 +28,12 @@ export default function ExamAssistanceScreen({ navigation }) {
   });
 
   const [completeStage, setCompleteStage] = useState("none");
-  const [selectVisible, setSelectVisible] = useState(false);
-  const [selectKey, setSelectKey] = useState(null);
   const [confirmed, setConfirmed] = useState(false);
+
+  const [selectorVisible, setSelectorVisible] = useState(false);
+  const [selectorTitle, setSelectorTitle] = useState("");
+  const [selectorOptions, setSelectorOptions] = useState([]);
+  const [selectorKey, setSelectorKey] = useState("");
 
   const [dateVisible, setDateVisible] = useState(false);
   const [dateKey, setDateKey] = useState(null);
@@ -119,7 +122,7 @@ export default function ExamAssistanceScreen({ navigation }) {
   };
 
   const renderInput = (label, key, placeholder = null) => (
-    <View style={[styles.row, fieldErrors[key] && styles.rowWithError]}>
+    <View style={[styles.inputGroup, fieldErrors[key] && styles.rowWithError]}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
         value={values[key]}
@@ -135,70 +138,22 @@ export default function ExamAssistanceScreen({ navigation }) {
   );
 
   const renderSelect = (label, key, options) => (
-    <>
-      <View style={[styles.row, fieldErrors[key] && styles.rowWithError]}>
-        <Text style={styles.label}>{label}</Text>
-        <TouchableOpacity
-          style={styles.yearPickerInput}
-          onPress={() => {
-            setSelectKey(key);
-            setSelectVisible(true);
-          }}
-        >
-          <Text style={styles.yearPickerText}>{values[key] || "Select"}</Text>
-          <Ionicons name="arrow-down" size={20} color="#000" />
-        </TouchableOpacity>
-      </View>
-
-      <Modal
-        visible={selectVisible && selectKey === key}
-        statusBarTranslucent
-        animationType="slide"
-        onRequestClose={() => setSelectVisible(false)}
+    <View style={[styles.inputGroup, fieldErrors[key] && styles.rowWithError]}>
+      <Text style={styles.label}>{label}</Text>
+      <TouchableOpacity
+        style={styles.pickerInput}
+        onPress={() => {
+          setSelectorTitle(label);
+          setSelectorOptions(options);
+          setSelectorKey(key);
+          setSelectorVisible(true);
+        }}
       >
-        <View style={styles.yearPickerModal}>
-          <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={() => setSelectVisible(false)} />
-          <View style={[styles.yearPickerContent, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-            <View style={styles.yearPickerHeader}>
-              <Text style={styles.yearPickerTitle}>Select Option</Text>
-              <TouchableOpacity onPress={() => setSelectVisible(false)}>
-                <Ionicons name="close" size={24} color="#4f5fc5" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView 
-              style={styles.yearPickerScroll} 
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 20 }}
-            >
-              {options.map((opt, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[
-                    styles.yearPickerOption,
-                    { width: "100%", marginBottom: 8, paddingVertical: 14, flexDirection: 'row', justifyContent: 'center' },
-                    values[key] === opt && styles.yearPickerOptionActive,
-                  ]}
-                  onPress={() => {
-                    setValues({ ...values, [key]: opt });
-                    clearFieldError(key);
-                    setSelectVisible(false);
-                  }}
-                >
-                  <Text style={[styles.yearPickerOptionText, values[key] === opt && { color: "#fff" }]}>
-                    {opt}
-                  </Text>
-                  {values[key] === opt && (
-                    <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ position: 'absolute', right: 16 }} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+        <Text style={[styles.pickerText, !values[key] && { color: "#a9b1c0" }]}>{values[key] || "Select"}</Text>
+        <Ionicons name="chevron-down" size={20} color="#6b72aa" />
+      </TouchableOpacity>
       {fieldErrors[key] ? <Text style={styles.errorText}>{fieldErrors[key]}</Text> : null}
-    </>
+    </View>
   );
 
   const getDaysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
@@ -242,7 +197,7 @@ export default function ExamAssistanceScreen({ navigation }) {
 
   const renderDatePickerField = (label, key) => (
     <>
-      <View style={[styles.row, fieldErrors[key] && styles.rowWithError]}>
+      <View style={[styles.inputGroup, fieldErrors[key] && styles.rowWithError]}>
         <Text style={styles.label}>{label}</Text>
         <TouchableOpacity
           style={styles.yearPickerInput}
@@ -383,14 +338,30 @@ export default function ExamAssistanceScreen({ navigation }) {
       case 0:
         return (
           <View>
-            <View style={styles.topSectionHeaderContainer}>
-              <Text style={styles.topSectionHeader}>Examination Information</Text>
-            </View>
             <View style={styles.formContainer}>
-              {renderSelect("Type of Assistance", "assistanceType", ["Review Support", "Cash Incentive"])}
-              {renderInput("Exam / Certification Type", "examType", "Exam / Certification Type")}
-              {renderDatePickerField("Exam Date", "examDate")}
-              {renderInput("Testing Center / Location", "testingCenter", "City / Testing center")}
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.verticalPill} />
+                <Text style={styles.sectionHeader}>Examination Information</Text>
+              </View>
+
+              <View style={styles.rowTwoCol}>
+                <View style={styles.colHalf}>
+                  {renderSelect("Type of Assistance", "assistanceType", ["Review Support", "Cash Incentive"])}
+                </View>
+                <View style={styles.colHalf}>
+                  {renderInput("Exam / Certification Type", "examType", "Licensure Exam")}
+                </View>
+              </View>
+
+              <View style={styles.rowTwoCol}>
+                <View style={styles.colHalf}>
+                  {renderDatePickerField("Exam Date", "examDate")}
+                </View>
+                <View style={styles.colHalf}>
+                  {renderInput("Testing Center / Location", "testingCenter", "City / Testing center")}
+                </View>
+              </View>
+
               {renderSelect("Have you taken this exam/certification before?", "takenBefore", ["Yes, this is my first attempt", "No, I have taken it before"])}
             </View>
           </View>
@@ -534,21 +505,35 @@ export default function ExamAssistanceScreen({ navigation }) {
               ))}
             </View>
 
-            <Text style={styles.landingSectionTitle}>How to Apply</Text>
-            <View style={styles.landingSectionDivider} />
-            {[
-              "Choose whether you need review support or a post-exam incentive.",
-              "Prepare your exam schedule or review enrollment slip for validation.",
-              "Submit the application form and upload required documents.",
-              "Wait for coordinator review and confirmation of assistance."
-            ].map((text, idx) => (
-              <View style={styles.stepListItem} key={idx}>
-                <View style={styles.stepNumberCircle}>
-                  <Text style={styles.stepNumberText}>{idx + 1}</Text>
+            <View style={styles.optionCard}>
+              <Text style={styles.optionTitle}>Option 1: Review Support</Text>
+              <Text style={styles.optionSubtitle}>Subject for Liquidation</Text>
+              {[
+                "Covers review fees, exam applications, and study materials.",
+                "Requires submission of Official Receipts for all expenses.",
+                "Best for those needing fund before the exam."
+              ].map((text, idx, arr) => (
+                <View style={[styles.optionItem, idx === arr.length - 1 && { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]} key={"opt1"+idx}>
+                  <Ionicons name="checkmark-circle" size={18} color="#2cae57" />
+                  <Text style={styles.optionItemText}>{text}</Text>
                 </View>
-                <Text style={styles.stepListText}>{text}</Text>
-              </View>
-            ))}
+              ))}
+            </View>
+
+            <View style={[styles.optionCard, { marginBottom: 30 }]}>
+              <Text style={styles.optionTitle}>Option 2: Cash Incentive</Text>
+              <Text style={styles.optionSubtitle}>Achievement Award</Text>
+              {[
+                "Granted after successfully passing the board exam.",
+                "Requires submission of board rating and proof of passing.",
+                "No liquidation of receipts needed."
+              ].map((text, idx, arr) => (
+                <View style={[styles.optionItem, idx === arr.length - 1 && { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]} key={"opt2"+idx}>
+                  <Ionicons name="checkmark-circle" size={18} color="#2cae57" />
+                  <Text style={styles.optionItemText}>{text}</Text>
+                </View>
+              ))}
+            </View>
 
             <View style={styles.landingFooter}>
               <Text style={styles.footerNote}>Double-check your exam schedule before applying</Text>
@@ -564,25 +549,30 @@ export default function ExamAssistanceScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity onPress={() => (step > 0 ? setStep(step - 1) : navigation.goBack())} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#5b6095" />
         </TouchableOpacity>
-        <Text style={styles.title}>Board Exam Assistance</Text>
-        <View style={styles.empty} />
+        <View style={styles.headerTitles}>
+          <Text style={styles.superTitle}>BOARD EXAM/CERTIFICATION ASSISTANCE</Text>
+          <Text style={styles.mainTitle}>Application Form</Text>
+          <Text style={styles.subTitle}>Choose your support option and provide exam details with required documents.</Text>
+        </View>
       </View>
 
       {completeStage === "none" && !submitting && step > -1 && (
-        <View style={styles.progressBarRow}>
-          {[...Array(maxStep + 1)].map((_, idx) => (
-            <View
-              key={idx}
-              style={[
-                styles.progressStep,
-                idx <= step ? styles.progressStepActive : styles.progressStepInactive,
-              ]}
-            />
-          ))}
+        <View style={{ marginBottom: 20 }}>
+          <View style={styles.progressBarRow}>
+            {[...Array(maxStep + 1)].map((_, idx) => (
+              <View
+                key={idx}
+                style={[
+                  styles.progressStep,
+                  idx <= step ? styles.progressStepActive : styles.progressStepInactive,
+                ]}
+              />
+            ))}
+          </View>
         </View>
       )}
 
@@ -594,15 +584,15 @@ export default function ExamAssistanceScreen({ navigation }) {
 
       {!submitting && completeStage === "none" && step > -1 && (
         <View style={styles.footerRow}>
-          {step > 0 && (
-            <TouchableOpacity style={styles.backButtonFooter} onPress={() => setStep(step - 1)}>
-              <Text style={styles.backButtonFooterText}>Previous</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity 
+            style={styles.backButtonFooter} 
+            onPress={() => step > 0 ? setStep(step - 1) : navigation.goBack()}
+          >
+            <Text style={styles.backButtonFooterText}>{step > 0 ? "Previous" : "Back to Home"}</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.nextButtonFooter,
-              step === 0 && { flex: 1, alignItems: "center" },
               step === maxStep && !confirmed && { backgroundColor: '#aeb4d2', elevation: 0 }
             ]}
             onPress={advance}
@@ -612,25 +602,72 @@ export default function ExamAssistanceScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Global generic selector modal */}
+      <Modal visible={selectorVisible} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setSelectorVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={() => setSelectorVisible(false)} />
+          <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{selectorTitle}</Text>
+              <TouchableOpacity onPress={() => setSelectorVisible(false)}>
+                <Ionicons name="close" size={24} color="#4f5fc5" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+              {selectorOptions.map((opt, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={[styles.modalOption, values[selectorKey] === opt && styles.modalOptionActive]}
+                  onPress={() => {
+                    setValues({ ...values, [selectorKey]: opt });
+                    clearFieldError(selectorKey);
+                    setSelectorVisible(false);
+                  }}
+                >
+                  <Text style={[styles.modalOptionText, values[selectorKey] === opt && styles.modalOptionTextActive]}>{opt}</Text>
+                  {values[selectorKey] === opt && <Ionicons name="checkmark-circle" size={20} color="#fff" />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fc" },
-  progressHeader: { flexDirection: "row", alignItems: "center", paddingBottom: 16, paddingHorizontal: 24 },
+  header: { paddingHorizontal: 24, paddingBottom: 16, flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#ccd1ed", backgroundColor: "#fff" },
   backBtn: { width: 42, height: 42, borderRadius: 10, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#dbe2f6" },
-  empty: { width: 42 },
-  title: { flex: 1, textAlign: "center", fontSize: 20, fontWeight: "900", color: "#4f5fc5" },
+  headerTitles: { flex: 1, paddingLeft: 16 },
+  superTitle: { fontSize: 11, fontWeight: "700", color: "#5b61aa", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 },
+  mainTitle: { fontSize: 20, fontWeight: "900", color: "#1c2131", letterSpacing: -0.3, marginBottom: 2 },
+  subTitle: { fontSize: 12, color: "#6e7798", fontWeight: "500" },
+
+  progressBarRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 24, marginTop: 16, marginBottom: 8 },
+  progressStep: { height: 5, flex: 1, marginHorizontal: 6, borderRadius: 5 },
+  progressStepActive: { backgroundColor: "#5b61a7" },
+  progressStepInactive: { backgroundColor: "#dde2ee" },
+
+  formContainer: { paddingHorizontal: 24 },
+  inputGroup: { flex: 1, marginBottom: 16 },
+  pickerInput: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, paddingHorizontal: 16, backgroundColor: "#ffffff", height: 48 },
+  pickerText: { color: "#1c2131", fontSize: 15 },
+
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  modalContent: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "50%" },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 20, borderBottomWidth: 1, borderBottomColor: "#e4e8f8" },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: "#1c2131" },
+  modalScroll: { paddingHorizontal: 16, paddingTop: 16 },
+  modalOption: { paddingVertical: 16, paddingHorizontal: 16, borderRadius: 12, marginBottom: 8, backgroundColor: "#f8f9ff", borderWidth: 1, borderColor: "#e4e8f8", flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  modalOptionActive: { backgroundColor: "#4f5fc5", borderColor: "#4f5fc5" },
+  modalOptionText: { fontSize: 15, color: "#4f5fc5", fontWeight: "700" },
+  modalOptionTextActive: { color: "#fff" },
+
   titleLanding: { flex: 1, marginLeft: 16, fontSize: 20, fontWeight: "900", color: "#4f5fc5", lineHeight: 22 },
   bellBtn: { width: 42, height: 42, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e4e8f6", justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
-  progressBarRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 24, marginTop: 4, marginBottom: 12 },
-  progressStep: { height: 5, flex: 1, marginHorizontal: 6, borderRadius: 5 },
-  progressStepActive: { backgroundColor: "#29d0a5" },
-  progressStepInactive: { backgroundColor: "#dde2ee" },
-  topSectionHeaderContainer: { borderBottomWidth: 1, borderColor: "#ccd1ed", paddingHorizontal: 24, paddingBottom: 16, marginBottom: 20 },
-  topSectionHeader: { fontSize: 18, fontWeight: "600", color: "#5b6095" },
-  formContainer: { paddingHorizontal: 24 },
 
   landingHero: { backgroundColor: "#505786", paddingHorizontal: 24, paddingBottom: 40 },
   heroBackBtn: { width: 42, height: 42, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.15)", justifyContent: "center", alignItems: "center", marginBottom: 24, borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
@@ -653,13 +690,14 @@ const styles = StyleSheet.create({
   coverPill: { borderWidth: 1, borderColor: "#e4e8f6", borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: "#fff" },
   coverPillText: { fontSize: 12, color: "#3d4076", fontWeight: "600" },
 
-  stepListItem: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
-  stepNumberCircle: { width: 26, height: 26, borderRadius: 13, backgroundColor: "#5b61aa", justifyContent: "center", alignItems: "center", marginRight: 14 },
-  stepNumberText: { color: "#fff", fontSize: 12, fontWeight: "800" },
-  stepListText: { fontSize: 13, color: "#6e7798", flex: 1, lineHeight: 20 },
+  optionCard: { borderWidth: 1, borderColor: "#e4e8f6", borderRadius: 12, padding: 16, marginBottom: 16, backgroundColor: "#fff" },
+  optionTitle: { fontSize: 16, fontWeight: "800", color: "#1c2131" },
+  optionSubtitle: { fontSize: 12, color: "#5b61aa", fontWeight: "600", marginBottom: 12 },
+  optionItem: { flexDirection: "row", alignItems: "flex-start", marginBottom: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "#f0f2fb" },
+  optionItemText: { marginLeft: 10, fontSize: 13, color: "#2c354a", flex: 1, lineHeight: 20, fontWeight: "500" },
 
   landingFooter: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", marginTop: 24 },
-  footerNote: { fontSize: 10, color: "#aeb4bd", marginRight: 14 },
+  footerNote: { fontSize: 10, color: "#7a84a1", marginRight: 14 },
   landingApplyBtn: { backgroundColor: "#5b61aa", paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12 },
   landingApplyBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
   content: { flex: 1 },
