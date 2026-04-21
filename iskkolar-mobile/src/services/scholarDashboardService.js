@@ -23,3 +23,15 @@ export const getScholarDashboardSummary = async () => {
     throw toReadableError(error);
   }
 };
+
+export const getScholarApplicationHistory = async () => {
+  try {
+    const response = await api('/scholarships/dashboard/applications-history', {
+      method: 'GET',
+    });
+
+    return response;
+  } catch (error) {
+    throw toReadableError(error);
+  }
+};
