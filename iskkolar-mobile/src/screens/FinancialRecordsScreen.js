@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { AuthContext } from "../context/AuthContext";
 import { useFinancialAssistance } from "../hooks/useFinancialAssistance";
+import { financialRecordsService } from "../services/financialRecordsService";
 
 export default function FinancialRecordsScreen({ navigation }) {
   const { user } = useContext(AuthContext);
@@ -32,6 +33,11 @@ export default function FinancialRecordsScreen({ navigation }) {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
+  // Financial Records State
+  const [transactions, setTransactions] = useState([]);
+  const [isLoadingRecords, setIsLoadingRecords] = useState(true);
+  const [recordsError, setRecordsError] = useState(null);
+
   const {
     submitting,
     error,
@@ -53,6 +59,28 @@ export default function FinancialRecordsScreen({ navigation }) {
       useNativeDriver: true,
     }).start();
   }, [step, completeStage, submitting]);
+
+  useEffect(() => {
+    const fetchRecords = async () => {
+      try {
+        setIsLoadingRecords(true);
+        setRecordsError(null);
+        const result = await financialRecordsService.getScholarRecords();
+        if (result.success) {
+          setTransactions(result.data);
+        } else {
+          setRecordsError(result.message || "Failed to load records");
+        }
+      } catch (err) {
+        console.error("Failed to fetch financial records:", err);
+        setRecordsError(err.message || "Could not connect to the server.");
+      } finally {
+        setIsLoadingRecords(false);
+      }
+    };
+
+    fetchRecords();
+  }, []);
 
   useEffect(() => {
     if (submitting) {
@@ -139,6 +167,42 @@ export default function FinancialRecordsScreen({ navigation }) {
     newReceiptItems[index][field] = value;
     setReceiptItems(newReceiptItems);
   };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("en-PH", {
+      style: "currency",
+      currency: "PHP",
+    }).format(amount);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "Pending";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "N/A";
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const getStatusStyle = (status) => {
+    switch (status) {
+      case "Confirmed":
+      case "Released":
+        return { bg: "#e6f7ef", text: "#0d7c47" };
+      case "Pending":
+        return { bg: "#fff8e6", text: "#b5850a" };
+      case "Cancelled":
+        return { bg: "#ffe6e6", text: "#c00000" };
+      default:
+        return { bg: "#f3f4f6", text: "#6b7280" };
+    }
+  };
+
+  const totalReceived = transactions
+    .filter((t) => ["Confirmed", "Released"].includes(t.status))
+    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
 
   const submitReceipt = async () => {
     if (!validateForm(values, receiptItems)) {
@@ -294,15 +358,15 @@ export default function FinancialRecordsScreen({ navigation }) {
 
             <View style={styles.totalCard}>
               <Text style={styles.totalLabel}>Total Received</Text>
-              <Text style={styles.totalValue}>₱ 1,500</Text>
+              <Text style={styles.totalValue}>{formatCurrency(totalReceived)}</Text>
               <View style={styles.lineDivider} />
               <View style={styles.totalStatsRow}>
                 <View style={styles.totalStatCol}>
-                  <Text style={styles.totalStatNum}>₱1,500</Text>
+                  <Text style={styles.totalStatNum}>{formatCurrency(totalReceived)}</Text>
                   <Text style={styles.totalStatLabel}>This Year</Text>
                 </View>
                 <View style={styles.totalStatColRight}>
-                  <Text style={styles.totalStatNum}></Text>
+                  <Text style={styles.totalStatNum}>{transactions.length}</Text>
                   <Text style={styles.totalStatLabel}>Transactions</Text>
                 </View>
               </View>
@@ -310,33 +374,59 @@ export default function FinancialRecordsScreen({ navigation }) {
 
             <View style={styles.sectionTitleBlock}>
               <Text style={styles.sectionTitle}>Transaction History</Text>
-              <Text style={styles.sectionSubtitle}>2026</Text>
+              <Text style={styles.sectionSubtitle}>{new Date().getFullYear()}</Text>
             </View>
 
-            <View style={styles.txCard}>
-              <View style={styles.txHeaderRow}>
-                <View style={styles.txIconBox}>
-                  <Ionicons name="cash" size={28} color="#2cae57" />
-                </View>
-                <View style={styles.txHeaderTextCol}>
-                  <Text style={styles.txHeaderTitle}>Scholarship Disbursement</Text>
-                  <Text style={styles.txHeaderSub}>SY 2025 - 2026</Text>
-                </View>
+            {isLoadingRecords ? (
+              <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 40 }]}>
+                <Text style={{ color: '#888', fontWeight: '600' }}>Loading records...</Text>
               </View>
-              <View style={styles.lineDivider} />
-              <View style={styles.txFooterRow}>
-                <View style={styles.txFooterCol}>
-                  <Text style={styles.txFooterLabel}>Date Received</Text>
-                  <Text style={styles.txFooterValue}>January 15, 2026</Text>
-                </View>
-                <View style={styles.txFooterColRight}>
-                  <Text style={styles.txFooterLabel}>Status</Text>
-                  <View style={styles.statusPill}>
-                    <Text style={styles.statusPillText}>Completed</Text>
+            ) : recordsError ? (
+              <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 30 }]}>
+                <Text style={{ color: '#dc2626', fontWeight: '600', textAlign: 'center' }}>{recordsError}</Text>
+              </View>
+            ) : transactions.length === 0 ? (
+              <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 40, borderStyle: 'dashed' }]}>
+                <Text style={{ color: '#888', fontWeight: '600' }}>No financial records found.</Text>
+              </View>
+            ) : (
+              transactions.map((tx) => {
+                const statusStyle = getStatusStyle(tx.status);
+                return (
+                  <View key={tx.id} style={styles.txCard}>
+                    <View style={styles.txHeaderRow}>
+                      <View style={[styles.txIconBox, { backgroundColor: statusStyle.bg }]}>
+                        <Ionicons name="cash" size={24} color={statusStyle.text} />
+                      </View>
+                      <View style={styles.txHeaderTextCol}>
+                        <Text style={styles.txHeaderTitle}>{tx.title}</Text>
+                        <Text style={styles.txHeaderSub}>{tx.period}</Text>
+                      </View>
+                      <View style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}>
+                        <Text style={[styles.statusPillText, { color: statusStyle.text }]}>{tx.status}</Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.lineDivider} />
+                    
+                    <View style={styles.txFooterRow}>
+                      <View style={styles.txFooterCol}>
+                        <Text style={styles.txFooterLabel}>Date</Text>
+                        <Text style={styles.txFooterValue}>{formatDate(tx.date)}</Text>
+                      </View>
+                      <View style={styles.txFooterCol}>
+                        <Text style={styles.txFooterLabel}>Amount</Text>
+                        <Text style={[styles.txFooterValue, { color: '#0d7c47' }]}>{formatCurrency(tx.amount)}</Text>
+                      </View>
+                      <View style={styles.txFooterColRight}>
+                        <Text style={styles.txFooterLabel}>Type</Text>
+                        <Text style={styles.txFooterValue}>{tx.type || "Disbursement"}</Text>
+                      </View>
+                    </View>
                   </View>
-                </View>
-              </View>
-            </View>
+                );
+              })
+            )}
 
             <View style={styles.sectionTitleBlock}>
               <Text style={styles.sectionTitle}>Request Financial Assistance</Text>
