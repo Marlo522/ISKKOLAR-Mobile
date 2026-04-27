@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import HomeScreen from "../screens/HomeScreen";
 import ProgramDetailScreen from "../screens/ProgramDetailScreen";
 import ProgramApplyScreen from "../screens/ProgramApplyScreen";
-import ApplicationScreen from "../screens/ApplicationScreen";
+import ApplicantApplicationHistory from "../screens/ApplicantApplicationHistory";
 import ProfileScreen from "../screens/ProfileScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 
@@ -42,7 +42,7 @@ export default function MainTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeStackScreen} />
-      <Tab.Screen name="Application" component={ApplicationScreen} />
+      <Tab.Screen name="Application" component={ApplicantApplicationHistory} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
