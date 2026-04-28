@@ -25,12 +25,12 @@ export const validateSignupStep = async (step, formData) => {
       profilePhoto: serializeProfilePhoto(formData.profilePhoto),
     };
 
-    const response = await api('/auth/signup/validate-step', {
-      method: 'POST',
-      body: JSON.stringify({ step, formData: payload }),
+    const response = await api.post('/auth/signup/validate-step', {
+      step,
+      formData: payload,
     });
 
-    return response;
+    return response.data;
   } catch (error) {
     throw createAuthError(
       error.message || 'Step validation failed.',
@@ -58,17 +58,18 @@ export const register = async (userData) => {
         uri: serializedPhoto.uri,
         name: serializedPhoto.name,
         type: serializedPhoto.type,
-      });
+      } );
     }
 
-    const response = await api('/auth/signup', {
-      method: 'POST',
-      body: formData,
+    const response = await api.post('/auth/signup', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
 
     return {
       pendingVerification: true,
-      message: response?.message || 'Account created. Please verify your email before logging in.',
+      message: response.data?.message || 'Account created. Please verify your email before logging in.',
     };
   } catch (error) {
     throw createAuthError(
@@ -82,15 +83,12 @@ export const register = async (userData) => {
 // ─── RESEND VERIFICATION ────────────────────────────────────────
 export const resendVerificationEmail = async (email) => {
   try {
-    const response = await api('/auth/resend-verification', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    });
+    const response = await api.post('/auth/resend-verification', { email });
 
     return {
-      message: response?.message || "Verification email resent successfully.",
-      resendCooldownSeconds: response?.data?.resendCooldownSeconds || 60,
-      verificationExpiresInMinutes: response?.data?.verificationExpiresInMinutes || null,
+      message: response.data?.message || "Verification email resent successfully.",
+      resendCooldownSeconds: response.data?.data?.resendCooldownSeconds || 60,
+      verificationExpiresInMinutes: response.data?.data?.verificationExpiresInMinutes || null,
     };
   } catch (error) {
     throw {
@@ -105,17 +103,12 @@ export const resendVerificationEmail = async (email) => {
 // ─── LOGIN ────────────────────────────────────────────────────
 export const login = async (email, password) => {
   try {
-    const response = await api('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
+    const response = await api.post('/auth/login', { email, password });
 
-    const payload = response?.data || response;
-    const token = payload.token || payload.accessToken || payload.jwt;
+    const payload = response.data?.data || response.data;
     const profile = payload.user || payload.account || payload.profile || payload;
 
     return {
-      token,
       user: {
         ...profile, // Pass all profile attributes including school, program, course, etc.
         id: profile.userId || profile.id,
@@ -158,11 +151,8 @@ export const login = async (email, password) => {
 // ─── FORGOT PASSWORD ─────────────────────────────────────────
 export const forgotPassword = async (email) => {
   try {
-    const response = await api('/auth/forgot-password', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    });
-    return { message: response?.message || 'A password reset link has been sent to your email.' };
+    const response = await api.post('/auth/forgot-password', { email });
+    return { message: response.data?.message || 'A password reset link has been sent to your email.' };
   } catch (error) {
     throw createAuthError(error.message || 'Failed to process password reset request.', error.code);
   }
@@ -171,11 +161,8 @@ export const forgotPassword = async (email) => {
 // ─── RESET PASSWORD ──────────────────────────────────────────
 export const resetPassword = async (accessToken, password) => {
   try {
-    const response = await api('/auth/reset-password', {
-      method: 'POST',
-      body: JSON.stringify({ accessToken, password }),
-    });
-    return { message: response?.message || 'Password updated successfully.' };
+    const response = await api.post('/auth/reset-password', { accessToken, password });
+    return { message: response.data?.message || 'Password updated successfully.' };
   } catch (error) {
     throw createAuthError(error.message || 'Failed to reset password.', error.code);
   }
@@ -184,8 +171,8 @@ export const resetPassword = async (accessToken, password) => {
 // ─── GET CURRENT USER ────────────────────────────────────────
 export const getCurrentUser = async () => {
   try {
-    const response = await api('/auth/me');
-    const profile = response?.data || response;
+    const response = await api.get('/auth/me');
+    const profile = response.data?.data || response.data;
     
     return {
       ...profile,
@@ -204,9 +191,9 @@ export const getCurrentUser = async () => {
 // ─── LOGOUT ──────────────────────────────────────────────────
 export const logout = async () => {
   try {
-    const response = await api('/auth/logout', { method: 'POST' });
-    return response;
+    const response = await api.post('/auth/logout');
+    return response.data;
   } catch (error) {
     throw createAuthError(error.message || 'Logout failed.', error.code);
   }
-};
+};

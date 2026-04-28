@@ -14,11 +14,8 @@ const toReadableError = (error) => {
 
 export const getScholarDashboardSummary = async () => {
   try {
-    const response = await api('/scholarships/dashboard/summary', {
-      method: 'GET',
-    });
-
-    return response;
+    const response = await api.get('/scholarships/dashboard/summary');
+    return response.data?.data || response.data;
   } catch (error) {
     throw toReadableError(error);
   }
@@ -26,12 +23,10 @@ export const getScholarDashboardSummary = async () => {
 
 export const getScholarApplicationHistory = async () => {
   try {
-    const response = await api('/scholarships/dashboard/applications-history', {
-      method: 'GET',
-    });
-
-    return response;
+    const response = await api.get('/scholarships/dashboard/applications-history');
+    return response.data?.data || response.data || [];
   } catch (error) {
     throw toReadableError(error);
   }
 };
+

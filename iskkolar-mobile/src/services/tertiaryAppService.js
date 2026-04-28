@@ -96,8 +96,8 @@ const prepareFormData = (values, uploads, dynamicFamilyMembers) => {
 // ─── API ENDPOINTS ───────────────────────────────────────────
 export const getMyApplications = async () => {
   try {
-    const response = await api("/scholarships/tertiary/my-applications", { method: "GET" });
-    return response?.data || [];
+    const response = await api.get("/scholarships/tertiary/my-applications");
+    return response.data?.data || response.data || [];
   } catch (err) {
     return [];
   }
@@ -105,18 +105,21 @@ export const getMyApplications = async () => {
 
 export const validateTertiaryStep = async (apiStep, values, uploads, dynamicFamilyMembers) => {
   const formData = prepareFormData(values, uploads, dynamicFamilyMembers);
-  await api("/scholarships/tertiary/validate-step?step=" + apiStep, {
-    method: "POST",
-    body: formData,
+  await api.post("/scholarships/tertiary/validate-step?step=" + apiStep, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
   });
   return true;
 };
 
 export const submitTertiaryApplication = async (values, uploads, dynamicFamilyMembers) => {
   const formData = prepareFormData(values, uploads, dynamicFamilyMembers);
-  const response = await api("/scholarships/tertiary/apply", {
-    method: "POST",
-    body: formData,
+  const response = await api.post("/scholarships/tertiary/apply", formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
   });
-  return response;
+  return response.data;
 };
+

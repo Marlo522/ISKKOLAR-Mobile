@@ -5,8 +5,8 @@ const MOBILE_PATTERN = /^0\d{10}$/;
 
 export const getProfile = async () => {
   try {
-    const response = await api("/auth/me");
-    const profile = response?.data || response;
+    const response = await api.get("/auth/me");
+    const profile = response.data?.data || response.data;
     if (profile) return profile;
     
     throw new Error("Failed to fetch profile");
@@ -36,23 +36,20 @@ export const updateProfile = async (data) => {
   }
 
   try {
-    const response = await api("/auth/me", {
-      method: 'PATCH',
-      body: JSON.stringify({
-        email: normalizedEmail,
-        mobileNumber: normalizedMobile,
-      }),
+    const response = await api.patch("/auth/me", {
+      email: normalizedEmail,
+      mobileNumber: normalizedMobile,
     });
 
-    const updatedProfile = response?.data || response;
+    const updatedProfile = response.data?.data || response.data;
     if (updatedProfile) {
       return {
         ...updatedProfile,
-        _message: response?.message || "Profile updated successfully.",
+        _message: response.data?.message || "Profile updated successfully.",
       };
     }
 
-    throw new Error(response?.message || "Failed to update profile.");
+    throw new Error(response.data?.message || "Failed to update profile.");
   } catch (error) {
     throw new Error(error.message || "Failed to update profile.");
   }
@@ -60,20 +57,18 @@ export const updateProfile = async (data) => {
 
 export const changePassword = async (currentPassword, newPassword) => {
   try {
-    const response = await api("/auth/me/password", {
-      method: 'POST',
-      body: JSON.stringify({
-        currentPassword,
-        newPassword,
-      }),
+    const response = await api.post("/auth/me/password", {
+      currentPassword,
+      newPassword,
     });
 
-    if (response?.success || response?.message) {
-      return { message: response.message || "Password updated successfully." };
+    if (response.data?.success || response.data?.message) {
+      return { message: response.data.message || "Password updated successfully." };
     }
 
-    throw new Error(response?.message || "Failed to update password.");
+    throw new Error(response.data?.message || "Failed to update password.");
   } catch (error) {
     throw new Error(error.message || "Failed to update password.");
   }
 };
+

@@ -1,116 +1,69 @@
-import * as SecureStore from 'expo-secure-store';
+import axios from 'axios';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ─── CONFIG ───────────────────────────────────────────────────
 // Change this to your machine's LAN IP when testing on a real device
 // Android emulator: use 10.0.2.2 instead of localhost
-// iOS simulator: localhost works fine
 const expoHost = Constants.expoConfig?.hostUri?.split(':')?.[0];
 const BASE_URL = __DEV__
   ? `http://${expoHost || '192.168.1.5'}:5000/api`
   : 'https://your-production-url.com/api'; // MUST be HTTPS in prod
 
-// Critical Production Security Constraint
-if (!__DEV__ && !BASE_URL.startsWith('https://')) {
-  console.warn("⚠️ SECURITY WARNING: You are attempting to make a production request over insecure HTTP.");
-}
+const api = axios.create({
+  baseURL: BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: true, // Crucial for HTTPOnly cookies
+  timeout: 15000,
+});
 
-const DEFAULT_TIMEOUT_MS = 15000;       // 15 seconds for regular requests
-const UPLOAD_TIMEOUT_MS = 60000;        // 60 seconds for multipart file uploads
-const MAX_RETRIES = 2; // For safe methods (GET)
+// Request Interceptor
+api.interceptors.request.use(
+  (config) => {
+    // Note: No manual token handling here. Cookies are handled by the OS.
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-// Recursive network request wrapper with Retry & Timeout functionality
-const executeWithRetry = async (url, config, retriesLeft = MAX_RETRIES) => {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), config.timeout || DEFAULT_TIMEOUT_MS);
+// Response Interceptor — handle 401 globally
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const status = error.response?.status;
+    const requestUrl = error.config?.url || '';
+    
+    // Define auth-related requests that shouldn't trigger global logout on 401
+    const isAuthRequest = 
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/signup') ||
+      requestUrl.includes('/auth/forgot-password') ||
+      requestUrl.includes('/auth/resend-verification');
 
-  try {
-    const response = await fetch(url, {
-      ...config,
-      signal: controller.signal
-    });
-    // Request finished before timeout, clear the abort trigger
-    clearTimeout(id);
-    return response;
-  } catch (error) {
-    clearTimeout(id);
-
-    const isNetworkError = error.name === 'AbortError' || error.message.includes('Network request failed');
-
-    // Only safely retry GET requests to prevent things like double-charges or duplicate database rows
-    const isSafeMethod = !config.method || config.method.toUpperCase() === 'GET';
-
-    // Exponential backoff logic
-    if (isNetworkError && isSafeMethod && retriesLeft > 0) {
-      const waitMs = (MAX_RETRIES - retriesLeft + 1) * 1000;
-      await new Promise(res => setTimeout(res, waitMs));
-      return executeWithRetry(url, config, retriesLeft - 1);
+    if (status === 401 && !isAuthRequest) {
+      // Clear local user data
+      await AsyncStorage.removeItem('user');
+      
+      // In React Native, we can't use window.location.href.
+      // We rely on the AuthContext or a navigation event to handle the UI shift.
+      // For now, we can throw a specific error that the UI can catch, 
+      // or use a custom event emitter if one is available.
     }
-    throw error;
+    
+    // Map axios error to the expected format for the rest of the app
+    const structuredError = {
+      status: error.response?.status || 0,
+      code: error.response?.data?.code || 'REQUEST_FAILED',
+      message: error.response?.data?.message || error.message || 'An unexpected error occurred.',
+      errors: error.response?.data?.errors || [],
+      data: error.response?.data?.data || null,
+    };
+
+    return Promise.reject(structuredError);
   }
-};
-
-// ─── CORE FETCH WRAPPER ───────────────────────────────────────
-const api = async (endpoint, options = {}) => {
-  // 1. JWT Storage - SecureStore uses encrypted keychain/keystore.
-  const token = await SecureStore.getItemAsync('secure_token');
-
-  const isAuthEndpoint =
-    endpoint.startsWith('/auth/login') ||
-    endpoint.startsWith('/auth/signup') ||
-    endpoint.startsWith('/auth/forgot-password') ||
-    endpoint.startsWith('/auth/reset-password');
-
-  const isFormData = options.body instanceof FormData;
-
-  const headers = {
-    ...(!isFormData && { 'Content-Type': 'application/json' }),
-    ...(token && !isAuthEndpoint ? { Authorization: `Bearer ${token}` } : {}),
-    ...options.headers,
-  };
-
-  const config = {
-    ...options,
-    headers,
-    // Give file uploads significantly more time to complete
-    timeout: isFormData ? UPLOAD_TIMEOUT_MS : DEFAULT_TIMEOUT_MS,
-  };
-
-  try {
-    const response = await executeWithRetry(`${BASE_URL}${endpoint}`, config);
-    const data = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      // 2. Intercept Refresh Tokens Here (Future Validation Feature)
-      if (response.status === 401 && !isAuthEndpoint) {
-        // TODO: Integrate silent asynchronous fetch to /auth/refresh here.
-        // If a new secure_token is provided, await SecureStore.setItemAsync() and recursively call executeWithRetry()
-      }
-
-      // 3. Sanitized error block. Prevents passing unhandled strings. 
-      // Always shapes the error cleanly so UI hooks uniformly extract .message securely 
-      throw {
-        status: response.status,
-        code: data?.code || "REQUEST_FAILED",
-        message: data?.message || "An unexpected error occurred processing your request.",
-        errors: data?.errors || [],
-        details: data?.details || data?.errors || null,
-        data: data?.data || null
-      };
-    }
-
-    return data;
-  } catch (err) {
-    // Evaluate aborted/timed-out requests
-    if (err.name === 'AbortError') {
-      throw { status: 408, message: 'Request timed out. Please check your connection and try again.' };
-    }
-    // Re-throw previously structured backend errors cleanly
-    if (err.status) throw err;
-
-    // Fallback wrapper for absolute network dropouts
-    throw { status: 0, message: 'Network error. Please ensure you are connected to the internet.' };
-  }
-};
+);
 
 export default api;
+

@@ -54,12 +54,11 @@ const createKkfiStepValidator = (basePath, fallbackMessage) => async (step, payl
 			appendFiles(formData, files);
 		}
 
-		const response = await api(`/scholarships/${basePath}/validate-step?step=${step}`, {
-			method: "POST",
-			body: formData,
+		const response = await api.post(`/scholarships/${basePath}/validate-step?step=${step}`, formData, {
+			headers: { 'Content-Type': 'multipart/form-data' },
 		});
 
-		return response;
+		return response.data;
 	} catch (error) {
 		throw normalizeApiError(error, fallbackMessage);
 	}
@@ -71,19 +70,18 @@ const createKkfiSubmitter = (basePath, fallbackMessage) => async (payload, files
 		appendPayload(formData, payload);
 		appendFiles(formData, files);
 
-		const response = await api(`/scholarships/${basePath}/apply`, {
-			method: "POST",
-			body: formData,
+		const response = await api.post(`/scholarships/${basePath}/apply`, formData, {
+			headers: { 'Content-Type': 'multipart/form-data' },
 		});
 
-		if (!response?.success) {
-			throw response || {
+		if (!response.data?.success) {
+			throw response.data || {
 				success: false,
 				message: "Submission failed. Please try again.",
 			};
 		}
 
-		return response;
+		return response.data;
 	} catch (error) {
 		throw normalizeApiError(error, fallbackMessage);
 	}
@@ -91,8 +89,8 @@ const createKkfiSubmitter = (basePath, fallbackMessage) => async (payload, files
 
 const createKkfiListLoader = (basePath, fallbackMessage) => async () => {
 	try {
-		const response = await api(`/scholarships/${basePath}/my-applications`, { method: "GET" });
-		return response?.data || [];
+		const response = await api.get(`/scholarships/${basePath}/my-applications`);
+		return response.data?.data || response.data || [];
 	} catch (error) {
 		throw normalizeApiError(error, fallbackMessage);
 	}
@@ -100,8 +98,8 @@ const createKkfiListLoader = (basePath, fallbackMessage) => async () => {
 
 const createKkfiByIdLoader = (basePath, fallbackMessage) => async (id) => {
 	try {
-		const response = await api(`/scholarships/${basePath}/${id}`, { method: "GET" });
-		return response?.data || null;
+		const response = await api.get(`/scholarships/${basePath}/${id}`);
+		return response.data?.data || response.data || null;
 	} catch (error) {
 		throw normalizeApiError(error, fallbackMessage);
 	}
@@ -109,8 +107,8 @@ const createKkfiByIdLoader = (basePath, fallbackMessage) => async (id) => {
 
 export const lookupStaffByStaffId = async (staffId) => {
 	try {
-		const response = await api(`/scholarships/staff/${encodeURIComponent(staffId)}`, { method: "GET" });
-		return response?.data || null;
+		const response = await api.get(`/scholarships/staff/${encodeURIComponent(staffId)}`);
+		return response.data?.data || response.data || null;
 	} catch (error) {
 		throw normalizeApiError(error, "Failed to look up staff record.");
 	}

@@ -50,7 +50,7 @@ export const useLogin = (navigation) => {
 
       const userData = { ...response.user, role: normalizedRole };
       
-      await loginUser(userData, response.token);
+      await loginUser(userData);
 
       switch (normalizedRole) {
         case "applicant":

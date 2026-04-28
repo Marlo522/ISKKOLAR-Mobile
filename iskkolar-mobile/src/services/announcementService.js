@@ -6,10 +6,11 @@ import api from './api';
  */
 export const getScholarAnnouncements = async () => {
   try {
-    const response = await api('/scholar/announcements', { method: 'GET' });
-    return response?.data || [];
+    const response = await api.get('/scholar/announcements');
+    return response.data?.data || response.data || [];
   } catch (error) {
     console.error('Error fetching announcements:', error);
     throw error.message || 'Failed to load announcements';
   }
 };
+
