@@ -150,7 +150,7 @@ export default function ResetPasswordScreen({ route, navigation }) {
               <View style={styles.field}>
                 <Text style={styles.label}>New Password</Text>
                 <View style={[styles.inputWrapper, error && styles.inputError]}>
-                  <TextInput
+                  <TextInput placeholderTextColor="#888"
                     value={form.password}
                     onChangeText={(val) => setForm(p => ({ ...p, password: val }))}
                     placeholder="Enter new password"
@@ -167,7 +167,7 @@ export default function ResetPasswordScreen({ route, navigation }) {
               <View style={styles.field}>
                 <Text style={styles.label}>Confirm New Password</Text>
                 <View style={[styles.inputWrapper, error && styles.inputError]}>
-                  <TextInput
+                  <TextInput placeholderTextColor="#888"
                     value={form.confirmPassword}
                     onChangeText={(val) => setForm(p => ({ ...p, confirmPassword: val }))}
                     placeholder="Confirm new password"

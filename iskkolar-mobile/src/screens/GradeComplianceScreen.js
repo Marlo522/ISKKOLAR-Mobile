@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Animate
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
 import { getGradeComplianceTerms, submitGradeCompliance } from "../services/gradeComplianceService";
 
 const statusColors = {
@@ -114,14 +115,12 @@ export default function GradeComplianceScreen({ navigation }) {
   };
 
   const pickFile = async (type) => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ["application/pdf", "image/*"],
-        copyToCacheDirectory: false,
-      });
-
+    const handleResult = (result) => {
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
+        let file = result.assets[0];
+        if (!file.name) {
+          file = { ...file, name: file.uri.split('/').pop(), type: file.mimeType || 'image/jpeg' };
+        }
         if (type === "gradeReport") {
           setGradeReportFile(file);
           clearFieldError("gradeReport");
@@ -130,9 +129,52 @@ export default function GradeComplianceScreen({ navigation }) {
           clearFieldError("cor");
         }
       }
-    } catch (err) {
-      Alert.alert("Error", "Could not pick a file.");
-    }
+    };
+
+    Alert.alert(
+      "Upload Document",
+      "Choose an option",
+      [
+        {
+          text: "Take Photo",
+          onPress: async () => {
+            try {
+              const permission = await ImagePicker.requestCameraPermissionsAsync();
+              if (permission.status !== "granted") {
+                Alert.alert("Permission Required", "Camera permission is required to take photos.");
+                return;
+              }
+              const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ['images'],
+                allowsEditing: false,
+                quality: 0.8,
+              });
+              handleResult(result);
+            } catch (err) {
+              Alert.alert("Error", "Could not capture image.");
+            }
+          }
+        },
+        {
+          text: "Choose File",
+          onPress: async () => {
+            try {
+              const result = await DocumentPicker.getDocumentAsync({
+                type: ["application/pdf", "image/*"],
+                copyToCacheDirectory: false,
+              });
+              handleResult(result);
+            } catch (err) {
+              Alert.alert("Error", "Could not pick a file.");
+            }
+          }
+        },
+        {
+          text: "Cancel",
+          style: "cancel"
+        }
+      ]
+    );
   };
 
   const handleSubmit = async () => {

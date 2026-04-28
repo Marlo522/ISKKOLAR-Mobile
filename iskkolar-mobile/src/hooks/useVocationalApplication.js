@@ -10,6 +10,7 @@ import {
 // Used to attach server validation errors to the right input field.
 const FIELD_MAP = {
   scholarship_type: "scholarshipType",
+  incoming_freshman: "incomingFreshman",
   secondary_school: "schoolName",
   vocational_school: "vocationalSchoolName",
   strand: "strand",
@@ -17,6 +18,7 @@ const FIELD_MAP = {
   course_duration: "courseDuration",
   completion_date: "completionDate",
   year_graduated: "yearGraduated",
+  gwa: "gwa",
   grade_report: "gradeReport",
   cor: "cor",
   certificate_of_indigency: "indigency",
@@ -25,6 +27,8 @@ const FIELD_MAP = {
   recommendation_letter: "recommendation",
   income_cert_father: "incomeFather",
   income_cert_mother: "incomeMother",
+  indigency_cert_father: "indigencyFather",
+  indigency_cert_mother: "indigencyMother",
   documents: "documents",
   family_members: "familyMembers",
   general: "_general",
@@ -85,6 +89,11 @@ const mapApiFieldToUiKey = (field) => {
   if (normalized.startsWith("income_cert_member_")) {
     const idx = normalized.replace("income_cert_member_", "");
     return "incomeMember_" + idx;
+  }
+
+  if (normalized.startsWith("indigency_cert_member_")) {
+    const idx = normalized.replace("indigency_cert_member_", "");
+    return "indigencyMember_" + idx;
   }
 
   return FIELD_MAP[normalized] || normalized;
@@ -213,8 +222,10 @@ export const useVocationalApplication = () => {
         preFlightErrors.yearGraduated = "Year must be exactly 4 digits.";
 
       // Required uploads on step 0 — backend doesn't validate files here
-      if (!uploads.gradeReport)
-        preFlightErrors.gradeReport = "Report Card is required.";
+      if (values.incomingFreshman === "Yes") {
+        if (!values.gwa || values.gwa.trim() === "") preFlightErrors.gwa = "GWA is required.";
+        if (!uploads.gradeReport) preFlightErrors.gradeReport = "Grade Report is required.";
+      }
       if (!uploads.cor)
         preFlightErrors.cor = "COR is required.";
     }
@@ -285,15 +296,24 @@ export const useVocationalApplication = () => {
 
       const requiresProof = (status) =>
         ["Employed", "Self-Employed"].includes(status);
+      const requiresIndigency = (status) => status === "Unemployed";
 
       if (requiresProof(values.fatherStatus) && !uploads.incomeFather)
         preFlightErrors.incomeFather = "Income certificate required.";
+      if (requiresIndigency(values.fatherStatus) && !uploads.indigencyFather)
+        preFlightErrors.indigencyFather = "Certificate of indigency required.";
+
       if (requiresProof(values.motherStatus) && !uploads.incomeMother)
         preFlightErrors.incomeMother = "Income certificate required.";
+      if (requiresIndigency(values.motherStatus) && !uploads.indigencyMother)
+        preFlightErrors.indigencyMother = "Certificate of indigency required.";
 
       (dynamicFamilyMembers || []).forEach((mem, idx) => {
         if (requiresProof(mem.status) && !uploads[`incomeMember_${idx}`]) {
           preFlightErrors[`incomeMember_${idx}`] = "Income certificate required.";
+        }
+        if (requiresIndigency(mem.status) && !uploads[`indigencyMember_${idx}`]) {
+          preFlightErrors[`indigencyMember_${idx}`] = "Certificate of indigency required.";
         }
       });
     }

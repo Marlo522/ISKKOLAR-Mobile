@@ -2,6 +2,7 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Import existing screens
 import ScholarDashboardScreen from "../screens/ScholarDashboardScreen";
@@ -33,6 +34,8 @@ function ScholarDashboardStackScreen() {
 }
 
 export default function ScholarTabs() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -42,8 +45,8 @@ export default function ScholarTabs() {
         tabBarStyle: { 
           backgroundColor: "#fff", 
           borderTopColor: "#e6eaf3",
-          height: 60,
-          paddingBottom: 8,
+          height: 60 + Math.max(insets.bottom, 10),
+          paddingBottom: 8 + Math.max(insets.bottom, 0),
           paddingTop: 8,
           shadowColor: "#1d2e57",
           shadowOffset: { width: 0, height: -4 },

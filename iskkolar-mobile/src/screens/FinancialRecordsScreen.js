@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platfo
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
 import { AuthContext } from "../context/AuthContext";
 import { useFinancialAssistance } from "../hooks/useFinancialAssistance";
 import { financialRecordsService } from "../services/financialRecordsService";
@@ -112,42 +113,125 @@ export default function FinancialRecordsScreen({ navigation }) {
   });
 
   const pickDocument = async (isSupporting) => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "*/*",
-        copyToCacheDirectory: true,
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
-        if (isSupporting) {
-          setSupportingDocument(file);
-        } else {
-          Alert.alert("Error", "Use pickReceipt for receipts");
-        }
-      }
-    } catch (err) {
-      Alert.alert("Error", "Failed to pick document.");
+    if (!isSupporting) {
+      Alert.alert("Error", "Use pickReceipt for receipts");
+      return;
     }
+
+    const handleResult = (result) => {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        let file = result.assets[0];
+        if (!file.name) {
+          file = { ...file, name: file.uri.split('/').pop(), type: file.mimeType || 'image/jpeg' };
+        }
+        setSupportingDocument(file);
+      }
+    };
+
+    Alert.alert(
+      "Upload Document",
+      "Choose an option",
+      [
+        {
+          text: "Take Photo",
+          onPress: async () => {
+            try {
+              const permission = await ImagePicker.requestCameraPermissionsAsync();
+              if (permission.status !== "granted") {
+                Alert.alert("Permission Required", "Camera permission is required to take photos.");
+                return;
+              }
+              const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ['images'],
+                allowsEditing: false,
+                quality: 0.8,
+              });
+              handleResult(result);
+            } catch (err) {
+              Alert.alert("Error", "Could not capture image.");
+            }
+          }
+        },
+        {
+          text: "Choose File",
+          onPress: async () => {
+            try {
+              const result = await DocumentPicker.getDocumentAsync({
+                type: "*/*",
+                copyToCacheDirectory: true,
+              });
+              handleResult(result);
+            } catch (err) {
+              Alert.alert("Error", "Failed to pick document.");
+            }
+          }
+        },
+        {
+          text: "Cancel",
+          style: "cancel"
+        }
+      ]
+    );
   };
 
   const pickReceipt = async (index) => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ["image/*", "application/pdf"],
-        copyToCacheDirectory: true,
-      });
-
+    const handleResult = (result) => {
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
+        let file = result.assets[0];
+        if (!file.name) {
+          file = { ...file, name: file.uri.split('/').pop(), type: file.mimeType || 'image/jpeg' };
+        }
         const newReceiptItems = [...receiptItems];
         newReceiptItems[index].file = file;
         setReceiptItems(newReceiptItems);
         clearFieldError(`receipt_file_${index}`);
       }
-    } catch (err) {
-      Alert.alert("Error", "Failed to pick receipt.");
-    }
+    };
+
+    Alert.alert(
+      "Upload Receipt",
+      "Choose an option",
+      [
+        {
+          text: "Take Photo",
+          onPress: async () => {
+            try {
+              const permission = await ImagePicker.requestCameraPermissionsAsync();
+              if (permission.status !== "granted") {
+                Alert.alert("Permission Required", "Camera permission is required to take photos.");
+                return;
+              }
+              const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ['images'],
+                allowsEditing: false,
+                quality: 0.8,
+              });
+              handleResult(result);
+            } catch (err) {
+              Alert.alert("Error", "Could not capture image.");
+            }
+          }
+        },
+        {
+          text: "Choose File",
+          onPress: async () => {
+            try {
+              const result = await DocumentPicker.getDocumentAsync({
+                type: ["image/*", "application/pdf"],
+                copyToCacheDirectory: true,
+              });
+              handleResult(result);
+            } catch (err) {
+              Alert.alert("Error", "Failed to pick receipt.");
+            }
+          }
+        },
+        {
+          text: "Cancel",
+          style: "cancel"
+        }
+      ]
+    );
   };
 
   const addReceiptItem = () => {
@@ -261,7 +345,7 @@ export default function FinancialRecordsScreen({ navigation }) {
   const renderInput = (label, key, placeholder = null, keyboardType = "default") => (
     <View style={[styles.row, fieldErrors[key] && styles.rowWithError]}>
       <Text style={styles.label}>{label} <Text style={{color: 'red'}}>*</Text></Text>
-      <TextInput
+      <TextInput placeholderTextColor="#888"
         value={values[key]}
         placeholder={placeholder || `Enter ${label}`}
         keyboardType={keyboardType}
@@ -285,7 +369,7 @@ export default function FinancialRecordsScreen({ navigation }) {
     return (
       <View style={[styles.row, isValueState && fieldErrors[key] && styles.rowWithError]}>
         <Text style={styles.label}>{label} {isValueState && <Text style={{color: 'red'}}>*</Text>}</Text>
-        <TextInput
+        <TextInput placeholderTextColor="#888"
           value={val}
           placeholder={isValueState ? placeholder : key}
           multiline
@@ -512,7 +596,7 @@ export default function FinancialRecordsScreen({ navigation }) {
                 
                 <Text style={styles.label}>Additional Notes (Optional)</Text>
                 <View style={styles.row}>
-                  <TextInput
+                  <TextInput placeholderTextColor="#888"
                     value={item.additionalNotes}
                     placeholder="e.g. Bought at National Bookstore..."
                     multiline
