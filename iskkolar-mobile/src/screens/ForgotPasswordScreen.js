@@ -88,7 +88,7 @@ export default function ForgotPasswordScreen({ navigation }) {
       <View style={styles.field}>
         <Text style={styles.label}>Email Address</Text>
         <View style={[styles.inputWrapper, error && styles.inputError]}>
-          <TextInput
+          <TextInput placeholderTextColor="#888"
             value={email}
             onChangeText={(value) => {
               setEmail(value);

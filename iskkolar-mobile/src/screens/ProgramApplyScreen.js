@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
 import useTertiaryApplication from "../hooks/useTertiaryApplication";
 import useStaffApplication from "../hooks/useStaffApplication";
 import useVocationalApplication from "../hooks/useVocationalApplication";
@@ -27,6 +28,7 @@ const infoFields = {
   schoolName: "",
   strand: "STEM",
   yearGraduated: "",
+  gwa: "",
   universityName: "",
   program: "",
   termType: "Semester",
@@ -295,24 +297,71 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const requiresIncomeProof = (status) => ["Employed", "Self-Employed"].includes(status);
 
   const pickFile = async (key) => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: [
-          "application/pdf",
-          "application/msword",
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ],
-        copyToCacheDirectory: true,
-      });
-      if (!result.canceled && result.assets?.length > 0) {
-        const file = result.assets[0];
-        setUploadText((prev) => ({ ...prev, [key]: file }));
-        clearFieldError(key);
-        clearFieldError("documents");
-      }
-    } catch (err) {
-      console.warn("Document picker error:", err);
-    }
+    Alert.alert(
+      "Upload Document",
+      "Choose an option",
+      [
+        {
+          text: "Take Photo",
+          onPress: async () => {
+            try {
+              const permission = await ImagePicker.requestCameraPermissionsAsync();
+              if (permission.status !== "granted") {
+                Alert.alert("Permission Required", "Camera permission is required to take photos.");
+                return;
+              }
+              const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ['images'],
+                allowsEditing: false,
+                quality: 0.8,
+              });
+              if (!result.canceled && result.assets?.length > 0) {
+                const asset = result.assets[0];
+                const file = {
+                  name: asset.uri.split('/').pop(),
+                  uri: asset.uri,
+                  type: asset.mimeType || 'image/jpeg',
+                  size: asset.fileSize || 0
+                };
+                setUploadText((prev) => ({ ...prev, [key]: file }));
+                clearFieldError(key);
+                clearFieldError("documents");
+              }
+            } catch (err) {
+              console.warn("Image picker error:", err);
+            }
+          }
+        },
+        {
+          text: "Choose File",
+          onPress: async () => {
+            try {
+              const result = await DocumentPicker.getDocumentAsync({
+                type: [
+                  "application/pdf",
+                  "application/msword",
+                  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  "image/*"
+                ],
+                copyToCacheDirectory: true,
+              });
+              if (!result.canceled && result.assets?.length > 0) {
+                const file = result.assets[0];
+                setUploadText((prev) => ({ ...prev, [key]: file }));
+                clearFieldError(key);
+                clearFieldError("documents");
+              }
+            } catch (err) {
+              console.warn("Document picker error:", err);
+            }
+          }
+        },
+        {
+          text: "Cancel",
+          style: "cancel"
+        }
+      ]
+    );
   };
 
   const updateValue = (key, value) => {
@@ -515,7 +564,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const renderInput = (label, key, placeholder = null, inputProps = {}) => (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
+      <TextInput placeholderTextColor="#888"
         value={values[key]}
         placeholder={placeholder || "Enter " + label}
         onChangeText={(text) => updateValue(key, text)}
@@ -538,7 +587,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const renderContactInput = (label, key, placeholder = "09XXXXXXXXX") => (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
+      <TextInput placeholderTextColor="#888"
         value={values[key]}
         placeholder={placeholder}
         keyboardType="phone-pad"
@@ -554,7 +603,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const renderNumericInput = (label, key, placeholder = null) => (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
+      <TextInput placeholderTextColor="#888"
         value={values[key]}
         placeholder={placeholder || "Enter " + label}
         keyboardType="number-pad"
@@ -568,7 +617,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const renderYearInput = (label, key, placeholder = "YYYY") => (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
+      <TextInput placeholderTextColor="#888"
         value={values[key]}
         placeholder={placeholder}
         keyboardType="number-pad"
@@ -663,7 +712,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
           <View style={styles.row}>
             <Text style={styles.label}>Name</Text>
-            <TextInput
+            <TextInput placeholderTextColor="#888"
               style={[styles.input, fieldErrors["dynFamily_" + idx + "_name"] && styles.errorInput]}
               value={member.name}
               placeholder="Enter Name"
@@ -676,7 +725,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
           <View style={styles.row}>
             <Text style={styles.label}>Relationship</Text>
-            <TextInput
+            <TextInput placeholderTextColor="#888"
               style={[styles.input, fieldErrors["dynFamily_" + idx + "_relationship"] && styles.errorInput]}
               value={member.relationship}
               placeholder="e.g. Brother, Sister, Guardian"
@@ -690,7 +739,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {member.status !== "Deceased" && (
             <View style={styles.row}>
               <Text style={styles.label}>Contact No.</Text>
-              <TextInput
+              <TextInput placeholderTextColor="#888"
                 style={[styles.input, fieldErrors["dynFamily_" + idx + "_contactNo"] && styles.errorInput]}
                 value={member.contactNo}
                 placeholder="09XXXXXXXXX"
@@ -719,7 +768,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             <>
               <View style={styles.row}>
                 <Text style={styles.label}>Occupation</Text>
-                <TextInput
+                <TextInput placeholderTextColor="#888"
                   style={[styles.input, fieldErrors["dynFamily_" + idx + "_occupation"] && styles.errorInput]}
                   value={member.occupation}
                   placeholder="Enter Occupation"
@@ -732,7 +781,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
               <View style={styles.row}>
                 <Text style={styles.label}>Monthly Income</Text>
-                <TextInput
+                <TextInput placeholderTextColor="#888"
                   style={[styles.input, fieldErrors["dynFamily_" + idx + "_income"] && styles.errorInput]}
                   value={member.income}
                   placeholder="Enter Monthly Income"
@@ -764,7 +813,12 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderInput("School Name", "schoolName", "Enter School Name")}
           {renderSelect("Strand", "strand", ["STEM", "ABM", "HUMMS", "GAS", "TVL"])}
           {renderYearInput("Year Graduated", "yearGraduated")}
-          {renderUpload("Grade Report", "gradeReport")}
+          {values.incomingFreshman === "Yes" && (
+            <>
+              {renderInput("General Weighted Average (GWA)", "gwa", "e.g. 95 or 1.25", { keyboardType: "numeric" })}
+              {renderUpload("Grade Report", "gradeReport")}
+            </>
+          )}
 
           <Text style={styles.sectionHeader}>| Current Tertiary Education</Text>
           {renderInput("University / College Name", "universityName", "Enter School Name")}
@@ -830,22 +884,33 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
           {requiresIncomeProof(values.fatherStatus)
             ? renderUpload("Income Certificate (Father)", "incomeFather")
-            : <Text style={styles.skippedDoc}>Income certificate not required for Father ({values.fatherStatus}).</Text>}
+            : values.fatherStatus === "Unemployed"
+              ? renderUpload("Certificate of Indigency (Father)", "indigencyFather")
+              : <Text style={styles.skippedDoc}>Income/indigency document not required for Father ({values.fatherStatus}).</Text>}
 
           {requiresIncomeProof(values.motherStatus)
             ? renderUpload("Income Certificate (Mother)", "incomeMother")
-            : <Text style={styles.skippedDoc}>Income certificate not required for Mother ({values.motherStatus}).</Text>}
+            : values.motherStatus === "Unemployed"
+              ? renderUpload("Certificate of Indigency (Mother)", "indigencyMother")
+              : <Text style={styles.skippedDoc}>Income/indigency document not required for Mother ({values.motherStatus}).</Text>}
 
-          {familyMembers.map((member, idx) =>
-            requiresIncomeProof(member.status) ? (
-              <View key={"member-doc-" + idx}>
-                {renderUpload(
-                  "Income Certificate (" + (member.name || "Family Member " + (idx + 1)) + ")",
-                  "incomeMember_" + idx
-                )}
-              </View>
-            ) : null
-          )}
+          {familyMembers.map((member, idx) => {
+            if (requiresIncomeProof(member.status)) {
+              return (
+                <View key={"member-doc-inc-" + idx}>
+                  {renderUpload("Income Certificate (" + (member.name || "Family Member " + (idx + 1)) + ")", "incomeMember_" + idx)}
+                </View>
+              );
+            }
+            if (member.status === "Unemployed") {
+              return (
+                <View key={"member-doc-ind-" + idx}>
+                  {renderUpload("Certificate of Indigency (" + (member.name || "Family Member " + (idx + 1)) + ")", "indigencyMember_" + idx)}
+                </View>
+              );
+            }
+            return null;
+          })}
 
           {renderUpload("Recommendation Letter (Optional)", "recommendation")}
           {renderUpload("Essay", "essay")}
@@ -862,12 +927,18 @@ export default function ProgramApplyScreen({ navigation, route }) {
         <View>
           <Text style={styles.sectionHeader}>Academic Information</Text>
           {renderSelect("Scholarship type", "scholarshipType", ["TESDA"])}
+          {renderSelect("Incoming Freshman", "incomingFreshman", ["No", "Yes"])}
 
           <Text style={styles.sectionHeader}>| Secondary Education</Text>
           {renderInput("School Name", "schoolName", "Enter School Name")}
           {renderSelect("Strand", "strand", ["STEM", "ABM", "HUMMS", "GAS", "TVL"])}
           {renderYearInput("Year Graduated", "yearGraduated")}
-          {renderUpload("Report Card", "gradeReport")}
+          {values.incomingFreshman === "Yes" && (
+            <>
+              {renderInput("General Weighted Average (GWA)", "gwa", "e.g. 95 or 1.25", { keyboardType: "numeric" })}
+              {renderUpload("Grade Report", "gradeReport")}
+            </>
+          )}
 
           <Text style={styles.sectionHeader}>| Vocational/Technical Education</Text>
           {renderInput("School Name", "vocationalSchoolName", "Enter School Name")}
@@ -926,22 +997,33 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
           {requiresIncomeProof(values.fatherStatus)
             ? renderUpload("Income Certificate (Father)", "incomeFather")
-            : <Text style={styles.skippedDoc}>Income certificate not required for Father ({values.fatherStatus}).</Text>}
+            : values.fatherStatus === "Unemployed"
+              ? renderUpload("Certificate of Indigency (Father)", "indigencyFather")
+              : <Text style={styles.skippedDoc}>Income/indigency document not required for Father ({values.fatherStatus}).</Text>}
 
           {requiresIncomeProof(values.motherStatus)
             ? renderUpload("Income Certificate (Mother)", "incomeMother")
-            : <Text style={styles.skippedDoc}>Income certificate not required for Mother ({values.motherStatus}).</Text>}
+            : values.motherStatus === "Unemployed"
+              ? renderUpload("Certificate of Indigency (Mother)", "indigencyMother")
+              : <Text style={styles.skippedDoc}>Income/indigency document not required for Mother ({values.motherStatus}).</Text>}
 
-          {familyMembers.map((member, idx) =>
-            requiresIncomeProof(member.status) ? (
-              <View key={"member-doc-" + idx}>
-                {renderUpload(
-                  "Income Certificate (" + (member.name || "Family Member " + (idx + 1)) + ")",
-                  "incomeMember_" + idx
-                )}
-              </View>
-            ) : null
-          )}
+          {familyMembers.map((member, idx) => {
+            if (requiresIncomeProof(member.status)) {
+              return (
+                <View key={"member-doc-inc-" + idx}>
+                  {renderUpload("Income Certificate (" + (member.name || "Family Member " + (idx + 1)) + ")", "incomeMember_" + idx)}
+                </View>
+              );
+            }
+            if (member.status === "Unemployed") {
+              return (
+                <View key={"member-doc-ind-" + idx}>
+                  {renderUpload("Certificate of Indigency (" + (member.name || "Family Member " + (idx + 1)) + ")", "indigencyMember_" + idx)}
+                </View>
+              );
+            }
+            return null;
+          })}
 
           {renderUpload("Recommendation Letter Form (Optional)", "recommendation")}
           {renderUpload("Essay", "essay")}
@@ -964,7 +1046,12 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderInput("School Name", "schoolName", "Enter School Name")}
           {renderSelect("Strand", "strand", ["STEM", "ABM", "HUMMS", "GAS", "TVL"])}
           {renderYearInput("Year Graduated", "secondaryYearGraduated")}
-          {renderUpload("Grade Report", "gradeReport")}
+          {values.incomingFreshman === "Yes" && (
+            <>
+              {renderInput("General Weighted Average (GWA)", "gwa", "e.g. 95 or 1.25", { keyboardType: "numeric" })}
+              {renderUpload("Grade Report", "gradeReport")}
+            </>
+          )}
 
           {!isChildDesignation && values.educPath === "Masters" && (
             <>
@@ -1089,7 +1176,9 @@ export default function ProgramApplyScreen({ navigation, route }) {
           ])}
 
           {renderReviewSection("Supporting Documents", "document-text-outline", [
-            { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" },
+            ...(values.incomingFreshman === "Yes" ? [
+              { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" }
+            ] : []),
             { label: "COR", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
             ...(values.incomingFreshman === "No" ? [
               { label: "Current Term Grade Report", value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached", icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle" }
@@ -1098,15 +1187,24 @@ export default function ProgramApplyScreen({ navigation, route }) {
             { label: "Birth Certificate", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
             ...(requiresIncomeProof(values.fatherStatus) ? [
               { label: "Income Certificate (Father)", value: uploadText.incomeFather ? "Attached" : "Not Attached", icon: uploadText.incomeFather ? "checkmark-circle" : "close-circle" }
+            ] : values.fatherStatus === "Unemployed" ? [
+              { label: "Indigency (Father)", value: uploadText.indigencyFather ? "Attached" : "Not Attached", icon: uploadText.indigencyFather ? "checkmark-circle" : "close-circle" }
             ] : []),
             ...(requiresIncomeProof(values.motherStatus) ? [
               { label: "Income Certificate (Mother)", value: uploadText.incomeMother ? "Attached" : "Not Attached", icon: uploadText.incomeMother ? "checkmark-circle" : "close-circle" }
+            ] : values.motherStatus === "Unemployed" ? [
+              { label: "Indigency (Mother)", value: uploadText.indigencyMother ? "Attached" : "Not Attached", icon: uploadText.indigencyMother ? "checkmark-circle" : "close-circle" }
             ] : []),
-            ...familyMembers.filter(m => requiresIncomeProof(m.status)).map((member, idx) => ({
-              label: `Income Certificate (${member.name || `Member ${idx + 1}`})`,
-              value: uploadText[`incomeMember_${idx}`] ? "Attached" : "Not Attached",
-              icon: uploadText[`incomeMember_${idx}`] ? "checkmark-circle" : "close-circle"
-            })),
+            ...familyMembers.filter(m => requiresIncomeProof(m.status) || m.status === "Unemployed").map((member, idx) => {
+              const isUnemp = member.status === "Unemployed";
+              const key = isUnemp ? `indigencyMember_${idx}` : `incomeMember_${idx}`;
+              const label = isUnemp ? `Indigency Certificate (${member.name || `Member ${idx + 1}`})` : `Income Certificate (${member.name || `Member ${idx + 1}`})`;
+              return {
+                label,
+                value: uploadText[key] ? "Attached" : "Not Attached",
+                icon: uploadText[key] ? "checkmark-circle" : "close-circle"
+              };
+            }),
             { label: "Recommendation Letter", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
             { label: "Personal Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
           ])}
@@ -1117,6 +1215,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
         <>
           {renderReviewSection("Program Assignment", "construct-outline", [
             { label: "Scholarship Type", value: values.scholarshipType, icon: "ribbon-outline" },
+            { label: "Incoming Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
           ])}
           {renderReviewSection("Educational History", "school-outline", [
             { label: "HS School Name", value: values.schoolName, icon: "business-outline" },
@@ -1148,21 +1247,32 @@ export default function ProgramApplyScreen({ navigation, route }) {
           ])}
 
           {renderReviewSection("Supporting Documents", "document-text-outline", [
-            { label: "Report Card", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" },
+            ...(values.incomingFreshman === "Yes" ? [
+              { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" }
+            ] : []),
             { label: "COR", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
             { label: "Certificate of Indigency", value: uploadText.indigency ? "Attached" : "Not Attached", icon: uploadText.indigency ? "checkmark-circle" : "close-circle" },
             { label: "Birth Certificate", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
             ...(requiresIncomeProof(values.fatherStatus) ? [
               { label: "Income Certificate (Father)", value: uploadText.incomeFather ? "Attached" : "Not Attached", icon: uploadText.incomeFather ? "checkmark-circle" : "close-circle" }
+            ] : values.fatherStatus === "Unemployed" ? [
+              { label: "Indigency (Father)", value: uploadText.indigencyFather ? "Attached" : "Not Attached", icon: uploadText.indigencyFather ? "checkmark-circle" : "close-circle" }
             ] : []),
             ...(requiresIncomeProof(values.motherStatus) ? [
               { label: "Income Certificate (Mother)", value: uploadText.incomeMother ? "Attached" : "Not Attached", icon: uploadText.incomeMother ? "checkmark-circle" : "close-circle" }
+            ] : values.motherStatus === "Unemployed" ? [
+              { label: "Indigency (Mother)", value: uploadText.indigencyMother ? "Attached" : "Not Attached", icon: uploadText.indigencyMother ? "checkmark-circle" : "close-circle" }
             ] : []),
-            ...familyMembers.filter(m => requiresIncomeProof(m.status)).map((member, idx) => ({
-              label: `Income Certificate (${member.name || `Member ${idx + 1}`})`,
-              value: uploadText[`incomeMember_${idx}`] ? "Attached" : "Not Attached",
-              icon: uploadText[`incomeMember_${idx}`] ? "checkmark-circle" : "close-circle"
-            })),
+            ...familyMembers.filter(m => requiresIncomeProof(m.status) || m.status === "Unemployed").map((member, idx) => {
+              const isUnemp = member.status === "Unemployed";
+              const key = isUnemp ? `indigencyMember_${idx}` : `incomeMember_${idx}`;
+              const label = isUnemp ? `Indigency Certificate (${member.name || `Member ${idx + 1}`})` : `Income Certificate (${member.name || `Member ${idx + 1}`})`;
+              return {
+                label,
+                value: uploadText[key] ? "Attached" : "Not Attached",
+                icon: uploadText[key] ? "checkmark-circle" : "close-circle"
+              };
+            }),
             { label: "Recommendation Letter", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
             { label: "Personal Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
           ])}

@@ -14,6 +14,7 @@ const FIELD_MAP = {
   program: "program",
   term: "term",
   year_graduated: "yearGraduated",
+  gwa: "gwa",
   grade_report: "gradeReport",
   current_term_report: "currentTermGradeReport",
   cor: "cor",
@@ -23,6 +24,8 @@ const FIELD_MAP = {
   recommendation_letter: "recommendation",
   income_cert_father: "incomeFather",
   income_cert_mother: "incomeMother",
+  indigency_cert_father: "indigencyFather",
+  indigency_cert_mother: "indigencyMother",
   documents: "documents",
   family_members: "familyMembers",
   general: "_general",
@@ -76,6 +79,10 @@ const mapApiFieldToUiKey = (field) => {
   if (normalized.startsWith("income_cert_member_")) {
     const idx = normalized.replace("income_cert_member_", "");
     return "incomeMember_" + idx;
+  }
+  if (normalized.startsWith("indigency_cert_member_")) {
+    const idx = normalized.replace("indigency_cert_member_", "");
+    return "indigencyMember_" + idx;
   }
   return FIELD_MAP[normalized] || normalized;
 };
@@ -175,6 +182,10 @@ export const useTertiaryApplication = () => {
       if (values.expectedGradYear && values.expectedGradYear.length < 4) {
         preFlightErrors.expectedGradYear = "Year must be exactly 4 digits.";
       }
+
+      if (values.incomingFreshman === "Yes" && (!values.gwa || values.gwa.trim() === "")) {
+        preFlightErrors.gwa = "GWA is required.";
+      }
     }
 
     if (uiStep === 1) {
@@ -220,12 +231,20 @@ export const useTertiaryApplication = () => {
       if (!uploads.essay) preFlightErrors.essay = "Essay is required.";
 
       const requiresProof = (status) => ["Employed", "Self-Employed"].includes(status);
+      const requiresIndigency = (status) => status === "Unemployed";
+      
       if (requiresProof(values.fatherStatus) && !uploads.incomeFather) preFlightErrors.incomeFather = "Income certificate required.";
+      if (requiresIndigency(values.fatherStatus) && !uploads.indigencyFather) preFlightErrors.indigencyFather = "Certificate of indigency required.";
+
       if (requiresProof(values.motherStatus) && !uploads.incomeMother) preFlightErrors.incomeMother = "Income certificate required.";
+      if (requiresIndigency(values.motherStatus) && !uploads.indigencyMother) preFlightErrors.indigencyMother = "Certificate of indigency required.";
 
       (dynamicFamilyMembers || []).forEach((mem, idx) => {
         if (requiresProof(mem.status) && !uploads[`incomeMember_${idx}`]) {
           preFlightErrors[`incomeMember_${idx}`] = "Income certificate required.";
+        }
+        if (requiresIndigency(mem.status) && !uploads[`indigencyMember_${idx}`]) {
+          preFlightErrors[`indigencyMember_${idx}`] = "Certificate of indigency required.";
         }
       });
     }

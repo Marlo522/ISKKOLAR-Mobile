@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platfo
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
 import { useExamAssistance } from "../hooks/useExamAssistance";
 
 export default function ExamAssistanceScreen({ navigation }) {
@@ -124,7 +125,7 @@ export default function ExamAssistanceScreen({ navigation }) {
   const renderInput = (label, key, placeholder = null) => (
     <View style={[styles.inputGroup, fieldErrors[key] && styles.rowWithError]}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
+      <TextInput placeholderTextColor="#888"
         value={values[key]}
         placeholder={placeholder || `Enter ${label}`}
         onChangeText={(text) => {
@@ -248,22 +249,64 @@ export default function ExamAssistanceScreen({ navigation }) {
   );
 
   const handleFileUpload = async (key) => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ["application/pdf", "image/*"],
-        copyToCacheDirectory: true,
-      });
+    const handleResult = (result) => {
       if (result.canceled) return;
       if (result.assets && result.assets.length > 0) {
-        const selectedFile = result.assets[0];
+        let selectedFile = result.assets[0];
+        if (!selectedFile.name) {
+          selectedFile = { ...selectedFile, name: selectedFile.uri.split('/').pop(), type: selectedFile.mimeType || 'image/jpeg' };
+        }
         setUploadText(prev => ({ ...prev, [key]: selectedFile.name }));
         setUploadFiles((prev) => ({ ...prev, [key]: selectedFile }));
         clearFieldError(key);
       }
-    } catch (error) {
-      console.log("Error picking file:", error);
-      Alert.alert("Error", "Failed to select document.");
-    }
+    };
+
+    Alert.alert(
+      "Upload Document",
+      "Choose an option",
+      [
+        {
+          text: "Take Photo",
+          onPress: async () => {
+            try {
+              const permission = await ImagePicker.requestCameraPermissionsAsync();
+              if (permission.status !== "granted") {
+                Alert.alert("Permission Required", "Camera permission is required to take photos.");
+                return;
+              }
+              const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ['images'],
+                allowsEditing: false,
+                quality: 0.8,
+              });
+              handleResult(result);
+            } catch (err) {
+              Alert.alert("Error", "Could not capture image.");
+            }
+          }
+        },
+        {
+          text: "Choose File",
+          onPress: async () => {
+            try {
+              const result = await DocumentPicker.getDocumentAsync({
+                type: ["application/pdf", "image/*"],
+                copyToCacheDirectory: true,
+              });
+              handleResult(result);
+            } catch (error) {
+              console.log("Error picking file:", error);
+              Alert.alert("Error", "Failed to select document.");
+            }
+          }
+        },
+        {
+          text: "Cancel",
+          style: "cancel"
+        }
+      ]
+    );
   };
 
   const renderFileUploadBox = (label, subtext, key) => (
@@ -387,7 +430,7 @@ export default function ExamAssistanceScreen({ navigation }) {
 
               <View style={styles.row}>
                 <Text style={styles.label}>Notes (optional)</Text>
-                <TextInput
+                <TextInput placeholderTextColor="#888"
                   style={[styles.input, { height: 80, textAlignVertical: 'top', paddingTop: 10 }]}
                   multiline
                   placeholder="Add context about your exam, timelines, or special circumstances."

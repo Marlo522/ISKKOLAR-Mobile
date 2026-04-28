@@ -52,6 +52,11 @@ const prepareFormData = (values, uploads, dynamicFamilyMembers) => {
   formData.append("secondary_school", values.schoolName || "");
   formData.append("strand", values.strand || "");
   formData.append("year_graduated", values.yearGraduated || "");
+  
+  if (values.incomingFreshman === "Yes") {
+    formData.append("gwa", values.gwa || "");
+  }
+
   formData.append("tertiary_school", values.universityName || "");
   formData.append("program", values.program || "");
   formData.append("term_type", values.termType || "");
@@ -73,10 +78,15 @@ const prepareFormData = (values, uploads, dynamicFamilyMembers) => {
     appendFile(formData, "recommendation_letter", uploads.recommendation);
     appendFile(formData, "income_cert_father", uploads.incomeFather);
     appendFile(formData, "income_cert_mother", uploads.incomeMother);
+    appendFile(formData, "indigency_cert_father", uploads.indigencyFather);
+    appendFile(formData, "indigency_cert_mother", uploads.indigencyMother);
 
     (dynamicFamilyMembers || []).forEach((_, idx) => {
-      const file = uploads["incomeMember_" + idx];
-      if (file) appendFile(formData, "income_cert_member_" + idx, file);
+      const incFile = uploads["incomeMember_" + idx];
+      if (incFile) appendFile(formData, "income_cert_member_" + idx, incFile);
+
+      const indFile = uploads["indigencyMember_" + idx];
+      if (indFile) appendFile(formData, "indigency_cert_member_" + idx, indFile);
     });
   }
 

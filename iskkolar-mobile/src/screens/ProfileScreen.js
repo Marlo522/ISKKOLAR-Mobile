@@ -251,19 +251,19 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.formContainer}>
               <View style={styles.formRow}>
                 <Text style={styles.formLabel}>First Name</Text>
-                <TextInput value={form.firstName} editable={false} style={[styles.formInput, { backgroundColor: '#f5f7fc', color: '#888' }]} />
+                <TextInput placeholderTextColor="#888" value={form.firstName} editable={false} style={[styles.formInput, { backgroundColor: '#f5f7fc', color: '#888' }]} />
               </View>
               <View style={styles.formRow}>
                 <Text style={styles.formLabel}>Middle Name</Text>
-                <TextInput value={form.middleName} editable={false} style={[styles.formInput, { backgroundColor: '#f5f7fc', color: '#888' }]} />
+                <TextInput placeholderTextColor="#888" value={form.middleName} editable={false} style={[styles.formInput, { backgroundColor: '#f5f7fc', color: '#888' }]} />
               </View>
               <View style={styles.formRow}>
                 <Text style={styles.formLabel}>Last Name</Text>
-                <TextInput value={form.lastName} editable={false} style={[styles.formInput, { backgroundColor: '#f5f7fc', color: '#888' }]} />
+                <TextInput placeholderTextColor="#888" value={form.lastName} editable={false} style={[styles.formInput, { backgroundColor: '#f5f7fc', color: '#888' }]} />
               </View>
               <View style={styles.formRow}>
                 <Text style={styles.formLabel}>Suffix</Text>
-                <TextInput value={form.suffix} editable={false} style={[styles.formInput, { backgroundColor: '#f5f7fc', color: '#888' }]} />
+                <TextInput placeholderTextColor="#888" value={form.suffix} editable={false} style={[styles.formInput, { backgroundColor: '#f5f7fc', color: '#888' }]} />
               </View>
 
               <View style={styles.formRow}>
@@ -275,7 +275,7 @@ export default function ProfileScreen({ navigation }) {
                     </TouchableOpacity>
                   )}
                 </View>
-                <TextInput
+                <TextInput placeholderTextColor="#888"
                   value={form.mobileNumber}
                   onChangeText={(val) => setForm({ ...form, mobileNumber: val.replace(/[^0-9]/g, "").slice(0, 11) })}
                   editable={editingMobile}
@@ -303,7 +303,7 @@ export default function ProfileScreen({ navigation }) {
                     </TouchableOpacity>
                   )}
                 </View>
-                <TextInput
+                <TextInput placeholderTextColor="#888"
                   value={form.email}
                   onChangeText={(val) => setForm({ ...form, email: val })}
                   editable={editingEmail}
@@ -336,7 +336,7 @@ export default function ProfileScreen({ navigation }) {
               <View style={styles.formRow}>
                 <Text style={styles.formLabel}>Current Password</Text>
                 <View style={styles.passwordInputWrapper}>
-                  <TextInput
+                  <TextInput placeholderTextColor="#888"
                     value={passwords.current}
                     secureTextEntry={!showCurrentPw}
                     onChangeText={(value) => setPasswords({ ...passwords, current: value })}
@@ -354,7 +354,7 @@ export default function ProfileScreen({ navigation }) {
               <View style={styles.formRow}>
                 <Text style={styles.formLabel}>New Password</Text>
                 <View style={styles.passwordInputWrapper}>
-                  <TextInput
+                  <TextInput placeholderTextColor="#888"
                     value={passwords.newPassword}
                     secureTextEntry={!showNewPw}
                     onChangeText={(value) => setPasswords({ ...passwords, newPassword: value })}
@@ -372,7 +372,7 @@ export default function ProfileScreen({ navigation }) {
               <View style={styles.formRow}>
                 <Text style={styles.formLabel}>Confirm New Password</Text>
                 <View style={styles.passwordInputWrapper}>
-                  <TextInput
+                  <TextInput placeholderTextColor="#888"
                     value={passwords.confirm}
                     secureTextEntry={!showConfirmPw}
                     onChangeText={(value) => setPasswords({ ...passwords, confirm: value })}

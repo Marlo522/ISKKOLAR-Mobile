@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
 import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
 
 export default function ScholarshipRenewalScreen({ navigation }) {
   const { user } = useContext(AuthContext);
@@ -125,7 +126,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
   const renderInput = (label, key, placeholder = null) => (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
+      <TextInput placeholderTextColor="#888"
         value={values[key]}
         placeholder={placeholder || `Enter ${label}`}
         onChangeText={(text) => setValues({ ...values, [key]: text })}
@@ -212,19 +213,62 @@ export default function ScholarshipRenewalScreen({ navigation }) {
   );
 
   const handleFileUpload = async (key) => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ["application/pdf", "image/*"],
-        copyToCacheDirectory: true,
-      });
+    const handleResult = (result) => {
       if (result.canceled) return;
       if (result.assets && result.assets.length > 0) {
-        setUploadText(prev => ({ ...prev, [key]: result.assets[0].name }));
+        let file = result.assets[0];
+        if (!file.name) {
+          file = { ...file, name: file.uri.split('/').pop(), type: file.mimeType || 'image/jpeg' };
+        }
+        setUploadText(prev => ({ ...prev, [key]: file.name }));
       }
-    } catch (error) {
-      console.log("Error picking file:", error);
-      Alert.alert("Error", "Failed to select document.");
-    }
+    };
+
+    Alert.alert(
+      "Upload Document",
+      "Choose an option",
+      [
+        {
+          text: "Take Photo",
+          onPress: async () => {
+            try {
+              const permission = await ImagePicker.requestCameraPermissionsAsync();
+              if (permission.status !== "granted") {
+                Alert.alert("Permission Required", "Camera permission is required to take photos.");
+                return;
+              }
+              const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ['images'],
+                allowsEditing: false,
+                quality: 0.8,
+              });
+              handleResult(result);
+            } catch (err) {
+              Alert.alert("Error", "Could not capture image.");
+            }
+          }
+        },
+        {
+          text: "Choose File",
+          onPress: async () => {
+            try {
+              const result = await DocumentPicker.getDocumentAsync({
+                type: ["application/pdf", "image/*"],
+                copyToCacheDirectory: true,
+              });
+              handleResult(result);
+            } catch (error) {
+              console.log("Error picking file:", error);
+              Alert.alert("Error", "Failed to select document.");
+            }
+          }
+        },
+        {
+          text: "Cancel",
+          style: "cancel"
+        }
+      ]
+    );
   };
 
   const renderFileUploadBox = (label, subtext, key) => (
@@ -378,7 +422,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
                 </View>
                 <View style={styles.colHalf}>
                   <Text style={styles.label}>Additional Notes</Text>
-                  <TextInput
+                  <TextInput placeholderTextColor="#888"
                     style={[styles.input, { height: 75, textAlignVertical: 'top', paddingTop: 10 }]}
                     multiline
                     placeholder="Share context on grades, delays, or special circumstances."

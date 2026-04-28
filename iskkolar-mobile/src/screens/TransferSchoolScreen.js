@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platfo
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
 import { AuthContext } from "../context/AuthContext";
 import { useSchoolTransfer } from "../hooks/useSchoolTransfer";
 import { getMyApplications as getMyTertiaryApplications } from "../services/tertiaryAppService";
@@ -221,18 +222,61 @@ export default function TransferSchoolScreen({ navigation }) {
   };
 
   const pickCorFile = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ["application/pdf", "image/*"],
-        copyToCacheDirectory: true,
-      });
+    const handleResult = (result) => {
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setCorFile(result.assets[0]);
+        let file = result.assets[0];
+        if (!file.name) {
+          file = { ...file, name: file.uri.split('/').pop(), type: file.mimeType || 'image/jpeg' };
+        }
+        setCorFile(file);
         clearFieldError("corNewSchool");
       }
-    } catch {
-      Alert.alert("Error", "Failed to pick document.");
-    }
+    };
+
+    Alert.alert(
+      "Upload Document",
+      "Choose an option",
+      [
+        {
+          text: "Take Photo",
+          onPress: async () => {
+            try {
+              const permission = await ImagePicker.requestCameraPermissionsAsync();
+              if (permission.status !== "granted") {
+                Alert.alert("Permission Required", "Camera permission is required to take photos.");
+                return;
+              }
+              const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ['images'],
+                allowsEditing: false,
+                quality: 0.8,
+              });
+              handleResult(result);
+            } catch (err) {
+              Alert.alert("Error", "Could not capture image.");
+            }
+          }
+        },
+        {
+          text: "Choose File",
+          onPress: async () => {
+            try {
+              const result = await DocumentPicker.getDocumentAsync({
+                type: ["application/pdf", "image/*"],
+                copyToCacheDirectory: true,
+              });
+              handleResult(result);
+            } catch (err) {
+              Alert.alert("Error", "Failed to pick document.");
+            }
+          }
+        },
+        {
+          text: "Cancel",
+          style: "cancel"
+        }
+      ]
+    );
   };
 
   // ─── Submit ─────────────────────────────────────────────────
@@ -274,7 +318,7 @@ export default function TransferSchoolScreen({ navigation }) {
       <TextInput
         style={[styles.input, fieldErrors[key] && { borderColor: "red" }]}
         placeholder={placeholder}
-        placeholderTextColor="#a9b1c0"
+        placeholderTextColor="#888"
         keyboardType={keyboardType}
         value={values[key]}
         onChangeText={(text) => {
@@ -292,7 +336,7 @@ export default function TransferSchoolScreen({ navigation }) {
       <TextInput
         style={[styles.input, styles.textArea, fieldErrors[key] && { borderColor: "red" }]}
         placeholder={placeholder}
-        placeholderTextColor="#a9b1c0"
+        placeholderTextColor="#888"
         multiline
         numberOfLines={4}
         value={values[key]}
