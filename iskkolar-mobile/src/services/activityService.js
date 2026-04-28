@@ -6,10 +6,11 @@ import api from './api';
  */
 export const getScholarActivities = async () => {
   try {
-    const response = await api('/scholar/activities', { method: 'GET' });
-    return response?.data || [];
+    const response = await api.get('/scholar/activities');
+    return response.data?.data || response.data || [];
   } catch (error) {
     console.error('Error fetching scholar activities:', error);
     throw error.message || 'Failed to load activities';
   }
 };
+

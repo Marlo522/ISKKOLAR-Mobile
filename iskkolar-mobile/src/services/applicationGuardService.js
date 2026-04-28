@@ -10,9 +10,10 @@ const ONGOING_STATUSES = new Set(["pending", "under_review", "initial_passed", "
 const isOngoingStatus = (status) => ONGOING_STATUSES.has(String(status || "").toLowerCase());
 
 const getMyVocationalApplications = async () => {
-  const response = await api("/scholarships/vocational/my-applications", { method: "GET" });
-  return response?.data || [];
+  const response = await api.get("/scholarships/vocational/my-applications");
+  return response.data?.data || response.data || [];
 };
+
 
 export const checkAnyOngoingApplication = async () => {
   const [tertiaryResult, vocationalResult, childDesignationResult, staffAdvancementResult] =

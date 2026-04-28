@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { login as authLogin, logout as authLogout, getCurrentUser } from '../services/authService';
 
 // ─── THE HOOK ─────────────────────────────────────────────────
@@ -17,8 +16,7 @@ export const useAuth = (navigation) => {
     try {
       const res = await authLogin(email, password);
 
-      // Store token securely and user data persistently
-      await SecureStore.setItemAsync('secure_token', res.token);
+      // User data stored persistently (Token handled by cookie automatically)
       await AsyncStorage.setItem('user', JSON.stringify(res.user));
 
       setUser(res.user);
@@ -50,7 +48,6 @@ export const useAuth = (navigation) => {
     } catch {
       // Even if the server call fails, clear local data
     } finally {
-      await SecureStore.deleteItemAsync('secure_token');
       await AsyncStorage.removeItem('user');
       setUser(null);
       setLoading(false);
@@ -63,21 +60,20 @@ export const useAuth = (navigation) => {
   const restoreSession = async () => {
     setLoading(true);
     try {
-      const token = await SecureStore.getItemAsync('secure_token');
-      if (!token) {
-        setLoading(false);
-        return false;
-      }
-
-      // Verify token is still valid with backend
+      // With cookies, we just try to fetch the user. 
+      // If the cookie is valid, the request succeeds.
       const res = await getCurrentUser();
       setUser(res);
+      
+      // Persist local user data if it wasn't there
+      await AsyncStorage.setItem('user', JSON.stringify(res));
+      
       setLoading(false);
       return true;
     } catch {
-      // Token expired or invalid — clear storage
-      await SecureStore.deleteItemAsync('secure_token');
+      // Session invalid or expired — clear storage
       await AsyncStorage.removeItem('user');
+      setUser(null);
       setLoading(false);
       return false;
     }
@@ -97,4 +93,4 @@ export const useAuth = (navigation) => {
     restoreSession,
     clearError,
   };
-};
+};

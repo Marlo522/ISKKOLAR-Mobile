@@ -29,10 +29,10 @@ export const submitTransferRequest = async (payload, corFile) => {
     });
   }
 
-  const response = await api('/scholarships/transfer/apply', {
-    method: 'POST',
-    body: data,
+  const response = await api.post('/scholarships/transfer/apply', data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
   });
 
-  return response;
+  return response.data;
+
 };

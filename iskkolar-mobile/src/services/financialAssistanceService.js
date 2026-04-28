@@ -34,12 +34,11 @@ export const submitFinancialAssistance = async (formData, files) => {
 
     // In mobile api.js, when options.body instanceof FormData, 
     // Content-Type is automatically set properly without boundary issues
-    const response = await api('/assistance/financial-assistance', {
-      method: 'POST',
-      body: data,
+    const response = await api.post('/assistance/financial-assistance', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
 
-    return response;
+    return response.data;
   } catch (error) {
     throw error;
   }
@@ -47,11 +46,10 @@ export const submitFinancialAssistance = async (formData, files) => {
 
 export const getFinancialAssistanceApplications = async () => {
   try {
-    const response = await api('/assistance/financial-assistance', {
-      method: 'GET',
-    });
-    return response;
+    const response = await api.get('/assistance/financial-assistance');
+    return response.data?.data || response.data || [];
   } catch (error) {
     throw error;
   }
 };
+

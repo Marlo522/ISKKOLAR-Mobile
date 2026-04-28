@@ -49,11 +49,10 @@ export const submitExamAssistance = async (formValues, files = {}) => {
   appendFile(data, 'review_enrollment', files.review_enrollment);
 
   try {
-    const response = await api('/assistance/exam-assistance', {
-      method: 'POST',
-      body: data,
+    const response = await api.post('/assistance/exam-assistance', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return response;
+    return response.data;
   } catch (error) {
     throw toReadableError(error);
   }
@@ -61,11 +60,10 @@ export const submitExamAssistance = async (formValues, files = {}) => {
 
 export const getExamAssistanceApplications = async () => {
   try {
-    const response = await api('/assistance/exam-assistance', {
-      method: 'GET',
-    });
-    return response;
+    const response = await api.get('/assistance/exam-assistance');
+    return response.data?.data || response.data || [];
   } catch (error) {
     throw toReadableError(error);
   }
 };
+

@@ -1,12 +1,10 @@
 import React, { createContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as SecureStore from "expo-secure-store";
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
 
   const normalizeUser = (value) => {
     if (!value || typeof value !== "object") return null;
@@ -23,10 +21,7 @@ export const AuthProvider = ({ children }) => {
 
     const hydrateSession = async () => {
       try {
-        const [storedUser, storedToken] = await Promise.all([
-          AsyncStorage.getItem("user"),
-          SecureStore.getItemAsync("secure_token"),
-        ]);
+        const storedUser = await AsyncStorage.getItem("user");
 
         if (!mounted) return;
 
@@ -34,14 +29,9 @@ export const AuthProvider = ({ children }) => {
           const parsedUser = JSON.parse(storedUser);
           setUser(normalizeUser(parsedUser));
         }
-
-        if (storedToken) {
-          setToken(storedToken);
-        }
       } catch (error) {
         if (!mounted) return;
         setUser(null);
-        setToken(null);
       }
     };
 
@@ -52,24 +42,20 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const loginUser = async (userData, jwt) => {
+  const loginUser = async (userData) => {
     const normalized = normalizeUser(userData);
     setUser(normalized);
-    setToken(jwt);
-    await SecureStore.setItemAsync("secure_token", jwt);
     await AsyncStorage.setItem("user", JSON.stringify(normalized));
   };
 
   const logoutUser = async () => {
     setUser(null);
-    setToken(null);
-    await SecureStore.deleteItemAsync("secure_token");
     await AsyncStorage.removeItem("user");
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loginUser, logoutUser }}>
+    <AuthContext.Provider value={{ user, loginUser, logoutUser }}>
       {children}
     </AuthContext.Provider>
   );
-};
+};

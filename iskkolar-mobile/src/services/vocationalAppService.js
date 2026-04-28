@@ -106,8 +106,8 @@ const prepareFormData = (values, uploads, dynamicFamilyMembers) => {
 // Returns all vocational applications belonging to the current user.
 export const getMyVocationalApplications = async () => {
   try {
-    const response = await api("/scholarships/vocational/my-applications", { method: "GET" });
-    return response?.data || [];
+    const response = await api.get("/scholarships/vocational/my-applications");
+    return response.data?.data || response.data || [];
   } catch (err) {
     return [];
   }
@@ -116,9 +116,10 @@ export const getMyVocationalApplications = async () => {
 // Sends form data to the backend step-validator before allowing the user to advance.
 export const validateVocationalStep = async (apiStep, values, uploads, dynamicFamilyMembers) => {
   const formData = prepareFormData(values, uploads, dynamicFamilyMembers);
-  await api("/scholarships/vocational/validate-step?step=" + apiStep, {
-    method: "POST",
-    body: formData,
+  await api.post("/scholarships/vocational/validate-step?step=" + apiStep, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
   });
   return true;
 };
@@ -126,11 +127,12 @@ export const validateVocationalStep = async (apiStep, values, uploads, dynamicFa
 // Final submission — sends the complete application payload.
 export const submitVocationalApplication = async (values, uploads, dynamicFamilyMembers) => {
   const formData = prepareFormData(values, uploads, dynamicFamilyMembers);
-  const response = await api("/scholarships/vocational/apply", {
-    method: "POST",
-    body: formData,
+  const response = await api.post("/scholarships/vocational/apply", formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
   });
-  return response;
+  return response.data;
 };
 
 // Returns the first active (non-terminal) vocational application, or null.
@@ -149,3 +151,4 @@ export const checkOngoingVocationalApplication = async () => {
     return null;
   }
 };
+

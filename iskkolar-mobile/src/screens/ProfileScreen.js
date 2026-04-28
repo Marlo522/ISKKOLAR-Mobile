@@ -8,7 +8,7 @@ import * as profileService from "../services/profileService";
 
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { user, token, logoutUser, loginUser } = useContext(AuthContext);
+  const { user, logoutUser, loginUser } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState("Profile");
   const [form, setForm] = useState({
     firstName: user?.firstName ?? "Dominic",
@@ -61,7 +61,7 @@ export default function ProfileScreen({ navigation }) {
           mobileNumber: p.mobileNumber || p.mobile_number || prev.mobileNumber,
           profilePhoto: p.profilePictureUrl ? { uri: p.profilePictureUrl } : prev.profilePhoto,
         }));
-        loginUser({ ...user, ...p }, token); // Update context if possible
+        loginUser({ ...user, ...p }); // Update context if possible
       } catch (err) {
         console.error(err);
       }
@@ -93,7 +93,7 @@ export default function ProfileScreen({ navigation }) {
         mobileNumber: mobileValue,
       });
       alert(updated._message || "Mobile number updated successfully!");
-      loginUser({ ...user, ...updated }, token);
+      loginUser({ ...user, ...updated });
       setEditingMobile(false);
     } catch (err) {
       alert(err.message || "Failed to update mobile number.");
@@ -121,7 +121,7 @@ export default function ProfileScreen({ navigation }) {
         mobileNumber: user?.mobileNumber || form.mobileNumber,
       });
       alert(updated._message || "Email updated successfully!");
-      loginUser({ ...user, ...updated }, token);
+      loginUser({ ...user, ...updated });
       setEditingEmail(false);
     } catch (err) {
       alert(err.message || "Failed to update email.");

@@ -8,13 +8,12 @@ export const financialRecordsService = {
    */
   getScholarRecords: async () => {
     try {
-      // The 'api' import in this project is a function wrapper around fetch,
-      // not an axios instance with .get() methods.
-      const response = await api("/assistance/financial-records", { method: "GET" });
-      return response;
+      const response = await api.get("/assistance/financial-records");
+      return response.data;
     } catch (error) {
       console.error("Failed to fetch financial records:", error);
       throw error;
     }
   },
+
 };
