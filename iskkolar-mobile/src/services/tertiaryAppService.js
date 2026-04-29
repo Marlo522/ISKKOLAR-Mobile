@@ -57,21 +57,21 @@ const prepareFormData = (values, uploads, dynamicFamilyMembers) => {
 
   formData.append("scholarship_type", values.scholarshipType || "");
   formData.append("incoming_freshman", values.incomingFreshman === "Yes" ? "true" : "false");
-  formData.append("secondary_school", values.schoolName || "");
+  formData.append("secondary_school", values.secondarySchool || "");
   formData.append("strand", values.strand || "");
   formData.append("year_graduated", values.yearGraduated || "");
+  formData.append("secondary_gwa", values.secondaryGwa || "");
   
-  if (values.incomingFreshman === "Yes") {
-    formData.append("gwa", values.gwa || "");
-  }
-
-  formData.append("tertiary_school", values.universityName || "");
+  formData.append("tertiary_school", values.tertiarySchool || "");
   formData.append("program", values.program || "");
   formData.append("term_type", values.termType || "");
   formData.append("grade_scale", values.gradeScale || "");
   formData.append("year_level", values.yearLevel || "");
   formData.append("term", values.term || "");
+  formData.append("term_start_date", values.termStartDate || "");
+  formData.append("term_end_date", values.termEndDate || "");
   formData.append("expected_graduation_year", values.expectedGradYear || "");
+  formData.append("tertiary_gwa", values.tertiaryGwa || "");
 
   const familyMembers = buildFamilyMembers(values, dynamicFamilyMembers);
   formData.append("family_members", JSON.stringify(familyMembers));

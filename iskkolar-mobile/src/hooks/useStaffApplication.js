@@ -10,16 +10,20 @@ import {
 const FIELD_MAP = {
   educ_path: "educPath",
   incoming_freshman: "incomingFreshman",
-  secondary_school: "schoolName",
-  year_graduated: "secondaryYearGraduated",
-  secondary_year_graduated: "secondaryYearGraduated",
-  tertiary_school: "universityName",
+  secondary_school: "secondarySchool",
+  year_graduated: "yearGraduated",
+  secondary_year_graduated: "yearGraduated",
+  tertiary_school: "tertiarySchool",
   program: "program",
   term_type: "termType",
   grade_scale: "gradeScale",
   year_level: "yearLevel",
   term: "term",
   expected_graduation_year: "expectedGradYear",
+  term_start_date: "termStartDate",
+  term_end_date: "termEndDate",
+  secondary_gwa: "secondaryGwa",
+  tertiary_gwa: "tertiaryGwa",
   prev_school_name: "prevSchoolName",
   prev_program: "prevProgram",
   prev_year_graduated: "prevYearGraduated",
@@ -53,16 +57,20 @@ const buildPayload = (values, isChildDesignation) => ({
   applicant_category: isChildDesignation ? "child_designation" : "self_advancement",
   educ_path: isChildDesignation ? "Tertiary" : values.educPath || "",
   incoming_freshman: values.incomingFreshman === "Yes" ? "true" : "false",
-  secondary_school: values.schoolName || "",
+  secondary_school: values.secondarySchool || "",
   strand: values.strand || "",
-  year_graduated: values.secondaryYearGraduated || "",
-  secondary_year_graduated: values.secondaryYearGraduated || "",
-  tertiary_school: values.universityName || "",
+  year_graduated: values.yearGraduated || "",
+  secondary_year_graduated: values.yearGraduated || "",
+  secondary_gwa: values.secondaryGwa || "",
+  tertiary_school: values.tertiarySchool || "",
   program: values.program || "",
   term_type: values.termType || "",
   grade_scale: values.gradeScale || "",
   year_level: values.yearLevel || "",
   term: values.term || "",
+  term_start_date: values.termStartDate || "",
+  term_end_date: values.termEndDate || "",
+  tertiary_gwa: values.tertiaryGwa || "",
   expected_graduation_year: values.expectedGradYear || "",
   prev_school_name: values.prevSchoolName || "",
   prev_program: values.prevProgram || "",
@@ -186,6 +194,27 @@ export const useStaffApplication = (isChildDesignation) => {
         const currentYear = new Date().getFullYear();
         const preflightErrors = {};
 
+        // Required text fields
+        if (!values.secondarySchool || values.secondarySchool.trim() === "")
+          preflightErrors.secondarySchool = "Secondary School Name is required.";
+        if (!values.tertiarySchool || values.tertiarySchool.trim() === "")
+          preflightErrors.tertiarySchool = "University / College Name is required.";
+        if (!values.program || values.program.trim() === "")
+          preflightErrors.program = "Degree Program is required.";
+
+        if (!values.secondaryGwa || values.secondaryGwa.trim() === "")
+          preflightErrors.secondaryGwa = "Secondary GWA is required.";
+        
+        if (values.incomingFreshman === "No") {
+          if (!values.tertiaryGwa || values.tertiaryGwa.trim() === "")
+            preflightErrors.tertiaryGwa = "Tertiary GWA is required.";
+        }
+
+        if (!values.termStartDate || values.termStartDate.trim() === "")
+          preflightErrors.termStartDate = "Term Start Date is required.";
+        if (!values.termEndDate || values.termEndDate.trim() === "")
+          preflightErrors.termEndDate = "Term End Date is required.";
+
         const checkYear = (val, key, label) => {
           if (!val) return;
           if (!/^\d{4}$/.test(String(val))) {
@@ -199,8 +228,9 @@ export const useStaffApplication = (isChildDesignation) => {
           }
         };
 
-        checkYear(values.secondaryYearGraduated, "secondaryYearGraduated", "Year Graduated");
+        checkYear(values.yearGraduated, "yearGraduated", "Year Graduated");
         checkYear(values.prevYearGraduated, "prevYearGraduated", "Previous Year Graduated");
+        checkYear(values.expectedGradYear, "expectedGradYear", "Expected Graduation Year");
 
         if (Object.keys(preflightErrors).length > 0) {
           setFieldErrors(preflightErrors);

@@ -9,7 +9,7 @@ export const getGradeComplianceTerms = async () => {
   }
 };
 
-export const submitGradeCompliance = async ({ term, scholarshipName, remarks, files }) => {
+export const submitGradeCompliance = async ({ term, scholarshipName, remarks, nextTermStartDate, nextTermEndDate, gwa, files }) => {
   try {
     const data = new FormData();
     data.append('term', term);
@@ -20,6 +20,18 @@ export const submitGradeCompliance = async ({ term, scholarshipName, remarks, fi
 
     if (remarks) {
       data.append('remarks', remarks);
+    }
+
+    if (nextTermStartDate) {
+      data.append('nextTermStartDate', nextTermStartDate);
+    }
+
+    if (nextTermEndDate) {
+      data.append('nextTermEndDate', nextTermEndDate);
+    }
+
+    if (gwa) {
+      data.append('gwa', gwa);
     }
 
     if (files?.gradeReport?.uri) {

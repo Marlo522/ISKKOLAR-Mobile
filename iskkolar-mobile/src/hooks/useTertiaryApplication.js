@@ -4,8 +4,8 @@ import { getMyApplications as fetchMyApplications, validateTertiaryStep, submitT
 const FIELD_MAP = {
   scholarship_type: "scholarshipType",
   incoming_freshman: "incomingFreshman",
-  secondary_school: "schoolName",
-  tertiary_school: "universityName",
+  secondary_school: "secondarySchool",
+  tertiary_school: "tertiarySchool",
   expected_graduation_year: "expectedGradYear",
   grade_scale: "gradeScale",
   term_type: "termType",
@@ -14,7 +14,10 @@ const FIELD_MAP = {
   program: "program",
   term: "term",
   year_graduated: "yearGraduated",
-  gwa: "gwa",
+  secondary_gwa: "secondaryGwa",
+  tertiary_gwa: "tertiaryGwa",
+  term_start_date: "termStartDate",
+  term_end_date: "termEndDate",
   grade_report: "gradeReport",
   current_term_report: "currentTermGradeReport",
   cor: "cor",
@@ -169,12 +172,17 @@ export const useTertiaryApplication = () => {
     const apiStep = uiStep + 1;
 
     // --- SUPPLEMENTAL FRONTEND PRE-FLIGHT VALIDATION ---
-    // Why this exists: The backend Zod schema allows empty strings for family fields and completely ignores `req.files` during `/validate-step`.
-    // If we rely purely on the server, the user could advance to step 3 with blank fields and missing documents, then crash upon final submit.
-    // This pre-flight validation rigorously checks those gaps natively *before* asking the server.
     let preFlightErrors = {};
 
     if (uiStep === 0) {
+      // Required text fields
+      if (!values.secondarySchool || values.secondarySchool.trim() === "")
+        preFlightErrors.secondarySchool = "Secondary School Name is required.";
+      if (!values.tertiarySchool || values.tertiarySchool.trim() === "")
+        preFlightErrors.tertiarySchool = "University / College Name is required.";
+      if (!values.program || values.program.trim() === "")
+        preFlightErrors.program = "Degree Program is required.";
+
       // Step 0: Ensure graduation years aren't just partially typed (e.g., "20")
       if (values.yearGraduated && values.yearGraduated.length < 4) {
         preFlightErrors.yearGraduated = "Year must be exactly 4 digits.";
@@ -183,8 +191,21 @@ export const useTertiaryApplication = () => {
         preFlightErrors.expectedGradYear = "Year must be exactly 4 digits.";
       }
 
-      if (values.incomingFreshman === "Yes" && (!values.gwa || values.gwa.trim() === "")) {
-        preFlightErrors.gwa = "GWA is required.";
+      if (!values.secondaryGwa || values.secondaryGwa.trim() === "") {
+        preFlightErrors.secondaryGwa = "Secondary GWA is required.";
+      }
+
+      if (values.incomingFreshman === "No") {
+        if (!values.tertiaryGwa || values.tertiaryGwa.trim() === "") {
+          preFlightErrors.tertiaryGwa = "Tertiary GWA is required.";
+        }
+      }
+
+      if (!values.termStartDate || values.termStartDate.trim() === "") {
+        preFlightErrors.termStartDate = "Term Start Date is required.";
+      }
+      if (!values.termEndDate || values.termEndDate.trim() === "") {
+        preFlightErrors.termEndDate = "Term End Date is required.";
       }
     }
 
@@ -225,7 +246,7 @@ export const useTertiaryApplication = () => {
     }
 
     if (uiStep === 2) {
-      // Step 2: Validate essential files because server doesn't parse req.files during step 2 endpoint verification.
+      // Step 2: Validate essential files
       if (!uploads.indigency) preFlightErrors.indigency = "Certificate of indigency is required.";
       if (!uploads.birthCert) preFlightErrors.birthCert = "Birth certificate is required.";
       if (!uploads.essay) preFlightErrors.essay = "Essay is required.";
@@ -238,6 +259,10 @@ export const useTertiaryApplication = () => {
 
       if (requiresProof(values.motherStatus) && !uploads.incomeMother) preFlightErrors.incomeMother = "Income certificate required.";
       if (requiresIndigency(values.motherStatus) && !uploads.indigencyMother) preFlightErrors.indigencyMother = "Certificate of indigency required.";
+
+      if (values.incomingFreshman === "No" && !uploads.currentTermGradeReport) {
+        preFlightErrors.currentTermGradeReport = "Current term report card is required.";
+      }
 
       (dynamicFamilyMembers || []).forEach((mem, idx) => {
         if (requiresProof(mem.status) && !uploads[`incomeMember_${idx}`]) {

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
+import FormDatePicker from "../components/FormDatePicker";
 import { AuthContext } from "../context/AuthContext";
 import { useFinancialAssistance } from "../hooks/useFinancialAssistance";
 import { financialRecordsService } from "../services/financialRecordsService";
@@ -33,12 +34,8 @@ export default function FinancialRecordsScreen({ navigation }) {
   const [supportingDocument, setSupportingDocument] = useState(null);
   const [completeStage, setCompleteStage] = useState("none");
   
-  const [dateVisible, setDateVisible] = useState(false);
-  const [dateIndex, setDateIndex] = useState(null);
-  
-  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+
 
   // Financial Records State
   const [transactions, setTransactions] = useState([]);
@@ -353,44 +350,7 @@ export default function FinancialRecordsScreen({ navigation }) {
     }
   };
 
-  const getDaysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
-  const getFirstDayOfMonth = (month, year) => new Date(year, month, 1).getDay();
 
-  const handlePrevMonth = () => {
-    if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear(selectedYear - 1); }
-    else setSelectedMonth(selectedMonth - 1);
-  };
-
-  const handleNextMonth = () => {
-    if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear(selectedYear + 1); }
-    else setSelectedMonth(selectedMonth + 1);
-  };
-
-  const renderCalendarGrid = () => {
-    const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
-    const firstDay = getFirstDayOfMonth(selectedMonth, selectedYear);
-    let days = [];
-    for (let i = 0; i < firstDay; i++) days.push(<View key={`empty-${i}`} style={styles.calendarDay} />);
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(
-        <TouchableOpacity
-          key={`day-${i}`}
-          style={styles.calendarDay}
-          onPress={() => {
-            const m = selectedMonth + 1;
-            const d = i < 10 ? `0${i}` : i;
-            const dateStr = `${m < 10 ? '0' + m : m}/${d}/${selectedYear}`;
-            updateReceiptField(dateIndex, 'purchaseDate', dateStr);
-            clearFieldError(`receipt_date_${dateIndex}`);
-            setDateVisible(false);
-          }}
-        >
-          <Text style={styles.calendarDayText}>{i}</Text>
-        </TouchableOpacity>
-      );
-    }
-    return days;
-  };
 
   const renderInput = (label, key, placeholder = null, keyboardType = "default") => (
     <View style={[styles.row, fieldErrors[key] && styles.rowWithError]}>
@@ -821,17 +781,17 @@ export default function FinancialRecordsScreen({ navigation }) {
                   {fieldErrors[`receipt_file_${idx}`] && <Text style={[styles.errorText, { marginTop: -12, marginBottom: 16 }]}>{fieldErrors[`receipt_file_${idx}`]}</Text>}
                 </View>
                 
-                <Text style={styles.label}>Purchase Date <Text style={{color: 'red'}}>*</Text></Text>
-                <View style={[styles.row, fieldErrors[`receipt_date_${idx}`] && styles.rowWithError]}>
-                  <TouchableOpacity
-                    style={[styles.datePickerInput, fieldErrors[`receipt_date_${idx}`] && { borderColor: 'red' }]}
-                    onPress={() => { setDateIndex(idx); setDateVisible(true); }}
-                  >
-                    <Text style={[styles.datePickerText, !item.purchaseDate && { color: "#a9b1c0" }]}>{item.purchaseDate || "mm/dd/yyyy"}</Text>
-                    <Ionicons name="calendar-outline" size={20} color="#555" />
-                  </TouchableOpacity>
-                  {fieldErrors[`receipt_date_${idx}`] && <Text style={styles.errorText}>{fieldErrors[`receipt_date_${idx}`]}</Text>}
-                </View>
+                <FormDatePicker
+                  label="Purchase Date"
+                  value={item.purchaseDate}
+                  onDateChange={(val) => {
+                    updateReceiptField(idx, 'purchaseDate', val);
+                    clearFieldError(`receipt_date_${idx}`);
+                  }}
+                  error={fieldErrors[`receipt_date_${idx}`]}
+                  required
+                  maximumDate={new Date()}
+                />
 
                 <Text style={styles.label}>Amount (Php) <Text style={{color: 'red'}}>*</Text></Text>
                 <View style={[styles.row, fieldErrors[`receipt_amount_${idx}`] && styles.rowWithError]}>
@@ -878,30 +838,7 @@ export default function FinancialRecordsScreen({ navigation }) {
               </Text>
             </View>
 
-            <Modal visible={dateVisible && dateIndex !== null} transparent animationType="fade">
-              <View style={styles.calendarModalOverlay}>
-                <View style={styles.calendarModalContent}>
-                  <View style={styles.calendarHeader}>
-                    <TouchableOpacity onPress={handlePrevMonth} style={{ padding: 4 }}>
-                      <Ionicons name="chevron-back" size={24} color="#4f5fc5" />
-                    </TouchableOpacity>
-                    <Text style={styles.calendarHeaderText}>{months[selectedMonth]} {selectedYear}</Text>
-                    <TouchableOpacity onPress={handleNextMonth} style={{ padding: 4 }}>
-                      <Ionicons name="chevron-forward" size={24} color="#4f5fc5" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.calendarWeekDaysRow}>
-                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <Text key={i} style={styles.calendarWeekDay}>{d}</Text>)}
-                  </View>
-                  <View style={styles.calendarDaysGrid}>
-                    {renderCalendarGrid()}
-                  </View>
-                  <TouchableOpacity onPress={() => setDateVisible(false)} style={styles.calendarCloseBtn}>
-                    <Text style={styles.calendarCloseText}>Cancel</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </Modal>
+
           </View>
         );
 

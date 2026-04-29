@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Android emulator: use 10.0.2.2 instead of localhost
 const expoHost = Constants.expoConfig?.hostUri?.split(':')?.[0];
 const BASE_URL = __DEV__
-  ? `http://${expoHost || '192.168.1.5'}:5000/api`
+  ? `http://${expoHost || '192.168.1.7'}:5000/api`
   : 'https://your-production-url.com/api'; // MUST be HTTPS in prod
 
 const api = axios.create({
