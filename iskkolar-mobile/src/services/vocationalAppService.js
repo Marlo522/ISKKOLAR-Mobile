@@ -5,35 +5,43 @@ import api from "./api";
 // Builds the family_members array that the backend expects.
 // Index 0 = father, index 1 = mother, index 2+ = dynamic members.
 const buildFamilyMembers = (values, dynamicFamilyMembers) => {
+  const cleanMember = (member) => {
+    if (member.employment_status === "Unemployed" || member.employment_status === "Deceased") {
+      delete member.occupation;
+      delete member.monthly_income;
+    }
+    return member;
+  };
+
   const family = [
-    {
+    cleanMember({
       role: "father",
       full_name: values.fatherName || "",
       employment_status: values.fatherStatus || "",
       occupation: values.fatherOccupation || "",
       monthly_income: values.fatherIncome || "",
       contact_number: values.fatherContact || "",
-    },
-    {
+    }),
+    cleanMember({
       role: "mother",
       full_name: values.motherName || "",
       employment_status: values.motherStatus || "",
       occupation: values.motherOccupation || "",
       monthly_income: values.motherIncome || "",
       contact_number: values.motherContact || "",
-    },
+    }),
   ];
 
   // Append any additional family members the user added dynamically
   (dynamicFamilyMembers || []).forEach((member) => {
-    family.push({
+    family.push(cleanMember({
       role: member.relationship || "",
       full_name: member.name || "",
       employment_status: member.status || "",
       occupation: member.occupation || "",
       monthly_income: member.income || "",
       contact_number: member.contactNo || "",
-    });
+    }));
   });
 
   return family;

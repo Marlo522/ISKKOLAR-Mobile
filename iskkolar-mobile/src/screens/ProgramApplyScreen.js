@@ -832,7 +832,6 @@ export default function ProgramApplyScreen({ navigation, route }) {
           )}
           {renderYearInput("Expected Year of Graduation", "expectedGradYear")}
           {renderUpload("COR", "cor")}
-          {values.incomingFreshman === "No" && renderUpload("Current Term Grade Report", "currentTermGradeReport")}
         </View>
       );
     }
@@ -1074,7 +1073,6 @@ export default function ProgramApplyScreen({ navigation, route }) {
           )}
           {renderYearInput("Expected Year of Graduation", "expectedGradYear")}
           {renderUpload("COR", "cor")}
-          {values.incomingFreshman === "No" && renderUpload("Current Term Grade Report", "currentTermGradeReport")}
         </View>
       );
     }
@@ -1180,9 +1178,6 @@ export default function ProgramApplyScreen({ navigation, route }) {
               { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" }
             ] : []),
             { label: "COR", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
-            ...(values.incomingFreshman === "No" ? [
-              { label: "Current Term Grade Report", value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached", icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle" }
-            ] : []),
             { label: "Certificate of Indigency", value: uploadText.indigency ? "Attached" : "Not Attached", icon: uploadText.indigency ? "checkmark-circle" : "close-circle" },
             { label: "Birth Certificate", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
             ...(requiresIncomeProof(values.fatherStatus) ? [
