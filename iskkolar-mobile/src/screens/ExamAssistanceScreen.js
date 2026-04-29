@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
+import FormDatePicker from "../components/FormDatePicker";
 import { useExamAssistance } from "../hooks/useExamAssistance";
 
 export default function ExamAssistanceScreen({ navigation }) {
@@ -36,11 +37,7 @@ export default function ExamAssistanceScreen({ navigation }) {
   const [selectorOptions, setSelectorOptions] = useState([]);
   const [selectorKey, setSelectorKey] = useState("");
 
-  const [dateVisible, setDateVisible] = useState(false);
-  const [dateKey, setDateKey] = useState(null);
-  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
 
   const {
     submitting,
@@ -157,83 +154,19 @@ export default function ExamAssistanceScreen({ navigation }) {
     </View>
   );
 
-  const getDaysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
-  const getFirstDayOfMonth = (month, year) => new Date(year, month, 1).getDay();
 
-  const handlePrevMonth = () => {
-    if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear(selectedYear - 1); }
-    else setSelectedMonth(selectedMonth - 1);
-  };
-
-  const handleNextMonth = () => {
-    if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear(selectedYear + 1); }
-    else setSelectedMonth(selectedMonth + 1);
-  };
-
-  const renderCalendarGrid = () => {
-    const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
-    const firstDay = getFirstDayOfMonth(selectedMonth, selectedYear);
-    let days = [];
-    for (let i = 0; i < firstDay; i++) days.push(<View key={`empty-${i}`} style={styles.calendarDay} />);
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(
-        <TouchableOpacity
-          key={`day-${i}`}
-          style={styles.calendarDay}
-          onPress={() => {
-            const m = selectedMonth + 1;
-            const d = i < 10 ? `0${i}` : i;
-            const dateStr = `${m < 10 ? '0' + m : m}/${d}/${selectedYear}`;
-            setValues({ ...values, [dateKey]: dateStr });
-            clearFieldError(dateKey);
-            setDateVisible(false);
-          }}
-        >
-          <Text style={styles.calendarDayText}>{i}</Text>
-        </TouchableOpacity>
-      );
-    }
-    return days;
-  };
 
   const renderDatePickerField = (label, key) => (
-    <>
-      <View style={[styles.inputGroup, fieldErrors[key] && styles.rowWithError]}>
-        <Text style={styles.label}>{label}</Text>
-        <TouchableOpacity
-          style={styles.yearPickerInput}
-          onPress={() => { setDateKey(key); setDateVisible(true); }}
-        >
-          <Text style={[styles.yearPickerText, !values[key] && { color: "#a9b1c0" }]}>{values[key] || "mm/dd/yyyy"}</Text>
-          <Ionicons name="calendar-outline" size={20} color="#555" />
-        </TouchableOpacity>
-      </View>
-      <Modal visible={dateVisible && dateKey === key} transparent animationType="fade">
-        <View style={styles.calendarModalOverlay}>
-          <View style={styles.calendarModalContent}>
-            <View style={styles.calendarHeader}>
-              <TouchableOpacity onPress={handlePrevMonth} style={{ padding: 4 }}>
-                <Ionicons name="chevron-back" size={24} color="#4f5fc5" />
-              </TouchableOpacity>
-              <Text style={styles.calendarHeaderText}>{months[selectedMonth]} {selectedYear}</Text>
-              <TouchableOpacity onPress={handleNextMonth} style={{ padding: 4 }}>
-                <Ionicons name="chevron-forward" size={24} color="#4f5fc5" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.calendarWeekDaysRow}>
-              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <Text key={i} style={styles.calendarWeekDay}>{d}</Text>)}
-            </View>
-            <View style={styles.calendarDaysGrid}>
-              {renderCalendarGrid()}
-            </View>
-            <TouchableOpacity onPress={() => setDateVisible(false)} style={styles.calendarCloseBtn}>
-              <Text style={styles.calendarCloseText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-      {fieldErrors[key] ? <Text style={styles.errorText}>{fieldErrors[key]}</Text> : null}
-    </>
+    <FormDatePicker
+      label={label}
+      value={values[key]}
+      onDateChange={(val) => {
+        setValues({ ...values, [key]: val });
+        clearFieldError(key);
+      }}
+      error={fieldErrors[key]}
+      required
+    />
   );
 
   const renderUpload = (label, key) => (
@@ -773,17 +706,7 @@ const styles = StyleSheet.create({
   completeText: { fontSize: 22, fontWeight: "800", color: "#3f4ca8", marginTop: 16, marginBottom: 8 },
   submitBtn: { borderRadius: 12, backgroundColor: "#4f5fc5", paddingVertical: 14, paddingHorizontal: 30, marginTop: 10 },
   submitBtnText: { color: "#fff", fontWeight: "800", fontSize: 16 },
-  calendarModalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" },
-  calendarModalContent: { backgroundColor: "#fff", width: "85%", borderRadius: 16, padding: 20 },
-  calendarHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  calendarHeaderText: { fontSize: 18, fontWeight: "700", color: "#4f5fc5" },
-  calendarWeekDaysRow: { flexDirection: "row", justifyContent: "space-around", marginBottom: 8 },
-  calendarWeekDay: { color: "#848baf", fontSize: 13, fontWeight: "800", width: 40, textAlign: "center" },
-  calendarDaysGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-start" },
-  calendarDay: { width: "14.28%", height: 40, justifyContent: "center", alignItems: "center", marginVertical: 2 },
-  calendarDayText: { color: "#1c2131", fontSize: 16, fontWeight: "600" },
-  calendarCloseBtn: { marginTop: 16, alignSelf: "flex-end", padding: 8, paddingBottom: 0 },
-  calendarCloseText: { color: "#4f5ec4", fontSize: 15, fontWeight: "700" },
+
 
   subtextAboveHeader: { fontSize: 11, fontWeight: "700", color: "#5b61a7", textTransform: "uppercase", marginBottom: 6 },
   sectionHeaderRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
