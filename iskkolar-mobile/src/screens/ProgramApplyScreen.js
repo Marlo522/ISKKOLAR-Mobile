@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
+import FormDatePicker from "../components/FormDatePicker";
 import useTertiaryApplication from "../hooks/useTertiaryApplication";
 import useStaffApplication from "../hooks/useStaffApplication";
 import useVocationalApplication from "../hooks/useVocationalApplication";
@@ -25,11 +26,11 @@ const infoFields = {
   educPath: "Tertiary",
   scholarshipType: "", // set dynamically below based on the selected program
   incomingFreshman: "No",
-  schoolName: "",
+  secondarySchool: "",
   strand: "STEM",
   yearGraduated: "",
-  gwa: "",
-  universityName: "",
+  secondaryGwa: "",
+  tertiarySchool: "",
   program: "",
   termType: "Semester",
   gradeScale: "1.0 - 5.00 Grading System",
@@ -37,6 +38,9 @@ const infoFields = {
   term: "1st",
   secondaryYearGraduated: "",
   expectedGradYear: "",
+  termStartDate: "",
+  termEndDate: "",
+  tertiaryGwa: "",
   prevSchoolName: "",
   prevProgram: "",
   prevYearGraduated: "",
@@ -61,93 +65,6 @@ const infoFields = {
   courseDuration: "3 months",
   completionDate: "",
 };
-
-function DatePickerModal({ visible, dateStr, onConfirm, onClose }) {
-  const initialDate = dateStr ? new Date(dateStr) : new Date();
-  const [year, setYear] = useState(isNaN(initialDate.getTime()) ? new Date().getFullYear() : initialDate.getFullYear());
-  const [month, setMonth] = useState(isNaN(initialDate.getTime()) ? new Date().getMonth() : initialDate.getMonth());
-  const [day, setDay] = useState(isNaN(initialDate.getTime()) ? new Date().getDate() : initialDate.getDate());
-
-  const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 11 }, (_, i) => currentYear - 2 + i);
-
-  useEffect(() => {
-    if (visible && dateStr) {
-      const d = new Date(dateStr);
-      if (!isNaN(d.getTime())) {
-        setYear(d.getFullYear());
-        setMonth(d.getMonth());
-        setDay(d.getDate());
-      }
-    }
-  }, [visible, dateStr]);
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.modalRoot}>
-        <View style={[styles.modalCard, { paddingBottom: 30 }]}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Completion Date</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color="#4f5fc5" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={{ flexDirection: "row", height: 200, marginTop: 16 }}>
-            <ScrollView style={{ flex: 1.2 }} showsVerticalScrollIndicator={false}>
-              {months.map((m, idx) => (
-                <TouchableOpacity
-                  key={m}
-                  style={[styles.modalOption, idx === month && styles.modalOptionActive, { marginVertical: 4, paddingVertical: 10 }]}
-                  onPress={() => { setMonth(idx); const max = daysInMonth(year, idx); if (day > max) setDay(max); }}
-                >
-                  <Text style={[styles.modalOptionText, idx === month && styles.modalOptionTextActive]}>{m}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-              {Array.from({ length: daysInMonth(year, month) }, (_, i) => i + 1).map((d) => (
-                <TouchableOpacity
-                  key={d}
-                  style={[styles.modalOption, d === day && styles.modalOptionActive, { marginVertical: 4, paddingVertical: 10 }]}
-                  onPress={() => setDay(d)}
-                >
-                  <Text style={[styles.modalOptionText, d === day && styles.modalOptionTextActive]}>{d}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-              {years.map((y) => (
-                <TouchableOpacity
-                  key={y}
-                  style={[styles.modalOption, y === year && styles.modalOptionActive, { marginVertical: 4, paddingVertical: 10 }]}
-                  onPress={() => setYear(y)}
-                >
-                  <Text style={[styles.modalOptionText, y === year && styles.modalOptionTextActive]}>{y}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.nextBtn, { marginHorizontal: 0, marginTop: 24 }]}
-            onPress={() => {
-              const d = new Date(year, month, day);
-              const formatted = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-              onConfirm(formatted);
-            }}
-          >
-            <Text style={styles.nextBtnText}>Confirm Selection</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-}
 
 export default function ProgramApplyScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
@@ -183,7 +100,6 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const [verifiedStaffId, setVerifiedStaffId] = useState("");
   const [isCheckingApplication, setIsCheckingApplication] = useState(true);
   const [ongoingApplication, setOngoingApplication] = useState(null);
-  const [datePickerVisible, setDatePickerVisible] = useState(false);
 
   const {
     submitting: tertiarySubmitting,
@@ -681,15 +597,12 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
   const renderDatePicker = (label, key) => (
     <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <TouchableOpacity
-        style={[styles.pickerInput, fieldErrors[key] && styles.errorInput]}
-        onPress={() => setDatePickerVisible(true)}
-      >
-        <Text style={styles.pickerText}>{values[key] || "Select Date"}</Text>
-        <Ionicons name="calendar-outline" size={20} color="#5b6095" />
-      </TouchableOpacity>
-      {fieldErrors[key] && <Text style={styles.errorText}>{fieldErrors[key]}</Text>}
+      <FormDatePicker
+        label={label}
+        value={values[key]}
+        error={fieldErrors[key]}
+        onDateChange={(date) => updateValue(key, date)}
+      />
     </View>
   );
 
@@ -810,18 +723,14 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderSelect("Incoming Freshman", "incomingFreshman", ["No", "Yes"])}
 
           <Text style={styles.sectionHeader}>| Secondary Education</Text>
-          {renderInput("School Name", "schoolName", "Enter School Name")}
+          {renderInput("School Name", "secondarySchool", "Enter School Name")}
           {renderSelect("Strand", "strand", ["STEM", "ABM", "HUMMS", "GAS", "TVL"])}
           {renderYearInput("Year Graduated", "yearGraduated")}
-          {values.incomingFreshman === "Yes" && (
-            <>
-              {renderInput("General Weighted Average (GWA)", "gwa", "e.g. 95 or 1.25", { keyboardType: "numeric" })}
-              {renderUpload("Grade Report", "gradeReport")}
-            </>
-          )}
+          {renderInput("Secondary GWA", "secondaryGwa", "e.g. 88.50", { keyboardType: "numeric" })}
+          {values.incomingFreshman === "Yes" && renderUpload("Grade Report", "gradeReport")}
 
           <Text style={styles.sectionHeader}>| Current Tertiary Education</Text>
-          {renderInput("University / College Name", "universityName", "Enter School Name")}
+          {renderInput("University / College Name", "tertiarySchool", "Enter School Name")}
           {renderInput("Program", "program", "Enter Program")}
           {renderSelect("Term Type", "termType", ["Semester", "Trimester", "Quarter System"])}
           {renderSelect("Grade Scale", "gradeScale", ["1.0 - 5.00 Grading System", "4.00 GPA System", "Percentage System", "Letter Grade System"])}
@@ -830,7 +739,16 @@ export default function ProgramApplyScreen({ navigation, route }) {
             values.termType === "Quarter System" ? ["1st", "2nd", "3rd", "4th"] :
               values.termType === "Trimester" ? ["1st", "2nd", "3rd"] : ["1st", "2nd"]
           )}
+          {renderDatePicker("Term Start Date", "termStartDate")}
+          {renderDatePicker("Term End Date", "termEndDate")}
           {renderYearInput("Expected Year of Graduation", "expectedGradYear")}
+          
+          {values.incomingFreshman === "No" && (
+            <>
+              {renderInput("Current Tertiary GWA", "tertiaryGwa", "e.g. 1.75 or 88.00", { keyboardType: "numeric" })}
+              {renderUpload("Current Term Report Card", "currentTermGradeReport")}
+            </>
+          )}
           {renderUpload("COR", "cor")}
         </View>
       );
@@ -929,12 +847,12 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderSelect("Incoming Freshman", "incomingFreshman", ["No", "Yes"])}
 
           <Text style={styles.sectionHeader}>| Secondary Education</Text>
-          {renderInput("School Name", "schoolName", "Enter School Name")}
+          {renderInput("School Name", "secondarySchool", "Enter School Name")}
           {renderSelect("Strand", "strand", ["STEM", "ABM", "HUMMS", "GAS", "TVL"])}
           {renderYearInput("Year Graduated", "yearGraduated")}
           {values.incomingFreshman === "Yes" && (
             <>
-              {renderInput("General Weighted Average (GWA)", "gwa", "e.g. 95 or 1.25", { keyboardType: "numeric" })}
+              {renderInput("General Weighted Average (GWA)", "secondaryGwa", "e.g. 95 or 1.25", { keyboardType: "numeric" })}
               {renderUpload("Grade Report", "gradeReport")}
             </>
           )}
@@ -1042,15 +960,11 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderSelect("Incoming Freshman?", "incomingFreshman", ["No", "Yes"])}
 
           <Text style={styles.sectionHeader}>| Secondary Education</Text>
-          {renderInput("School Name", "schoolName", "Enter School Name")}
+          {renderInput("School Name", "secondarySchool", "Enter School Name")}
           {renderSelect("Strand", "strand", ["STEM", "ABM", "HUMMS", "GAS", "TVL"])}
-          {renderYearInput("Year Graduated", "secondaryYearGraduated")}
-          {values.incomingFreshman === "Yes" && (
-            <>
-              {renderInput("General Weighted Average (GWA)", "gwa", "e.g. 95 or 1.25", { keyboardType: "numeric" })}
-              {renderUpload("Grade Report", "gradeReport")}
-            </>
-          )}
+          {renderYearInput("Year Graduated", "yearGraduated")}
+          {renderInput("Secondary GWA", "secondaryGwa", "e.g. 88.50", { keyboardType: "numeric" })}
+          {values.incomingFreshman === "Yes" && renderUpload("Grade Report", "gradeReport")}
 
           {!isChildDesignation && values.educPath === "Masters" && (
             <>
@@ -1062,7 +976,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           )}
 
           <Text style={styles.sectionHeader}>| Current Tertiary Education</Text>
-          {renderInput("University / College Name", "universityName", "Enter School Name")}
+          {renderInput("University / College Name", "tertiarySchool", "Enter School Name")}
           {renderInput("Program", "program", "Enter Program")}
           {renderSelect("Term Type", "termType", ["Semester", "Trimester", "Quarter System"])}
           {renderSelect("Grade Scale", "gradeScale", ["1.0 - 5.00 Grading System", "4.00 GPA System", "Percentage System", "Letter Grade System"])}
@@ -1071,7 +985,16 @@ export default function ProgramApplyScreen({ navigation, route }) {
             values.termType === "Quarter System" ? ["1st", "2nd", "3rd", "4th"] :
               values.termType === "Trimester" ? ["1st", "2nd", "3rd"] : ["1st", "2nd"]
           )}
+          {renderDatePicker("Term Start Date", "termStartDate")}
+          {renderDatePicker("Term End Date", "termEndDate")}
           {renderYearInput("Expected Year of Graduation", "expectedGradYear")}
+          
+          {values.incomingFreshman === "No" && (
+            <>
+              {renderInput("Current Tertiary GWA", "tertiaryGwa", "e.g. 1.75 or 88.00", { keyboardType: "numeric" })}
+              {renderUpload("Current Term Report Card", "currentTermGradeReport")}
+            </>
+          )}
           {renderUpload("COR", "cor")}
         </View>
       );
@@ -1143,16 +1066,20 @@ export default function ProgramApplyScreen({ navigation, route }) {
           ])}
 
           {renderReviewSection("Secondary Education", "school-outline", [
-            { label: "High School Name", value: values.schoolName, icon: "business-outline" },
+            { label: "High School Name", value: values.secondarySchool, icon: "business-outline" },
             { label: "Strand", value: values.strand, icon: "bookmarks-outline" },
             { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
+            { label: "Secondary GWA", value: values.secondaryGwa, icon: "analytics-outline" },
           ])}
 
           {renderReviewSection("Higher Education", "medal-outline", [
-            { label: "University / College", value: values.universityName, icon: "location-outline" },
+            { label: "University / College", value: values.tertiarySchool, icon: "location-outline" },
             { label: "Degree Program", value: values.program, icon: "school-outline" },
             { label: "Current Year Level", value: values.yearLevel, icon: "layers-outline" },
             { label: "Term System", value: values.term, icon: "time-outline" },
+            { label: "Term Start Date", value: values.termStartDate, icon: "calendar-outline" },
+            { label: "Term End Date", value: values.termEndDate, icon: "calendar-outline" },
+            ...(values.incomingFreshman === "No" ? [{ label: "Tertiary GWA", value: values.tertiaryGwa, icon: "analytics-outline" }] : []),
           ])}
 
           {renderReviewSection("Family Background", "people-outline", [
@@ -1178,6 +1105,9 @@ export default function ProgramApplyScreen({ navigation, route }) {
               { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" }
             ] : []),
             { label: "COR", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
+            ...(values.incomingFreshman === "No" ? [
+              { label: "Current Term Report", value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached", icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle" }
+            ] : []),
             { label: "Certificate of Indigency", value: uploadText.indigency ? "Attached" : "Not Attached", icon: uploadText.indigency ? "checkmark-circle" : "close-circle" },
             { label: "Birth Certificate", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
             ...(requiresIncomeProof(values.fatherStatus) ? [
@@ -1213,7 +1143,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             { label: "Incoming Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
           ])}
           {renderReviewSection("Educational History", "school-outline", [
-            { label: "HS School Name", value: values.schoolName, icon: "business-outline" },
+            { label: "HS School Name", value: values.secondarySchool, icon: "business-outline" },
             { label: "Strand / Track", value: values.strand, icon: "bookmarks-outline" },
             { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
           ])}
@@ -1280,10 +1210,33 @@ export default function ProgramApplyScreen({ navigation, route }) {
             ...(!isChildDesignation ? [{ label: "Education Path", value: values.educPath, icon: "map-outline" }] : []),
             { label: "New Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
           ])}
+          {renderReviewSection("Educational History", "school-outline", [
+            { label: "HS School Name", value: values.secondarySchool, icon: "business-outline" },
+            { label: "Strand", value: values.strand, icon: "bookmarks-outline" },
+            { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
+            { label: "Secondary GWA", value: values.secondaryGwa, icon: "analytics-outline" },
+          ])}
+          {renderReviewSection("Higher Education", "medal-outline", [
+            { label: "University / College", value: values.tertiarySchool, icon: "location-outline" },
+            { label: "Degree Program", value: values.program, icon: "school-outline" },
+            { label: "Term System", value: values.term, icon: "time-outline" },
+            { label: "Term Start Date", value: values.termStartDate, icon: "calendar-outline" },
+            { label: "Term End Date", value: values.termEndDate, icon: "calendar-outline" },
+            ...(values.incomingFreshman === "No" ? [{ label: "Tertiary GWA", value: values.tertiaryGwa, icon: "analytics-outline" }] : []),
+          ])}
           {renderReviewSection("Staff Information", "id-card-outline", [
             { label: "Staff ID", value: values.staffId, icon: "barcode-outline" },
             { label: "Staff Employee", value: `${values.firstName} ${values.lastName}`, icon: "person-outline" },
             { label: "Position", value: values.position, icon: "briefcase-outline" },
+          ])}
+          {renderReviewSection("Supporting Documents", "document-text-outline", [
+            ...(values.incomingFreshman === "Yes" ? [
+              { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" }
+            ] : []),
+            { label: "COR", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
+            ...(values.incomingFreshman === "No" ? [
+              { label: "Current Term Report", value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached", icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle" }
+            ] : []),
           ])}
         </>
       )}
@@ -1328,16 +1281,12 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
   const renderQualification = () => {
     const reportData = qualificationOutcome?.qualification_report;
-    const rules = reportData?.rule_results
-      ? Object.keys(reportData.rule_results).map((ruleKey) => {
-        const res = reportData.rule_results[ruleKey];
-        return {
-          rule: ruleKey.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-          status: res.status === "passed" ? "passed" : "failed",
-          feedback: res.message,
-        };
-      })
-      : [];
+    const detailedAiSummary = reportData?.extracted_data?.ai_detailed_summary;
+    
+    // Filter out internal/fraud rules
+    const qualificationRuleEntries = Object.entries(reportData?.rule_results || {}).filter(
+      ([ruleCode]) => !['fraud_score', 'confidence_score', 'income_doc_match', 'income_documents_valid'].some(exclude => ruleCode.toLowerCase().includes(exclude))
+    );
 
     const isQualified = reportData?.final_result === "qualified";
     const isReview = reportData?.final_result !== "qualified" && reportData?.final_result !== "not_qualified";
@@ -1364,41 +1313,109 @@ export default function ProgramApplyScreen({ navigation, route }) {
         </View>
 
         {/* AI Report Card */}
-        <View style={[styles.reviewCard, { padding: 0, overflow: "hidden", borderWidth: 1, borderColor: "#dbe2f6" }]}>
-          <View style={{ backgroundColor: "#fbfbff", padding: 18, borderBottomWidth: 1, borderBottomColor: "#eff1f8" }}>
+        <View style={[styles.reviewCard, { padding: 0, overflow: "hidden", borderWidth: 1, borderColor: "#dbe2f6", backgroundColor: "#f7f8ff" }]}>
+          <View style={{ padding: 18, borderBottomWidth: 1, borderBottomColor: "#eff1f8" }}>
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
               <Ionicons name="sparkles" size={20} color="#4f5ec4" style={{ marginRight: 8 }} />
-              <Text style={{ fontSize: 18, fontWeight: "900", color: "#3d4fa0" }}>Qualification Report</Text>
+              <Text style={{ fontSize: 18, fontWeight: "900", color: "#3d4fa0" }}>AI Qualification Report</Text>
             </View>
-            <Text style={{ fontSize: 13, color: "#7a82a0", lineHeight: 20 }}>
-              Below is the automated assessment against the scholarship's strict eligibility criteria.
+            <Text style={{ fontSize: 14, color: "#6b7280", lineHeight: 20 }}>
+              {reportData?.summary || 'No qualification report summary available.'}
             </Text>
           </View>
 
           <View style={{ padding: 18 }}>
-            {rules.length === 0 && (
+            {detailedAiSummary && (
+              <View style={{ marginBottom: 20, borderRadius: 12, borderWidth: 1, borderColor: "#e5e7eb", backgroundColor: "#fff", padding: 16 }}>
+                <Text style={{ fontSize: 16, fontWeight: "800", color: "#3d4076", marginBottom: 12 }}>AI Smart Evaluation</Text>
+
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: "#047857", marginBottom: 8 }}>Strengths</Text>
+                  {(detailedAiSummary?.strengths || []).map((item, index) => (
+                    <View key={`strength-${index}`} style={{ flexDirection: 'row', marginBottom: 6 }}>
+                      <Text style={{ color: "#047857", marginRight: 6 }}>•</Text>
+                      <Text style={{ fontSize: 14, color: "#374151", flex: 1 }}>{item}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: "#be123c", marginBottom: 8 }}>Red Flags</Text>
+                  {(detailedAiSummary?.red_flags || []).map((item, index) => (
+                    <View key={`red-flag-${index}`} style={{ flexDirection: 'row', marginBottom: 6 }}>
+                      <Text style={{ color: "#be123c", marginRight: 6 }}>•</Text>
+                      <Text style={{ fontSize: 14, color: "#374151", flex: 1 }}>{item}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                  <View style={{ width: '48%', backgroundColor: "#f9fafb", borderRadius: 8, padding: 12, marginBottom: 10 }}>
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: "#6b7280", textTransform: "uppercase", marginBottom: 4 }}>Summary</Text>
+                    <Text style={{ fontSize: 13, color: "#374151" }}>{detailedAiSummary?.summary || 'No summary available.'}</Text>
+                  </View>
+                  <View style={{ width: '48%', backgroundColor: "#f9fafb", borderRadius: 8, padding: 12, marginBottom: 10 }}>
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: "#6b7280", textTransform: "uppercase", marginBottom: 4 }}>Recommendation</Text>
+                    <Text style={{ fontSize: 13, color: "#374151" }}>{detailedAiSummary?.recommendation || 'No recommendation available.'}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {qualificationRuleEntries.length === 0 && !detailedAiSummary && (
               <View style={{ alignItems: "center", paddingVertical: 20 }}>
                 <Ionicons name="document-text-outline" size={48} color="#e4e8f6" />
                 <Text style={{ color: "#8a94b5", marginTop: 10, fontWeight: "600" }}>Application submitted successfully.</Text>
               </View>
             )}
 
-            {rules.map((item, idx) => {
-              const passed = item.status === "passed";
-              return (
-                <View key={idx} style={{ marginBottom: idx === rules.length - 1 ? 0 : 16 }}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                    <Text style={{ color: "#2d3a7c", fontWeight: "800", fontSize: 14, flex: 1, paddingRight: 10 }}>{item.rule}</Text>
-                    <View style={{ backgroundColor: passed ? "#e6fff5" : "#fff0f0", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
-                      <Text style={{ color: passed ? "#1a9e6a" : "#e03a3a", fontWeight: "800", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>{item.status}</Text>
-                    </View>
-                  </View>
-                  <Text style={{ color: "#6e7798", fontSize: 13, lineHeight: 18, backgroundColor: "#f8f9fc", padding: 10, borderRadius: 8, borderWidth: 1, borderColor: "#eff1f8" }}>
-                    {item.feedback}
-                  </Text>
+            {qualificationRuleEntries.length > 0 && (
+              <View style={{ borderRadius: 12, borderWidth: 1, borderColor: "#e5e7eb", backgroundColor: "#fff", overflow: "hidden" }}>
+                {/* Table Header */}
+                <View style={{ flexDirection: "row", backgroundColor: "#f9fafb", borderBottomWidth: 1, borderBottomColor: "#e5e7eb", paddingVertical: 10, paddingHorizontal: 12 }}>
+                  <Text style={{ flex: 1.5, fontSize: 13, fontWeight: "700", color: "#4b5563" }}>Rule</Text>
+                  <Text style={{ flex: 1, fontSize: 13, fontWeight: "700", color: "#4b5563" }}>Status</Text>
+                  <Text style={{ flex: 2, fontSize: 13, fontWeight: "700", color: "#4b5563" }}>Feedback</Text>
                 </View>
-              );
-            })}
+
+                {/* Table Body */}
+                {qualificationRuleEntries.map(([ruleCode, result], idx) => {
+                  const passed = Boolean(result?.passed);
+                  const state = result?.status || (passed ? 'passed' : 'failed');
+                  
+                  let badgeBg = "#fff0f0";
+                  let badgeText = "#e03a3a";
+                  if (state === 'for_review') {
+                    badgeBg = "#fffbeb";
+                    badgeText = "#b45309";
+                  } else if (passed) {
+                    badgeBg = "#ecfdf5";
+                    badgeText = "#047857";
+                  }
+
+                  const formattedRuleCode = ruleCode
+                    .split('_')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                    .join(' ');
+
+                  return (
+                    <View key={ruleCode} style={{ flexDirection: "row", borderBottomWidth: idx === qualificationRuleEntries.length - 1 ? 0 : 1, borderBottomColor: "#f3f4f6", paddingVertical: 12, paddingHorizontal: 12 }}>
+                      <View style={{ flex: 1.5, paddingRight: 8 }}>
+                        <Text style={{ color: "#1f2937", fontWeight: "600", fontSize: 13 }}>{formattedRuleCode}</Text>
+                      </View>
+                      <View style={{ flex: 1, justifyContent: "flex-start", alignItems: "flex-start", paddingRight: 8 }}>
+                        <View style={{ backgroundColor: badgeBg, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                          <Text style={{ color: badgeText, fontWeight: "700", fontSize: 11, textTransform: "uppercase" }}>{state}</Text>
+                        </View>
+                      </View>
+                      <View style={{ flex: 2 }}>
+                        <Text style={{ color: "#4b5563", fontSize: 13 }}>{result?.message || 'No feedback available'}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </View>
 
           {/* Final Status Footer */}
@@ -1558,15 +1575,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
         </View>
       </Modal>
 
-      <DatePickerModal
-        visible={datePickerVisible}
-        dateStr={values.completionDate}
-        onConfirm={(formatted) => {
-          updateValue("completionDate", formatted);
-          setDatePickerVisible(false);
-        }}
-        onClose={() => setDatePickerVisible(false)}
-      />
+
     </View>
   );
 }
