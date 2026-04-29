@@ -3,9 +3,10 @@ import { submitFinancialAssistance } from "../services/financialAssistanceServic
 
 const REQUIRED_FIELDS = {
   itemDescription: "Item / Description is required.",
-  subjectCourse: "Subject / Course is required.",
-  whereToPurchase: "Where to purchase is required.",
-  amountRequested: "Amount requested is required.",
+  subject: "Subject / Course is required.",
+  purchasePlace: "Where to purchase is required.",
+  academicYear: "Academic year is required.",
+  term: "Term is required.",
   purpose: "Purpose / Justification is required.",
 };
 
@@ -36,7 +37,6 @@ export const useFinancialAssistance = () => {
 
   const validateForm = useCallback((values, receiptItems) => {
     const nextErrors = {};
-    let hasReceiptError = false;
 
     Object.entries(REQUIRED_FIELDS).forEach(([key, message]) => {
       if (!values?.[key]) {
@@ -44,21 +44,19 @@ export const useFinancialAssistance = () => {
       }
     });
 
-    if (values?.amountRequested && isNaN(Number(values.amountRequested.replace(/,/g, '')))) {
-      nextErrors.amountRequested = "Amount must be numbers only.";
-    }
-
     receiptItems.forEach((item, idx) => {
       if (!item.file) {
         nextErrors[`receipt_file_${idx}`] = "Receipt file is missing.";
-        hasReceiptError = true;
       }
       if (!item.purchaseDate) {
         nextErrors[`receipt_date_${idx}`] = "Purchase Date is missing.";
-        hasReceiptError = true;
       } else if (!isValidDateString(item.purchaseDate)) {
         nextErrors[`receipt_date_${idx}`] = "Use mm/dd/yyyy format.";
-        hasReceiptError = true;
+      }
+      
+      const amountValue = Number(String(item.amount || "").replace(/,/g, ""));
+      if (!item.amount || isNaN(amountValue) || amountValue <= 0) {
+        nextErrors[`receipt_amount_${idx}`] = "Valid amount is required.";
       }
     });
 
@@ -74,12 +72,17 @@ export const useFinancialAssistance = () => {
 
     const formData = {
       itemDescription: values.itemDescription,
-      subject: values.subjectCourse,
-      purchasePlace: values.whereToPurchase,
-      amount: values.amountRequested,
+      subject: values.subject,
+      purchasePlace: values.purchasePlace,
+      academicYear: values.academicYear,
+      term: values.term,
       purpose: values.purpose,
       defaultReason: "Study Needs",
-      receipts: receiptItems.map(r => ({ purchaseDate: toIsoDate(r.purchaseDate), notes: r.additionalNotes }))
+      receipts: receiptItems.map(r => ({ 
+        purchaseDate: toIsoDate(r.purchaseDate), 
+        amount: Number(String(r.amount || "").replace(/,/g, "")),
+        notes: r.additionalNotes || "" 
+      }))
     };
 
     const files = {
@@ -97,9 +100,10 @@ export const useFinancialAssistance = () => {
            const normalized = String(f || "").toLowerCase();
            const FIELD_MAP = {
               itemdescription: "itemDescription",
-              subject: "subjectCourse",
-              purchaseplace: "whereToPurchase",
-              amount: "amountRequested",
+              subject: "subject",
+              purchaseplace: "purchasePlace",
+              academicyear: "academicYear",
+              term: "term",
               purpose: "purpose",
            };
            return FIELD_MAP[normalized] || f || "_general";
@@ -116,7 +120,6 @@ export const useFinancialAssistance = () => {
         }
         setFieldErrors(nextErrors);
         
-        // Suppress native throw for standard backend field validations to avoid alert toasts
         if (Object.keys(nextErrors).length > 0) {
            err.isValidationError = true;
         }

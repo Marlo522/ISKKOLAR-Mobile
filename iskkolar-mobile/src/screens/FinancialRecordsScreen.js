@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useContext } from "react";
+import React, { useState, useEffect, useRef, useContext, useCallback } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert, Animated, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,22 +7,28 @@ import * as ImagePicker from "expo-image-picker";
 import { AuthContext } from "../context/AuthContext";
 import { useFinancialAssistance } from "../hooks/useFinancialAssistance";
 import { financialRecordsService } from "../services/financialRecordsService";
+import { getFinancialAssistanceApplications } from "../services/financialAssistanceService";
 
 export default function FinancialRecordsScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(-1); // -1: Landing, 10: Other Study Needs, 20: Upload Receipt
+  const [activeTab, setActiveTab] = useState("disbursements"); // "disbursements" or "proofs"
   const [values, setValues] = useState({
     itemDescription: "",
-    subjectCourse: "",
-    whereToPurchase: "",
-    amountRequested: "",
+    subject: "",
+    purchasePlace: "",
+    academicYear: "2024-2025",
+    term: "1st Semester",
     purpose: "",
   });
   
   const [receiptItems, setReceiptItems] = useState([
-    { file: null, purchaseDate: "", additionalNotes: "" }
+    { file: null, purchaseDate: "", amount: "", additionalNotes: "" }
   ]);
+  
+  const [submissionResult, setSubmissionResult] = useState(null);
+  const [expandedApp, setExpandedApp] = useState(null); // Track which application has AI summary expanded
   
   const [supportingDocument, setSupportingDocument] = useState(null);
   const [completeStage, setCompleteStage] = useState("none");
@@ -36,8 +42,11 @@ export default function FinancialRecordsScreen({ navigation }) {
 
   // Financial Records State
   const [transactions, setTransactions] = useState([]);
+  const [applications, setApplications] = useState([]);
   const [isLoadingRecords, setIsLoadingRecords] = useState(true);
+  const [isLoadingApps, setIsLoadingApps] = useState(true);
   const [recordsError, setRecordsError] = useState(null);
+  const [appsError, setAppsError] = useState(null);
 
   const {
     submitting,
@@ -61,27 +70,43 @@ export default function FinancialRecordsScreen({ navigation }) {
     }).start();
   }, [step, completeStage, submitting]);
 
-  useEffect(() => {
-    const fetchRecords = async () => {
-      try {
-        setIsLoadingRecords(true);
-        setRecordsError(null);
-        const result = await financialRecordsService.getScholarRecords();
-        if (result.success) {
-          setTransactions(result.data);
-        } else {
-          setRecordsError(result.message || "Failed to load records");
-        }
-      } catch (err) {
-        console.error("Failed to fetch financial records:", err);
-        setRecordsError(err.message || "Could not connect to the server.");
-      } finally {
-        setIsLoadingRecords(false);
+  const fetchRecords = useCallback(async () => {
+    try {
+      setIsLoadingRecords(true);
+      setRecordsError(null);
+      const result = await financialRecordsService.getScholarRecords();
+      if (result.success) {
+        setTransactions(result.data);
+      } else {
+        setRecordsError(result.message || "Failed to load records");
       }
-    };
-
-    fetchRecords();
+    } catch (err) {
+      console.error("Failed to fetch financial records:", err);
+      setRecordsError(err.message || "Could not connect to the server.");
+    } finally {
+      setIsLoadingRecords(false);
+    }
   }, []);
+
+  const fetchApplications = useCallback(async () => {
+    try {
+      setIsLoadingApps(true);
+      setAppsError(null);
+      const result = await getFinancialAssistanceApplications();
+      // Assuming result is an array or has a data property
+      setApplications(Array.isArray(result) ? result : result.data || []);
+    } catch (err) {
+      console.error("Failed to fetch applications:", err);
+      setAppsError(err.message || "Could not load applications.");
+    } finally {
+      setIsLoadingApps(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRecords();
+    fetchApplications();
+  }, [fetchRecords, fetchApplications]);
 
   useEffect(() => {
     if (submitting) {
@@ -235,7 +260,7 @@ export default function FinancialRecordsScreen({ navigation }) {
   };
 
   const addReceiptItem = () => {
-    setReceiptItems([...receiptItems, { file: null, purchaseDate: "", additionalNotes: "" }]);
+    setReceiptItems([...receiptItems, { file: null, purchaseDate: "", amount: "", additionalNotes: "" }]);
   };
 
   const removeReceiptItem = (index) => {
@@ -284,9 +309,33 @@ export default function FinancialRecordsScreen({ navigation }) {
     }
   };
 
+  const getApplicationStatusStyle = (status) => {
+    switch (status?.toLowerCase()) {
+      case "approved":
+      case "success":
+        return { bg: "#e6f7ef", text: "#0d7c47", icon: "checkmark-circle" };
+      case "pending":
+      case "submitted":
+        return { bg: "#fff8e6", text: "#b5850a", icon: "time" };
+      case "rejected":
+      case "denied":
+        return { bg: "#ffe6e6", text: "#c00000", icon: "close-circle" };
+      case "mismatch":
+      case "flagged":
+        return { bg: "#fff1f1", text: "#e11d48", icon: "alert-circle" };
+      default:
+        return { bg: "#f3f4f6", text: "#6b7280", icon: "help-circle" };
+    }
+  };
+
   const totalReceived = transactions
     .filter((t) => ["Confirmed", "Released"].includes(t.status))
     .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+
+  const totalRequested = receiptItems.reduce((sum, item) => {
+    const val = parseFloat(String(item.amount || "").replace(/,/g, ""));
+    return sum + (isNaN(val) ? 0 : val);
+  }, 0);
 
   const submitReceipt = async () => {
     if (!validateForm(values, receiptItems)) {
@@ -294,7 +343,8 @@ export default function FinancialRecordsScreen({ navigation }) {
     }
     
     try {
-      await submitApplication(values, receiptItems, supportingDocument);
+      const res = await submitApplication(values, receiptItems, supportingDocument);
+      setSubmissionResult(res);
       setCompleteStage("success");
     } catch (err) {
       if (!err?.isValidationError) {
@@ -401,17 +451,35 @@ export default function FinancialRecordsScreen({ navigation }) {
     }
     
     if (completeStage === "success") {
+      const aiSummary = submissionResult?.data?.aiSummary || submissionResult?.aiSummary;
       return (
         <View style={styles.centered}>
           <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
             <Ionicons name="checkmark-circle" size={120} color="#29d0a5" />
           </Animated.View>
           <Text style={[styles.completeText, { marginTop: 8 }]}>Receipt Uploaded!</Text>
-          <Text style={{ textAlign: "center", color: "#6b72aa", paddingHorizontal: 30, marginBottom: 30, fontSize: 16, lineHeight: 22 }}>
+          <Text style={{ textAlign: "center", color: "#6b72aa", paddingHorizontal: 30, marginBottom: aiSummary ? 20 : 30, fontSize: 16, lineHeight: 22 }}>
             Your receipt has been successfully submitted for processing.
           </Text>
-          <TouchableOpacity style={styles.submitBtnOk} onPress={() => navigation.navigate("ScholarDashboardMain")}>
-            <Text style={styles.submitBtnOkText}>Return Home</Text>
+
+          {aiSummary && (
+            <View style={styles.aiSummaryCard}>
+              <View style={styles.aiHeader}>
+                <Ionicons name="sparkles" size={18} color="#5b5f97" />
+                <Text style={styles.aiTitle}>AI Analysis & Advice</Text>
+              </View>
+              <Text style={styles.aiText}>{aiSummary}</Text>
+            </View>
+          )}
+
+          <TouchableOpacity style={styles.submitBtnOk} onPress={() => {
+             setStep(-1);
+             setCompleteStage("none");
+             setSubmissionResult(null);
+             fetchApplications(); 
+             navigation.navigate("ScholarDashboardMain");
+          }}>
+            <Text style={styles.submitBtnOkText}>Go to Dashboard</Text>
           </TouchableOpacity>
         </View>
       );
@@ -456,72 +524,212 @@ export default function FinancialRecordsScreen({ navigation }) {
               </View>
             </View>
 
-            <View style={styles.sectionTitleBlock}>
-              <Text style={styles.sectionTitle}>Transaction History</Text>
-              <Text style={styles.sectionSubtitle}>{new Date().getFullYear()}</Text>
+            <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderRadius: 14, padding: 4, marginBottom: 20, borderWidth: 1, borderColor: '#e4e8f8' }}>
+              <TouchableOpacity 
+                style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10, backgroundColor: activeTab === 'disbursements' ? '#5b5f97' : 'transparent' }}
+                onPress={() => setActiveTab('disbursements')}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: activeTab === 'disbursements' ? '#fff' : '#6b72aa' }}>Disbursements</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10, backgroundColor: activeTab === 'proofs' ? '#5b5f97' : 'transparent' }}
+                onPress={() => setActiveTab('proofs')}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: activeTab === 'proofs' ? '#fff' : '#6b72aa' }}>Expense Proofs</Text>
+              </TouchableOpacity>
             </View>
 
-            {isLoadingRecords ? (
-              <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 40 }]}>
-                <Text style={{ color: '#888', fontWeight: '600' }}>Loading records...</Text>
-              </View>
-            ) : recordsError ? (
-              <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 30 }]}>
-                <Text style={{ color: '#dc2626', fontWeight: '600', textAlign: 'center' }}>{recordsError}</Text>
-              </View>
-            ) : transactions.length === 0 ? (
-              <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 40, borderStyle: 'dashed' }]}>
-                <Text style={{ color: '#888', fontWeight: '600' }}>No financial records found.</Text>
-              </View>
-            ) : (
-              transactions.map((tx) => {
-                const statusStyle = getStatusStyle(tx.status);
-                return (
-                  <View key={tx.id} style={styles.txCard}>
-                    <View style={styles.txHeaderRow}>
-                      <View style={[styles.txIconBox, { backgroundColor: statusStyle.bg }]}>
-                        <Ionicons name="cash" size={24} color={statusStyle.text} />
-                      </View>
-                      <View style={styles.txHeaderTextCol}>
-                        <Text style={styles.txHeaderTitle}>{tx.title}</Text>
-                        <Text style={styles.txHeaderSub}>{tx.period}</Text>
-                      </View>
-                      <View style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}>
-                        <Text style={[styles.statusPillText, { color: statusStyle.text }]}>{tx.status}</Text>
-                      </View>
-                    </View>
-                    
-                    <View style={styles.lineDivider} />
-                    
-                    <View style={styles.txFooterRow}>
-                      <View style={styles.txFooterCol}>
-                        <Text style={styles.txFooterLabel}>Date</Text>
-                        <Text style={styles.txFooterValue}>{formatDate(tx.date)}</Text>
-                      </View>
-                      <View style={styles.txFooterCol}>
-                        <Text style={styles.txFooterLabel}>Amount</Text>
-                        <Text style={[styles.txFooterValue, { color: '#0d7c47' }]}>{formatCurrency(tx.amount)}</Text>
-                      </View>
-                      <View style={styles.txFooterColRight}>
-                        <Text style={styles.txFooterLabel}>Type</Text>
-                        <Text style={styles.txFooterValue}>{tx.type || "Disbursement"}</Text>
-                      </View>
-                    </View>
+            {activeTab === 'disbursements' ? (
+              <>
+                <View style={styles.sectionTitleBlock}>
+                  <Text style={styles.sectionTitle}>Transaction History</Text>
+                  <Text style={styles.sectionSubtitle}>{new Date().getFullYear()}</Text>
+                </View>
+
+                {isLoadingRecords ? (
+                  <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 40 }]}>
+                    <Text style={{ color: '#888', fontWeight: '600' }}>Loading records...</Text>
                   </View>
-                );
-              })
+                ) : recordsError ? (
+                  <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 30 }]}>
+                    <Text style={{ color: '#dc2626', fontWeight: '600', textAlign: 'center' }}>{recordsError}</Text>
+                  </View>
+                ) : transactions.length === 0 ? (
+                  <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 40, borderStyle: 'dashed' }]}>
+                    <Text style={{ color: '#888', fontWeight: '600' }}>No financial records found.</Text>
+                  </View>
+                ) : (
+                  transactions.map((tx) => {
+                    const statusStyle = getStatusStyle(tx.status);
+                    return (
+                      <View key={tx.id} style={styles.txCard}>
+                        <View style={styles.txHeaderRow}>
+                          <View style={[styles.txIconBox, { backgroundColor: statusStyle.bg }]}>
+                            <Ionicons name="cash" size={24} color={statusStyle.text} />
+                          </View>
+                          <View style={styles.txHeaderTextCol}>
+                            <Text style={styles.txHeaderTitle}>{tx.title}</Text>
+                            <Text style={styles.txHeaderSub}>{tx.period}</Text>
+                          </View>
+                          <View style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}>
+                            <Text style={[styles.statusPillText, { color: statusStyle.text }]}>{tx.status}</Text>
+                          </View>
+                        </View>
+                        
+                        <View style={styles.lineDivider} />
+                        
+                        <View style={styles.txFooterRow}>
+                          <View style={styles.txFooterCol}>
+                            <Text style={styles.txFooterLabel}>Date</Text>
+                            <Text style={styles.txFooterValue}>{formatDate(tx.date)}</Text>
+                          </View>
+                          <View style={styles.txFooterCol}>
+                            <Text style={styles.txFooterLabel}>Amount</Text>
+                            <Text style={[styles.txFooterValue, { color: '#0d7c47' }]}>{formatCurrency(tx.amount)}</Text>
+                          </View>
+                          <View style={styles.txFooterColRight}>
+                            <Text style={styles.txFooterLabel}>Type</Text>
+                            <Text style={styles.txFooterValue}>{tx.type || "Disbursement"}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+              </>
+            ) : (
+              <>
+                <View style={styles.sectionTitleBlock}>
+                  <Text style={styles.sectionTitle}>Submission History</Text>
+                  <Text style={styles.sectionSubtitle}>Track your liquidation proofs</Text>
+                </View>
+
+                {isLoadingApps ? (
+                  <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 40 }]}>
+                    <Text style={{ color: '#888', fontWeight: '600' }}>Loading submissions...</Text>
+                  </View>
+                ) : appsError ? (
+                  <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 30 }]}>
+                    <Text style={{ color: '#dc2626', fontWeight: '600', textAlign: 'center' }}>{appsError}</Text>
+                  </View>
+                ) : applications.length === 0 ? (
+                  <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 40, borderStyle: 'dashed' }]}>
+                    <Text style={{ color: '#888', fontWeight: '600' }}>No expense proofs submitted yet.</Text>
+                  </View>
+                ) : (
+                  applications.map((sub) => {
+                    const submissionData = Array.isArray(sub.expense_proof_submissions) 
+                      ? sub.expense_proof_submissions[0] 
+                      : sub.expense_proof_submissions;
+                    
+                    if (!submissionData) return null;
+                    
+                    const receipts = submissionData.expense_proof_receipts || [];
+                    const totalAmount = receipts.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+                    const statusStyle = getApplicationStatusStyle(sub.status);
+
+                    return (
+                      <View key={sub.id} style={styles.proofCard}>
+                        {/* Header */}
+                        <View style={styles.proofHeader}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.proofCategory}>
+                              {submissionData.category || submissionData.item_description || "Study Needs"}
+                            </Text>
+                            <Text style={styles.proofDate}>Submitted: {formatDate(sub.submitted_at)}</Text>
+                          </View>
+                          <View style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}>
+                            <Text style={[styles.statusPillText, { color: statusStyle.text }]}>
+                              {sub.status?.toUpperCase().replace("_", " ")}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.lineDivider} />
+
+                        {/* Info Grid */}
+                        <View style={styles.infoGrid}>
+                          <View style={styles.infoCol}>
+                            <Text style={styles.infoLabel}>Academic Term</Text>
+                            <Text style={styles.infoValue}>{submissionData.term} AY {submissionData.academic_year}</Text>
+                          </View>
+                          <View style={styles.infoCol}>
+                            <Text style={styles.infoLabel}>Total Amount</Text>
+                            <Text style={[styles.infoValue, { color: '#0d7c47', fontWeight: '800' }]}>{formatCurrency(totalAmount)}</Text>
+                          </View>
+                        </View>
+                        <View style={[styles.infoGrid, { marginTop: 12 }]}>
+                          <View style={styles.infoCol}>
+                            <Text style={styles.infoLabel}>Purchase Place</Text>
+                            <Text style={styles.infoValue} numberOfLines={1}>{submissionData.purchase_place || "--"}</Text>
+                          </View>
+                          <View style={styles.infoCol}>
+                            <Text style={styles.infoLabel}>Item Description</Text>
+                            <Text style={styles.infoValue} numberOfLines={1}>{submissionData.item_description || "--"}</Text>
+                          </View>
+                        </View>
+
+                        {/* AI Summary Section */}
+                        <View style={styles.proofAiBox}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                            <Ionicons name="sparkles" size={14} color="#5b5f97" style={{ marginRight: 6 }} />
+                            <Text style={styles.proofAiTitle}>AI Verification Summary</Text>
+                          </View>
+                          <Text style={styles.proofAiText}>
+                            {submissionData.ai_summary || "AI verification is in progress. Please check back later."}
+                          </Text>
+                        </View>
+
+                        {/* Receipts List */}
+                        <View style={{ marginTop: 16 }}>
+                          <Text style={styles.receiptsListTitle}>Receipts ({receipts.length})</Text>
+                          <View style={{ gap: 8, marginTop: 8 }}>
+                            {receipts.map((receipt, idx) => (
+                              <View key={receipt.id || idx} style={styles.receiptItemRow}>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={styles.receiptItemName}>Receipt #{idx + 1}</Text>
+                                  <Text style={styles.receiptItemDate}>Date: {new Date(receipt.purchase_date).toLocaleDateString()}</Text>
+                                </View>
+                                <View style={{ alignItems: 'flex-end' }}>
+                                  <Text style={styles.receiptItemAmount}>{formatCurrency(receipt.amount)}</Text>
+                                  {receipt.validation_status && (
+                                    <View style={[
+                                      styles.ocrPill, 
+                                      { backgroundColor: receipt.validation_status === 'matched' ? '#e6f7ef' : 
+                                                         receipt.validation_status === 'pending' ? '#f3f4f6' : '#fff1f1' }
+                                    ]}>
+                                      <Text style={[
+                                        styles.ocrPillText,
+                                        { color: receipt.validation_status === 'matched' ? '#0d7c47' : 
+                                                 receipt.validation_status === 'pending' ? '#6b7280' : '#e11d48' }
+                                      ]}>
+                                        {receipt.validation_status === 'matched' ? 'OCR MATCH' : 
+                                         receipt.validation_status === 'pending' ? 'UNVERIFIED' : 'OCR MISMATCH'}
+                                      </Text>
+                                    </View>
+                                  )}
+                                </View>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+              </>
             )}
 
             <View style={styles.sectionTitleBlock}>
-              <Text style={styles.sectionTitle}>Request Financial Assistance</Text>
+              <Text style={styles.sectionTitle}>Action Center</Text>
               <Text style={styles.sectionSubtitle}>For study-related needs</Text>
             </View>
 
             <TouchableOpacity style={[styles.actionBlock, { backgroundColor: '#29d0a5', marginTop: 0 }]} onPress={() => setStep(20)}>
               <Ionicons name="receipt-outline" size={30} color="#fff" />
               <View style={styles.actionBlockTextCol}>
-                <Text style={styles.actionBlockTitle}>Submit Receipt</Text>
-                <Text style={styles.actionBlockSub}>Upload liquidation documents</Text>
+                <Text style={styles.actionBlockTitle}>Submit Proof of Expense</Text>
+                <Text style={styles.actionBlockSub}>Upload receipts and details</Text>
               </View>
               <Ionicons name="arrow-forward" size={24} color="#fff" />
             </TouchableOpacity>
@@ -533,9 +741,40 @@ export default function FinancialRecordsScreen({ navigation }) {
           <View style={styles.formContainer}>
             <Text style={[styles.sectionTitleHeader, { marginBottom: 16 }]}>| Expense Details</Text>
             {renderInput("Item / Description", "itemDescription", "Calculus 10th Edition")}
-            {renderInput("Subject / Course", "subjectCourse", "Calculus 1")}
-            {renderInput("Where to Purchase", "whereToPurchase", "National Bookstore")}
-            {renderInput("Amount Requested", "amountRequested", "500", "numeric")}
+            {renderInput("Subject / Course", "subject", "Calculus 1")}
+            {renderInput("Where to Purchase", "purchasePlace", "National Bookstore")}
+            
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                {renderInput("Academic Year", "academicYear", "2024-2025")}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Term <Text style={{color: 'red'}}>*</Text></Text>
+                <View style={[styles.row, { height: 50, borderWidth: 1, borderColor: '#a9b1c0', borderRadius: 12, backgroundColor: '#fff', overflow: 'hidden' }]}>
+                   <TextInput
+                      style={[styles.input, { borderWidth: 0 }]}
+                      value={values.term}
+                      editable={false}
+                   />
+                   <View style={{ position: 'absolute', right: 12, top: 15 }}>
+                      <Ionicons name="chevron-down" size={18} color="#555" />
+                   </View>
+                   {/* Simplified select using a hidden Touchable for demo purposes or I can implement a proper modal picker */}
+                   <TouchableOpacity 
+                      style={StyleSheet.absoluteFill} 
+                      onPress={() => {
+                        Alert.alert("Select Term", "", [
+                          { text: "1st Semester", onPress: () => setValues({...values, term: "1st Semester"}) },
+                          { text: "2nd Semester", onPress: () => setValues({...values, term: "2nd Semester"}) },
+                          { text: "Summer", onPress: () => setValues({...values, term: "Summer"}) },
+                          { text: "Cancel", style: "cancel" }
+                        ]);
+                      }}
+                   />
+                </View>
+              </View>
+            </View>
+
             {renderTextArea("Purpose / Justification", "purpose", "Explain why this is needed")}
             
             <Text style={styles.label}>Supporting Document (Optional)</Text>
@@ -593,6 +832,22 @@ export default function FinancialRecordsScreen({ navigation }) {
                   </TouchableOpacity>
                   {fieldErrors[`receipt_date_${idx}`] && <Text style={styles.errorText}>{fieldErrors[`receipt_date_${idx}`]}</Text>}
                 </View>
+
+                <Text style={styles.label}>Amount (Php) <Text style={{color: 'red'}}>*</Text></Text>
+                <View style={[styles.row, fieldErrors[`receipt_amount_${idx}`] && styles.rowWithError]}>
+                  <TextInput
+                    placeholderTextColor="#888"
+                    value={item.amount}
+                    placeholder="e.g. 500"
+                    keyboardType="numeric"
+                    onChangeText={(text) => {
+                      const sanitizedText = text.replace(/[^0-9.]/g, '');
+                      updateReceiptField(idx, 'amount', sanitizedText);
+                    }}
+                    style={[styles.input, fieldErrors[`receipt_amount_${idx}`] && { borderColor: 'red' }]}
+                  />
+                  {fieldErrors[`receipt_amount_${idx}`] && <Text style={styles.errorText}>{fieldErrors[`receipt_amount_${idx}`]}</Text>}
+                </View>
                 
                 <Text style={styles.label}>Additional Notes (Optional)</Text>
                 <View style={styles.row}>
@@ -602,7 +857,7 @@ export default function FinancialRecordsScreen({ navigation }) {
                     multiline
                     numberOfLines={4}
                     onChangeText={(text) => updateReceiptField(idx, 'additionalNotes', text)}
-                    style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
+                    style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
                   />
                 </View>
               </View>
@@ -613,8 +868,12 @@ export default function FinancialRecordsScreen({ navigation }) {
               <Text style={styles.addAnotherText}>Add Another Receipt</Text>
             </TouchableOpacity>
             
-            <View style={{ backgroundColor: '#f9fafc', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#e4e8f8', marginBottom: 24 }}>
-              <Text style={{ fontSize: 13, color: '#6b72aa', lineHeight: 20 }}>
+            <View style={{ backgroundColor: '#f4f6fb', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#e4e8f8', marginBottom: 24 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: '#1c2131' }}>Total Requested Amount:</Text>
+                <Text style={{ fontSize: 18, fontWeight: '900', color: '#5b5f97' }}>{formatCurrency(totalRequested)}</Text>
+              </View>
+              <Text style={{ fontSize: 12, color: '#6b72aa', lineHeight: 18 }}>
                 Keep receipts clear and readable. If you do not have a receipt yet, add a justification and upload once available.
               </Text>
             </View>
@@ -791,6 +1050,10 @@ const styles = StyleSheet.create({
   content: { flex: 1 },
   centered: { alignItems: "center", justifyContent: "center", marginTop: 120 },
   completeText: { fontSize: 22, fontWeight: "800", color: "#3f4ca8", marginTop: 16, marginBottom: 8 },
+  aiSummaryCard: { backgroundColor: '#f0f2fb', borderRadius: 16, padding: 16, marginHorizontal: 20, marginBottom: 24, borderWidth: 1, borderColor: '#dce1f5', width: '90%' },
+  aiHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  aiTitle: { fontSize: 14, fontWeight: '800', color: '#5b5f97', marginLeft: 8 },
+  aiText: { fontSize: 13, color: '#4a4e7d', lineHeight: 20, fontStyle: 'italic' },
   submitBtnOk: { borderRadius: 12, backgroundColor: "#4f5fc5", paddingVertical: 14, paddingHorizontal: 30, marginTop: 10 },
   submitBtnOkText: { color: "#fff", fontWeight: "800", fontSize: 16 },
   
@@ -810,5 +1073,24 @@ const styles = StyleSheet.create({
   calendarDayText: { color: "#1c2131", fontSize: 16, fontWeight: "600" },
   calendarCloseBtn: { marginTop: 16, alignSelf: "flex-end", padding: 8, paddingBottom: 0 },
   calendarCloseText: { color: "#4f5ec4", fontSize: 15, fontWeight: "700" },
+  
+  proofCard: { backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 20, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2, borderWidth: 1, borderColor: "#e4e8f6" },
+  proofHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+  proofCategory: { fontSize: 15, fontWeight: '800', color: '#1a1a2e', marginBottom: 2 },
+  proofDate: { fontSize: 12, color: '#888' },
+  infoGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+  infoCol: { flex: 1 },
+  infoLabel: { fontSize: 11, color: '#888', marginBottom: 2 },
+  infoValue: { fontSize: 13, color: '#1a1a2e', fontWeight: '600' },
+  proofAiBox: { marginTop: 16, backgroundColor: '#f8f9fa', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#e9ecef' },
+  proofAiTitle: { fontSize: 13, fontWeight: '700', color: '#1a1a2e' },
+  proofAiText: { fontSize: 12, color: '#495057', lineHeight: 18, fontStyle: 'italic' },
+  receiptsListTitle: { fontSize: 13, fontWeights: '700', color: '#1a1a2e' },
+  receiptItemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, borderRadius: 10, backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb' },
+  receiptItemName: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  receiptItemDate: { fontSize: 11, color: '#6b7280', marginTop: 2 },
+  receiptItemAmount: { fontSize: 13, fontWeight: '700', color: '#111827', marginBottom: 2 },
+  ocrPill: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  ocrPillText: { fontSize: 9, fontWeight: '800' },
 });
 
