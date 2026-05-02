@@ -371,7 +371,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
                 <>
                   <View style={styles.rowTwoCol}>
                     <View style={styles.colHalf}>
-                      {renderInput("Academic Year", "academicYear")}
+                      {renderReadOnly("Academic Year", user?.academicYear || "2025-2026")}
                     </View>
                     <View style={styles.colHalf}>
                       {renderSelect("Term", "term", termOptions)}

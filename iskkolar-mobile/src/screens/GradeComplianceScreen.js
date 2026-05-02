@@ -429,13 +429,13 @@ export default function GradeComplianceScreen({ navigation }) {
         <View style={styles.twoColRow}>
           <View style={styles.col}>
             <Text style={styles.label}>Current Scholarship</Text>
-            <View style={styles.inputReadOnly}>
+            <View style={[styles.inputReadOnly, { flex: 1 }]}>
               <Text style={styles.inputReadOnlyText}>{currentScholarship || "--"}</Text>
             </View>
           </View>
           <View style={styles.col}>
             <Text style={styles.label}>Academic Year</Text>
-            <View style={styles.inputReadOnly}>
+            <View style={[styles.inputReadOnly, { flex: 1 }]}>
               <Text style={styles.inputReadOnlyText}>{academicYear || "2025-2026"}</Text>
             </View>
           </View>
@@ -572,7 +572,7 @@ export default function GradeComplianceScreen({ navigation }) {
 
           {step === 1 ? (
             <TouchableOpacity 
-              style={[styles.nextBtn, { flex: 1.5 }]} 
+              style={styles.nextBtn} 
               onPress={() => {
                 const nextFieldErrors = {
                   cor: corFile ? "" : "COR is required.",
@@ -591,7 +591,7 @@ export default function GradeComplianceScreen({ navigation }) {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity 
-              style={[styles.nextBtn, { flex: 1.5 }]} 
+              style={styles.nextBtn} 
               onPress={handleSubmit}
             >
               <Text style={styles.nextBtnText}>Submit Grade Compliance</Text>
@@ -670,9 +670,9 @@ const styles = StyleSheet.create({
   
   footerActionRow: { flexDirection: 'row', paddingHorizontal: 20, paddingBottom: 30, gap: 12 },
   cancelBtn: { flex: 1, backgroundColor: "#fff", borderWidth: 1, borderColor: "#ccc", borderRadius: 10, paddingVertical: 14, alignItems: "center", justifyContent: 'center' },
-  cancelBtnText: { color: "#333", fontSize: 14, fontWeight: "600" },
-  nextBtn: { backgroundColor: "#5b5f97", borderRadius: 10, paddingVertical: 14, alignItems: "center", justifyContent: 'center', shadowColor: "#2d3a7c", shadowOpacity: 0.2, shadowOffset: { width: 0, height: 4 }, shadowRadius: 6, elevation: 4 },
-  nextBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  cancelBtnText: { color: "#333", fontSize: 14, fontWeight: "600", textAlign: "center" },
+  nextBtn: { flex: 1, backgroundColor: "#5b5f97", borderRadius: 10, paddingVertical: 14, alignItems: "center", justifyContent: 'center', shadowColor: "#2d3a7c", shadowOpacity: 0.2, shadowOffset: { width: 0, height: 4 }, shadowRadius: 6, elevation: 4 },
+  nextBtnText: { color: "#fff", fontSize: 14, fontWeight: "700", textAlign: "center" },
   
   centered: { alignItems: "center", justifyContent: "center", marginTop: 40, paddingHorizontal: 20 },
   completeText: { fontSize: 22, fontWeight: "800", color: "#3f4ca8", marginTop: 16, marginBottom: 8 },

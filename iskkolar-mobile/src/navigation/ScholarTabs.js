@@ -1,17 +1,18 @@
-import React from "react";
+import React, { useContext } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AuthContext } from "../context/AuthContext";
 
 // Import existing screens
 import ScholarDashboardScreen from "../screens/ScholarDashboardScreen";
-import ActivitiesScreen from "../screens/ActivitiesScreen";
-import ApplicationScreen from "../screens/ApplicationScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import ScholarshipRenewalScreen from "../screens/ScholarshipRenewalScreen";
 import ExamAssistanceScreen from "../screens/ExamAssistanceScreen";
+import ActivitiesScreen from "../screens/ActivitiesScreen";
+import ApplicationScreen from "../screens/ApplicationScreen";
 import GradeComplianceScreen from "../screens/GradeComplianceScreen";
 import FinancialRecordsScreen from "../screens/FinancialRecordsScreen";
 import TransferSchoolScreen from "../screens/TransferSchoolScreen";
@@ -29,12 +30,26 @@ function ScholarDashboardStackScreen() {
       <DashboardStack.Screen name="GradeCompliance" component={GradeComplianceScreen} />
       <DashboardStack.Screen name="FinancialRecords" component={FinancialRecordsScreen} />
       <DashboardStack.Screen name="TransferSchool" component={TransferSchoolScreen} />
+      <DashboardStack.Screen name="Activities" component={ActivitiesScreen} />
+      <DashboardStack.Screen name="Application" component={ApplicationScreen} />
     </DashboardStack.Navigator>
   );
 }
 
 export default function ScholarTabs() {
   const insets = useSafeAreaInsets();
+  const { user } = useContext(AuthContext);
+
+  const hasVocationalValue = (obj) => {
+    if (!obj) return false;
+    return Object.values(obj).some(val => {
+      if (typeof val === 'string') return val.toLowerCase().includes('vocational');
+      if (typeof val === 'object') return hasVocationalValue(val);
+      return false;
+    });
+  };
+
+  const isVocational = hasVocationalValue(user);
 
   return (
     <Tab.Navigator
@@ -62,9 +77,9 @@ export default function ScholarTabs() {
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
           if (route.name === "Home") iconName = focused ? "home" : "home-outline";
-          else if (route.name === "Activities") iconName = focused ? "clipboard" : "clipboard-outline";
+          else if (route.name === "Activities") iconName = focused ? "calendar" : "calendar-outline";
           else if (route.name === "Notifications") iconName = focused ? "notifications" : "notifications-outline";
-          else if (route.name === "Application") iconName = focused ? "document-text" : "document-text-outline";
+          else if (route.name === "Application") iconName = focused ? "clipboard" : "clipboard-outline";
           else if (route.name === "Profile") iconName = focused ? "person" : "person-outline";
 
           return <Ionicons name={iconName} size={24} color={color} style={{ marginBottom: -4 }} />;
@@ -72,9 +87,9 @@ export default function ScholarTabs() {
       })}
     >
       <Tab.Screen name="Home" component={ScholarDashboardStackScreen} />
-      <Tab.Screen name="Activities" component={ActivitiesScreen} />
+      {!isVocational && <Tab.Screen name="Activities" component={ActivitiesScreen} />}
       <Tab.Screen name="Notifications" component={NotificationsScreen} />
-      <Tab.Screen name="Application" component={ApplicationScreen} />
+      {!isVocational && <Tab.Screen name="Application" component={ApplicationScreen} />}
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
