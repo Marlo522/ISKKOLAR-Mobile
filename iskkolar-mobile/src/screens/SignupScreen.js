@@ -222,6 +222,7 @@ export default function SignupScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
 
   const stepFade = useRef(new Animated.Value(1)).current;
   const stepSlide = useRef(new Animated.Value(0)).current;
@@ -723,6 +724,21 @@ export default function SignupScreen({ navigation }) {
           ["earth-outline", "Province", form.province],
           ["mail-open-outline", "Zip Code", form.zip],
         ])}
+
+        <TouchableOpacity
+          style={styles.checkboxRow}
+          activeOpacity={0.8}
+          onPress={() => setConfirmed(!confirmed)}
+        >
+          <Ionicons
+            name={confirmed ? "checkbox" : "square-outline"}
+            size={20}
+            color={confirmed ? "#5b61aa" : "#848baf"}
+          />
+          <Text style={styles.checkboxText}>
+            I confirm the details above are true and correct.
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -817,10 +833,10 @@ export default function SignupScreen({ navigation }) {
           <TouchableOpacity
             style={[
               styles.primaryButton,
-              (loading || (step === 1 && form.citizenship === "Others")) && styles.primaryButtonDisabled
+              (loading || (step === 1 && form.citizenship === "Others") || (step === 3 && !confirmed)) && styles.primaryButtonDisabled
             ]}
             onPress={step === 3 ? handleRegister : nextStep}
-            disabled={loading || (step === 1 && form.citizenship === "Others")}
+            disabled={loading || (step === 1 && form.citizenship === "Others") || (step === 3 && !confirmed)}
           >
             <Text style={styles.primaryButtonText}>
               {step === 3
@@ -1084,6 +1100,8 @@ const modalStyles = StyleSheet.create({
   emptyState: { paddingVertical: 40, alignItems: "center" },
   emptyText: { color: "#9ca3af", fontSize: 15, fontWeight: "600" },
   sectionIconWrapper: { width: 32, height: 32, borderRadius: 10, backgroundColor: "rgba(91,95,151,0.1)", justifyContent: "center", alignItems: "center", marginRight: 10 },
+  checkboxRow: { flexDirection: "row", alignItems: "center", marginTop: 12, marginBottom: 8 },
+  checkboxText: { marginLeft: 10, fontSize: 13, color: "#2d3a7c", fontWeight: "700", flexShrink: 1 },
 });
 
 const strengthStyles = StyleSheet.create({

@@ -370,6 +370,15 @@ export default function FinancialRecordsScreen({ navigation }) {
     </View>
   );
 
+  const renderReadOnly = (label, value) => (
+    <View style={styles.row}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={[styles.input, { backgroundColor: '#f3f4f6', justifyContent: 'center' }]}>
+        <Text style={{ color: '#6b7280', fontSize: 15 }}>{value}</Text>
+      </View>
+    </View>
+  );
+
   const renderTextArea = (label, key, placeholder, isValueState = true) => {
     const val = isValueState ? values[key] : key;
     const onChange = isValueState 
@@ -706,7 +715,7 @@ export default function FinancialRecordsScreen({ navigation }) {
             
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <View style={{ flex: 1 }}>
-                {renderInput("Academic Year", "academicYear", "2024-2025")}
+                {renderReadOnly("Academic Year", user?.academicYear || "2025-2026")}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Term <Text style={{color: 'red'}}>*</Text></Text>

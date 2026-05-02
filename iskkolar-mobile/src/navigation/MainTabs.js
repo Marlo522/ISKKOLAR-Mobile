@@ -49,6 +49,7 @@ export default function MainTabs() {
           let iconName;
           if (route.name === "Home") iconName = focused ? "home" : "home-outline";
           else if (route.name === "Application") iconName = focused ? "clipboard" : "clipboard-outline";
+          else if (route.name === "Notifications") iconName = focused ? "notifications" : "notifications-outline";
           else if (route.name === "Profile") iconName = focused ? "person" : "person-outline";
 
           return <Ionicons name={iconName} size={size} color={color} style={{ marginBottom: -4 }} />;
@@ -57,6 +58,7 @@ export default function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeStackScreen} />
       <Tab.Screen name="Application" component={ApplicantApplicationHistory} />
+      <Tab.Screen name="Notifications" component={NotificationsScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

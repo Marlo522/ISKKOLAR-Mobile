@@ -207,6 +207,7 @@ export default function TransferSchoolScreen({ navigation }) {
   const currentSchool = dashboardSummary?.currentSchool || dashboardSummary?.school || educationProfile?.school || user?.school || user?.university || "";
   const currentProgram = dashboardSummary?.currentProgram || dashboardSummary?.program || educationProfile?.program || user?.course || user?.program || "";
   const currentGwa = dashboardSummary?.currentGwa ?? dashboardSummary?.gwa ?? gradeComplianceLatest?.gwa ?? educationProfile?.gwa ?? user?.gwa ?? "";
+  const currentAcademicYear = dashboardSummary?.currentAcademicYear || dashboardSummary?.academicYear || educationProfile?.academicYear || user?.academicYear || "2025-2026";
 
   // ─── Field helpers ──────────────────────────────────────────
   const setField = (key, val) => {
@@ -467,7 +468,7 @@ export default function TransferSchoolScreen({ navigation }) {
                 {renderSelector("Grading System", "gradingSystem", "Select Grading System", GRADING_SYSTEMS)}
               </View>
               <View style={styles.colHalf}>
-                {renderInput("Effective Academic Year", "academicYear", "2026-2027")}
+                {renderReadOnly("Effective Academic Year", currentAcademicYear)}
               </View>
             </View>
 
