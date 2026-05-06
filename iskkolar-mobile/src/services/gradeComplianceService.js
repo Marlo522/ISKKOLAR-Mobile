@@ -9,30 +9,22 @@ export const getGradeComplianceTerms = async () => {
   }
 };
 
+const toIsoDate = (dateStr) => {
+  if (!dateStr || !dateStr.includes('/')) return dateStr;
+  const [m, d, y] = dateStr.split('/');
+  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+};
+
 export const submitGradeCompliance = async ({ term, scholarshipName, remarks, nextTermStartDate, nextTermEndDate, gwa, files }) => {
   try {
     const data = new FormData();
     data.append('term', term);
 
-    if (scholarshipName) {
-      data.append('scholarshipName', scholarshipName);
-    }
-
-    if (remarks) {
-      data.append('remarks', remarks);
-    }
-
-    if (nextTermStartDate) {
-      data.append('nextTermStartDate', nextTermStartDate);
-    }
-
-    if (nextTermEndDate) {
-      data.append('nextTermEndDate', nextTermEndDate);
-    }
-
-    if (gwa) {
-      data.append('gwa', gwa);
-    }
+    if (scholarshipName) data.append('scholarshipName', scholarshipName);
+    if (remarks) data.append('remarks', remarks);
+    if (nextTermStartDate) data.append('nextTermStartDate', toIsoDate(nextTermStartDate));
+    if (nextTermEndDate) data.append('nextTermEndDate', toIsoDate(nextTermEndDate));
+    if (gwa) data.append('gwa', gwa);
 
     if (files?.gradeReport?.uri) {
       data.append('gradeReport', {
