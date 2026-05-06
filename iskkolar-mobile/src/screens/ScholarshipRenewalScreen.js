@@ -1,46 +1,102 @@
-import React, { useState, useEffect, useRef, useContext } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert, Modal, Animated } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { AuthContext } from "../context/AuthContext";
-import * as DocumentPicker from "expo-document-picker";
-import * as ImagePicker from "expo-image-picker";
+import React, { useState, useEffect, useCallback, useContext, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  Animated,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
+import { AuthContext } from '../context/AuthContext';
+
+// Import our new services that match the web backend calls
+import {
+  submitScholarshipRenewal,
+  checkScholarEligibility,
+  fetchScholarAcademicStatus
+} from '../services/scholarshipRenewalService';
+
+// Form Steps defining the flow of the renewal process
+const steps = [
+  { key: 'status', label: 'Scholar Status' },
+  { key: 'documents', label: 'Documents' },
+  { key: 'review', label: 'Review & Submit' },
+];
+
+// Helper to calculate the next academic year based on a given string like "2024-2025"
+const getNextAcademicYear = (value) => {
+  const match = /^(\d{4})-(\d{4})$/.exec(value?.trim() || '');
+  if (!match) return '';
+  const start = Number(match[1]);
+  const end = Number(match[2]);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return '';
+  return `${start + 1}-${end + 1}`;
+};
+
+// Helper to determine the current academic year based on the current date
+const getCurrentAcademicYear = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const startYear = month >= 6 ? year : year - 1;
+  return `${startYear}-${startYear + 1}`;
+};
 
 export default function ScholarshipRenewalScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
-  const [step, setStep] = useState(0);
-  const [values, setValues] = useState({
-    academicYear: "2026-2027",
-    term: "2nd Semester",
-    school: user?.school || "FEU Tech",
-    program: user?.course || "BSIT",
-    gwa: "",
-    additionalNotes: "",
+
+  const [academicStatus, setAcademicStatus] = useState(null);
+
+  // Auto-fill values from fetched academic status or user context
+  const autoSchool = academicStatus?.school_name || user?.school || '';
+  const autoProgram = academicStatus?.program || user?.course || user?.program || '';
+  const autoGwa = academicStatus?.latest_gwa || user?.gwa || '';
+  const autoAcademicYear = getCurrentAcademicYear();
+  const autoTerm = academicStatus?.current_term || user?.term || '';
+
+  // State management for the current step (1, 2, or 3)
+  const [currentStep, setCurrentStep] = useState(1);
+
+  // Form fields state
+  const [form, setForm] = useState({
+    academicYear: autoAcademicYear,
+    term: autoTerm,
+    gwa: autoGwa ? String(autoGwa) : '',
+    school: autoSchool,
+    program: autoProgram,
+    remarks: '',
   });
 
-  const [confirmed, setConfirmed] = useState(false);
+  // State for file uploads
+  const [files, setFiles] = useState({
+    gradeReport: null,
+    cor: null,
+    receipts: null,
+  });
 
-  const academicCalendar = (user?.academicCalendar || "").toLowerCase();
-  let termOptions = ["1st Semester", "2nd Semester", "Summer"];
-
-  if (academicCalendar.includes("tri")) {
-    termOptions = ["1st Trimester", "2nd Trimester", "3rd Trimester", "Summer"];
-  } else if (academicCalendar.includes("quad")) {
-    termOptions = ["1st Term", "2nd Term", "3rd Term", "4th Term", "Summer"];
-  }
-
-
-  const [uploadText, setUploadText] = useState({ cor: "", gradeReport: "", receipts: "" });
+  // State for the final confirmation checkbox
+  const [agree, setAgree] = useState(false);
+  const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [completeStage, setCompleteStage] = useState("none");
-  const [selectVisible, setSelectVisible] = useState(false);
-  const [selectKey, setSelectKey] = useState(null);
+  const [success, setSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const spinAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.5)).current;
+  // Eligibility state from the AI checker backend
+  const [eligibility, setEligibility] = useState(null);
+  const [loadingEligibility, setLoadingEligibility] = useState(true);
+
+  // Animations
   const stepAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.5)).current;
 
+  // Trigger step transition animation
   useEffect(() => {
     stepAnim.setValue(0);
     Animated.timing(stepAnim, {
@@ -48,560 +104,869 @@ export default function ScholarshipRenewalScreen({ navigation }) {
       duration: 350,
       useNativeDriver: true,
     }).start();
-  }, [step, completeStage, submitting]);
+  }, [currentStep, success, submitting, stepAnim]);
 
+  // Keep form auto-filled values in sync if user context changes
   useEffect(() => {
-    if (submitting) {
-      spinAnim.setValue(0);
-      Animated.loop(
-        Animated.timing(spinAnim, {
-          toValue: 1,
-          duration: 1200,
-          useNativeDriver: true,
-        })
-      ).start();
+    setForm((prev) => ({
+      ...prev,
+      school: autoSchool,
+      program: autoProgram,
+      gwa: autoGwa ? String(autoGwa) : '',
+      academicYear: autoAcademicYear,
+      term: autoTerm,
+    }));
+  }, [autoSchool, autoProgram, autoGwa, autoAcademicYear, autoTerm]);
+
+  // Fetch AI eligibility status on mount
+  useEffect(() => {
+    let mounted = true;
+    const fetchEligibility = async () => {
+      try {
+        setLoadingEligibility(true);
+        const res = await checkScholarEligibility();
+        if (mounted && res?.success) {
+          setEligibility(res.data);
+        }
+      } catch (err) {
+        console.error('Eligibility check failed:', err);
+      } finally {
+        if (mounted) setLoadingEligibility(false);
+      }
+    };
+    fetchEligibility();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Fetch academic status snapshot on mount
+  useEffect(() => {
+    let mounted = true;
+    const fetchStatus = async () => {
+      try {
+        const res = await fetchScholarAcademicStatus();
+        if (mounted && res?.success && res.data) {
+          setAcademicStatus(res.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch academic status:", err);
+      }
+    };
+    fetchStatus();
+    return () => { mounted = false; };
+  }, []);
+
+  // Clear a specific field's error when it is updated
+  const clearFieldError = (field) => {
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  // Helper to update text form fields
+  const setField = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    clearFieldError(field);
+  };
+
+  // Helper to update file fields
+  const setFileField = (field, fileObj) => {
+    setFiles((prev) => ({ ...prev, [field]: fileObj }));
+    clearFieldError(field);
+  };
+
+  // Handle file selection using ImagePicker or DocumentPicker
+  const handleFileUpload = async (key) => {
+    const handleResult = (result) => {
+      if (result.canceled) return;
+      if (result.assets && result.assets.length > 0) {
+        let file = result.assets[0];
+        // Ensure the file object has the properties expected by our multipart uploader
+        if (!file.name) {
+          file = {
+            ...file,
+            name: file.uri.split('/').pop(),
+            type: file.mimeType || 'image/jpeg',
+          };
+        }
+        setFileField(key, file);
+      }
+    };
+
+    Alert.alert('Upload Document', 'Choose an option', [
+      {
+        text: 'Take Photo',
+        onPress: async () => {
+          try {
+            const permission = await ImagePicker.requestCameraPermissionsAsync();
+            if (permission.status !== 'granted') {
+              Alert.alert('Permission Required', 'Camera permission is required to take photos.');
+              return;
+            }
+            const result = await ImagePicker.launchCameraAsync({
+              mediaTypes: ['images'],
+              allowsEditing: false,
+              quality: 0.8,
+            });
+            handleResult(result);
+          } catch (err) {
+            Alert.alert('Error', 'Could not capture image.');
+          }
+        },
+      },
+      {
+        text: 'Choose File',
+        onPress: async () => {
+          try {
+            const result = await DocumentPicker.getDocumentAsync({
+              type: ['application/pdf', 'image/*'],
+              copyToCacheDirectory: true,
+            });
+            handleResult(result);
+          } catch (error) {
+            console.log('Error picking file:', error);
+            Alert.alert('Error', 'Failed to select document.');
+          }
+        },
+      },
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+    ]);
+  };
+
+  // Form validation per step
+  const validate = (step) => {
+    const nextErrors = {};
+    if (step === 1) {
+      if (!form.academicYear.trim()) {
+        nextErrors.academicYear = 'Auto-filled from current academic year.';
+      } else if (!/^\d{4}-\d{4}$/.test(form.academicYear.trim())) {
+        nextErrors.academicYear = 'Use YYYY-YYYY format';
+      }
+
+      if (!form.term.trim()) {
+        nextErrors.term = 'Auto-filled from your latest term. Submit grade compliance to proceed.';
+      }
+
+      if (!form.school.trim() || form.school.trim().length < 2) {
+        nextErrors.school = 'Auto-filled from your application. Complete application to proceed.';
+      }
+
+      if (!form.program.trim() || form.program.trim().length < 2) {
+        nextErrors.program = 'Auto-filled from your application. Complete application to proceed.';
+      }
+
+      const gwaValue = Number(form.gwa);
+      if (!form.gwa.trim() || Number.isNaN(gwaValue) || gwaValue <= 0 || gwaValue > 5) {
+        nextErrors.gwa = 'Auto-filled from grade compliance. Submit grade compliance to proceed.';
+      }
     }
-  }, [submitting, spinAnim]);
+    if (step === 2) {
+      if (!files.gradeReport) nextErrors.gradeReport = 'Upload grade report';
+      if (!files.cor) nextErrors.cor = 'Upload certificate of registration';
+    }
+    if (step === 3 && !agree) {
+      nextErrors.agree = 'Please confirm the certification.';
+    }
+    return nextErrors;
+  };
 
-  useEffect(() => {
-    if (completeStage === "preAssessment") {
+  // Move to next step if validation passes
+  const goNext = () => {
+    const nextErrors = validate(currentStep);
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length === 0) {
+      setCurrentStep((prev) => Math.min(prev + 1, steps.length));
+    }
+  };
+
+  // Move to previous step
+  const goBack = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
+
+  // Final submission handler
+  const handleSubmit = async () => {
+    const nextErrors = validate(3);
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    setSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      const payload = {
+        academicYear: form.academicYear,
+        term: form.term,
+        school: form.school,
+        program: form.program,
+        gwa: form.gwa,
+        remarks: form.remarks,
+      };
+
+      // Call the API service to submit the form and files
+      await submitScholarshipRenewal(payload, files);
+
+      setSubmitting(false);
+      setSuccess(true);
+      
+      // Trigger success animation
       scaleAnim.setValue(0.5);
       Animated.spring(scaleAnim, {
         toValue: 1,
         friction: 4,
         useNativeDriver: true,
       }).start();
-    }
-  }, [completeStage, scaleAnim]);
 
-  const spin = spinAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "360deg"],
-  });
-
-  const maxStep = 2;
-
-  const advance = () => {
-    if (step < maxStep) setStep((s) => s + 1);
-    else submitApplication();
-  };
-
-  const submitApplication = () => {
-    setSubmitting(true);
-    setTimeout(() => {
+    } catch (error) {
       setSubmitting(false);
-      setCompleteStage("preAssessment");
-    }, 1500);
+      setErrorMessage(error?.message || 'Failed to submit renewal.');
+    }
   };
 
-  const isPreFilled = !!user; // Logic for "already passed a form"
+  const nextAcademicYear = getNextAcademicYear(form.academicYear);
 
-  const renderReadOnly = (label, value) => (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={[styles.input, { backgroundColor: '#f4f5f8', borderColor: '#eaecf0', justifyContent: 'center' }]}>
-        <Text style={{ color: '#8a94b5', fontSize: 13 }}>{value}</Text>
-      </View>
-    </View>
-  );
-
-  const renderGwaField = () => {
-    const hasGwa = !!user?.gwa;
-    const val = hasGwa ? user.gwa : "Auto-filled from grade compliance";
+  // Reusable File Upload Field Component inside React Native
+  const renderFileUploadBox = (label, subtext, key) => {
+    const hasError = !!errors[key];
+    const hasFile = !!files[key];
+    
     return (
-      <View style={[styles.row, { marginBottom: 8 }]}>
-        <Text style={styles.label}>Current GWA</Text>
-        <View style={[styles.input, { backgroundColor: '#f4f5f8', borderColor: '#eaecf0', justifyContent: 'center' }]}>
-          <Text style={{ color: '#8a94b5', fontSize: 13 }}>{val}</Text>
-        </View>
-        {!hasGwa && (
-          <Text style={{ color: '#dc2626', fontSize: 11, marginTop: 6, fontWeight: '500' }}>
-            Auto-filled from grade compliance. Submit grade compliance to proceed.
-          </Text>
-        )}
-      </View>
-    );
-  };
-
-  const renderInput = (label, key, placeholder = null) => (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput placeholderTextColor="#888"
-        value={values[key]}
-        placeholder={placeholder || `Enter ${label}`}
-        onChangeText={(text) => setValues({ ...values, [key]: text })}
-        style={styles.input}
-      />
-    </View>
-  );
-
-  const renderSelect = (label, key, options) => (
-    <>
-      <View style={styles.row}>
+      <View style={{ marginBottom: 16 }}>
         <Text style={styles.label}>{label}</Text>
         <TouchableOpacity
-          style={styles.yearPickerInput}
-          onPress={() => {
-            setSelectKey(key);
-            setSelectVisible(true);
-          }}
+          style={[
+            styles.uploadBoxDashed,
+            hasError ? styles.uploadBoxError : hasFile ? styles.uploadBoxSuccess : {},
+          ]}
+          onPress={() => handleFileUpload(key)}
         >
-          <Text style={styles.yearPickerText}>{values[key] || "Select"}</Text>
-          <Ionicons name="arrow-down" size={20} color="#000" />
+          <Text
+            style={[
+              styles.uploadBoxTitle,
+              hasError ? styles.textError : hasFile ? styles.textSuccess : {},
+            ]}
+          >
+            {hasFile ? files[key].name : 'Tap to upload'}
+          </Text>
+          <Text style={styles.uploadBoxSubtext} numberOfLines={1} ellipsizeMode="middle">
+            {hasFile ? 'File selected ✓' : subtext}
+          </Text>
         </TouchableOpacity>
+        {hasError && <Text style={styles.errorText}>{errors[key]}</Text>}
       </View>
-
-      <Modal
-        visible={selectVisible && selectKey === key}
-        statusBarTranslucent
-        animationType="slide"
-        onRequestClose={() => setSelectVisible(false)}
-      >
-        <View style={styles.yearPickerModal}>
-          <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={() => setSelectVisible(false)} />
-          <View style={[styles.yearPickerContent, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-            <View style={styles.yearPickerHeader}>
-              <Text style={styles.yearPickerTitle}>Select Option</Text>
-              <TouchableOpacity onPress={() => setSelectVisible(false)}>
-                <Ionicons name="close" size={24} color="#4f5fc5" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView 
-              style={styles.yearPickerScroll} 
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 20 }}
-            >
-              {options.map((opt, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[
-                    styles.yearPickerOption,
-                    { width: "100%", marginBottom: 8, paddingVertical: 14, flexDirection: 'row', justifyContent: 'center' },
-                    values[key] === opt && styles.yearPickerOptionActive,
-                  ]}
-                  onPress={() => {
-                    setValues({ ...values, [key]: opt });
-                    setSelectVisible(false);
-                  }}
-                >
-                  <Text style={[styles.yearPickerOptionText, values[key] === opt && { color: "#fff" }]}>
-                    {opt}
-                  </Text>
-                  {values[key] === opt && (
-                    <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ position: 'absolute', right: 16 }} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-    </>
-  );
-
-  const renderUpload = (label, key) => (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <TouchableOpacity
-        style={styles.uploadBtn}
-        onPress={() => handleFileUpload(key)}
-      >
-        <Text style={styles.uploadText}>{uploadText[key] || "File Upload"}</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const handleFileUpload = async (key) => {
-    const handleResult = (result) => {
-      if (result.canceled) return;
-      if (result.assets && result.assets.length > 0) {
-        let file = result.assets[0];
-        if (!file.name) {
-          file = { ...file, name: file.uri.split('/').pop(), type: file.mimeType || 'image/jpeg' };
-        }
-        setUploadText(prev => ({ ...prev, [key]: file.name }));
-      }
-    };
-
-    Alert.alert(
-      "Upload Document",
-      "Choose an option",
-      [
-        {
-          text: "Take Photo",
-          onPress: async () => {
-            try {
-              const permission = await ImagePicker.requestCameraPermissionsAsync();
-              if (permission.status !== "granted") {
-                Alert.alert("Permission Required", "Camera permission is required to take photos.");
-                return;
-              }
-              const result = await ImagePicker.launchCameraAsync({
-                mediaTypes: ['images'],
-                allowsEditing: false,
-                quality: 0.8,
-              });
-              handleResult(result);
-            } catch (err) {
-              Alert.alert("Error", "Could not capture image.");
-            }
-          }
-        },
-        {
-          text: "Choose File",
-          onPress: async () => {
-            try {
-              const result = await DocumentPicker.getDocumentAsync({
-                type: ["application/pdf", "image/*"],
-                copyToCacheDirectory: true,
-              });
-              handleResult(result);
-            } catch (error) {
-              console.log("Error picking file:", error);
-              Alert.alert("Error", "Failed to select document.");
-            }
-          }
-        },
-        {
-          text: "Cancel",
-          style: "cancel"
-        }
-      ]
     );
-  };
-
-  const renderFileUploadBox = (label, subtext, key) => (
-    <View style={{ marginBottom: 16 }}>
-      <Text style={styles.label}>{label}</Text>
-      <TouchableOpacity style={styles.uploadBoxDashed} onPress={() => handleFileUpload(key)}>
-        <Text style={[styles.uploadBoxTitle, uploadText[key] && { color: "#2cae57" }]}>
-          {uploadText[key] ? "File selected ✓" : "Tap to upload"}
-        </Text>
-        <Text style={styles.uploadBoxSubtext} numberOfLines={1} ellipsizeMode="middle">
-          {uploadText[key] || subtext}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderReviewCard = (title, fields) => (
-    <View style={styles.reviewCard}>
-      <View style={{ borderBottomWidth: 1, borderBottomColor: "#eef0ff", paddingBottom: 8, marginBottom: 10 }}>
-        <Text style={styles.reviewCardTitle}>{title}</Text>
-      </View>
-      {fields.map((item, idx) => (
-        <View key={idx} style={styles.reviewRowCardItem}>
-          <Text style={styles.reviewLabel}>{item.label}</Text>
-          {item.icon ? (
-            <Ionicons name={item.icon} size={22} color={item.iconColor || "#2cae57"} />
-          ) : (
-            <Text style={styles.reviewValueCard}>{item.value || "-"}</Text>
-          )}
-        </View>
-      ))}
-    </View>
-  );
-
-  const renderStep = () => {
-    if (completeStage === "preAssessment") {
-      return (
-        <View style={styles.centered}>
-          <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-            <Ionicons name="checkmark-circle" size={120} color="#29d0a5" />
-          </Animated.View>
-          <Text style={[styles.completeText, { marginTop: 8 }]}>Renewal submitted.</Text>
-          <Text style={{ textAlign: "center", color: "#6b72aa", paddingHorizontal: 30, marginBottom: 30, fontSize: 16, lineHeight: 22 }}>
-            We will review your documents and notify you via email.
-          </Text>
-          <TouchableOpacity style={styles.submitBtn} onPress={() => navigation.navigate("ScholarDashboardMain")}>
-            <Text style={styles.submitBtnText}>Return Home</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    if (submitting) {
-      return (
-        <View style={styles.centered}>
-          <Animated.View style={{ transform: [{ rotate: spin }] }}>
-            <Ionicons name="sync-circle" size={110} color="#4f5fc5" />
-          </Animated.View>
-          <Text style={styles.completeText}>Evaluating Application...</Text>
-          <Text style={{ textAlign: "center", color: "#848baf", paddingHorizontal: 40, fontSize: 15 }}>
-            Please hold on while we securely process your documents.
-          </Text>
-        </View>
-      );
-    }
-
-    switch (step) {
-      case 0:
-        return (
-          <View>
-            <View style={styles.formContainer}>
-              <View style={styles.sectionHeaderRow}>
-                <View style={styles.verticalPill} />
-                <Text style={styles.sectionHeader}>Academic Information</Text>
-              </View>
-
-              {isPreFilled ? (
-                <>
-                  <View style={styles.rowTwoCol}>
-                    <View style={styles.colHalf}>
-                      {renderReadOnly("Academic Year", "2025-2026")}
-                    </View>
-                    <View style={styles.colHalf}>
-                      {renderReadOnly("Term", "Auto-filled from latest term")}
-                    </View>
-                  </View>
-
-                  <View style={styles.rowTwoCol}>
-                    <View style={styles.colHalf}>
-                      {renderReadOnly("School", "Auto-filled from application")}
-                    </View>
-                    <View style={styles.colHalf}>
-                      {renderReadOnly("Program / Course", "Auto-filled from application")}
-                    </View>
-                  </View>
-
-                  {renderGwaField()}
-                </>
-              ) : (
-                <>
-                  <View style={styles.rowTwoCol}>
-                    <View style={styles.colHalf}>
-                      {renderReadOnly("Academic Year", user?.academicYear || "2025-2026")}
-                    </View>
-                    <View style={styles.colHalf}>
-                      {renderSelect("Term", "term", termOptions)}
-                    </View>
-                  </View>
-
-                  <View style={styles.rowTwoCol}>
-                    <View style={styles.colHalf}>
-                      {renderInput("School", "school")}
-                    </View>
-                    <View style={styles.colHalf}>
-                      {renderInput("Program / Course", "program")}
-                    </View>
-                  </View>
-
-                  <View style={styles.rowTwoCol}>
-                    <View style={styles.colHalf}>
-                      {renderInput("Current GWA", "gwa", "e.g. 1.75")}
-                    </View>
-                  </View>
-                </>
-              )}
-            </View>
-          </View>
-        );
-      case 1:
-        return (
-          <View>
-            <View style={styles.formContainer}>
-              <Text style={styles.subtextAboveHeader}>Documents</Text>
-              <View style={styles.sectionHeaderRow}>
-                <View style={styles.verticalPill} />
-                <Text style={styles.sectionHeader}>Supporting Documents</Text>
-              </View>
-
-              <View style={styles.rowTwoCol}>
-                <View style={styles.colHalf}>
-                  {renderFileUploadBox("Grade Report", "PDF or clear image of grades", "gradeReport")}
-                </View>
-                <View style={styles.colHalf}>
-                  {renderFileUploadBox("Certificate of Registration", "Latest term COR", "cor")}
-                </View>
-              </View>
-
-              <View style={styles.rowTwoCol}>
-                <View style={styles.colHalf}>
-                  {renderFileUploadBox("Official Receipts (Optional)", "Upload tuition or fee receipts", "receipts")}
-                </View>
-                <View style={styles.colHalf}>
-                  <Text style={styles.label}>Additional Notes</Text>
-                  <TextInput placeholderTextColor="#888"
-                    style={[styles.input, { height: 75, textAlignVertical: 'top', paddingTop: 10 }]}
-                    multiline
-                    placeholder="Share context on grades, delays, or special circumstances."
-                    value={values.additionalNotes}
-                    onChangeText={(text) => setValues({ ...values, additionalNotes: text })}
-                  />
-                </View>
-              </View>
-
-            </View>
-          </View>
-        );
-      case 2:
-        return (
-          <View>
-            <View style={styles.formContainer}>
-              <Text style={styles.subtextAboveHeader}>Review & Submit</Text>
-              <View style={styles.sectionHeaderRow}>
-                <View style={styles.verticalPill} />
-                <Text style={styles.sectionHeader}>Review & Confirm</Text>
-              </View>
-
-              <View style={styles.infoBox}>
-                <Text style={styles.infoBoxText}>Please review your details below. Ensure information and documents reflect your current academic standing.</Text>
-              </View>
-
-              {renderReviewCard("| Renewal Information", [
-                { label: "Academic Year", value: values.academicYear },
-                { label: "Term", value: values.term },
-                { label: "School", value: values.school },
-                { label: "Program", value: values.program },
-                { label: "GWA", value: values.gwa || "N/A" },
-              ])}
-
-              {renderReviewCard("| Supporting Documents", [
-                { label: "Grade Report", icon: "checkmark-circle", iconColor: "#2cae57" },
-                { label: "Certificate of Registration", icon: "checkmark-circle", iconColor: "#2cae57" },
-                { label: "Official Receipts (Optional)", icon: "remove-circle", iconColor: "#dce1f0" },
-              ])}
-
-              <TouchableOpacity
-                style={styles.checkboxRow}
-                activeOpacity={0.8}
-                onPress={() => setConfirmed(!confirmed)}
-              >
-                <Ionicons
-                  name={confirmed ? "checkbox" : "square-outline"}
-                  size={20}
-                  color={confirmed ? "#5b61aa" : "#848baf"}
-                />
-                <Text style={styles.checkboxText}>
-                  I confirm the details are correct and wish to submit my renewal.
-                </Text>
-              </TouchableOpacity>
-
-            </View>
-          </View>
-        );
-      default:
-        return null;
-    }
   };
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity onPress={() => (step > 0 ? setStep(step - 1) : navigation.goBack())} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#5b6095" />
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => (currentStep === 1 && !success ? navigation.goBack() : goBack())}
+        >
+          <Ionicons name="arrow-back" size={24} color="#4a4e7d" />
         </TouchableOpacity>
-        <View style={styles.headerTitles}>
+        <View style={styles.headerTextContainer}>
           <Text style={styles.superTitle}>SCHOLARSHIP RENEWAL</Text>
-          <Text style={styles.mainTitle}>AY 2026-2027 Renewal Form</Text>
-          <Text style={styles.subTitle}>Submit grades and receipts to renew your assistance.</Text>
+          <Text style={styles.mainTitle}>
+            {nextAcademicYear ? `AY ${nextAcademicYear} Renewal Form` : 'AY Renewal Form'}
+          </Text>
         </View>
       </View>
 
-      {completeStage === "none" && !submitting && (
-        <View style={styles.progressBarRow}>
-          {[...Array(maxStep + 1)].map((_, idx) => (
-            <View
-              key={idx}
-              style={[
-                styles.progressStep,
-                idx <= step ? styles.progressStepActive : styles.progressStepInactive,
-              ]}
-            />
-          ))}
+      {/* Progress Bar */}
+      {!success && (
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBar}>
+            {steps.map((step, idx) => (
+              <View
+                key={step.key}
+                style={[
+                  styles.progressStep,
+                  idx < currentStep ? styles.progressStepActive : styles.progressStepInactive,
+                ]}
+              />
+            ))}
+          </View>
+          <Text style={styles.progressLabel}>{steps[currentStep - 1].label}</Text>
         </View>
       )}
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 60 }}>
-        <Animated.View style={{ opacity: stepAnim, transform: [{ translateY: stepAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
-          {renderStep()}
-        </Animated.View>
+      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 60, paddingHorizontal: 20 }}>
+        {/* Alerts */}
+        {success && (
+          <View style={styles.centered}>
+            <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+              <Ionicons name="checkmark-circle" size={120} color="#2cae57" />
+            </Animated.View>
+            <Text style={styles.completeText}>Renewal submitted.</Text>
+            <Text style={styles.completeSubtext}>
+              We will review your documents and notify you via email.
+            </Text>
+            <TouchableOpacity style={styles.submitBtn} onPress={() => navigation.goBack()}>
+              <Text style={styles.submitBtnText}>Back to Home</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {errorMessage ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>{errorMessage}</Text>
+          </View>
+        ) : null}
+
+        {submitting && !success && (
+          <View style={styles.centered}>
+            <Animated.View
+              style={{
+                transform: [
+                  {
+                    rotate: stepAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0deg', '360deg'],
+                    }),
+                  },
+                ],
+              }}
+            >
+              <Ionicons name="sync-circle" size={110} color="#5b5f97" />
+            </Animated.View>
+            <Text style={styles.completeText}>Submitting Renewal...</Text>
+          </View>
+        )}
+
+        {/* Step 1: Scholar Status */}
+        {!success && !submitting && currentStep === 1 && (
+          <Animated.View style={{ opacity: stepAnim }}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.verticalPill} />
+              <Text style={styles.sectionHeader}>Scholar Status Evaluation</Text>
+            </View>
+
+            {/* AI Eligibility Card */}
+            <View
+              style={[
+                styles.evalCard,
+                loadingEligibility
+                  ? styles.evalCardLoading
+                  : eligibility?.isQualified
+                  ? styles.evalCardSuccess
+                  : styles.evalCardWarning,
+              ]}
+            >
+              <View
+                style={[
+                  styles.evalHeader,
+                  loadingEligibility
+                    ? styles.evalHeaderLoading
+                    : eligibility?.isQualified
+                    ? styles.evalHeaderSuccess
+                    : styles.evalHeaderWarning,
+                ]}
+              >
+                <Text style={styles.evalHeaderIcon}>📋</Text>
+                <Text style={styles.evalHeaderTitle}>Status Evaluation</Text>
+                {!loadingEligibility && eligibility?.aiEvaluation && (
+                  <View
+                    style={[
+                      styles.aiBadge,
+                      eligibility.aiEvaluation.recommended_action === 'Approve'
+                        ? styles.aiBadgeSuccess
+                        : eligibility.aiEvaluation.recommended_action === 'Reject'
+                        ? styles.aiBadgeError
+                        : styles.aiBadgeWarning,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.aiBadgeText,
+                        eligibility.aiEvaluation.recommended_action === 'Approve'
+                          ? styles.aiBadgeTextSuccess
+                          : eligibility.aiEvaluation.recommended_action === 'Reject'
+                          ? styles.aiBadgeTextError
+                          : styles.aiBadgeTextWarning,
+                      ]}
+                    >
+                      {eligibility.aiEvaluation.recommended_action === 'Approve'
+                        ? '✓ '
+                        : eligibility.aiEvaluation.recommended_action === 'Reject'
+                        ? '✗ '
+                        : '⚠ '}
+                      AI: {eligibility.aiEvaluation.recommended_action}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.evalBody}>
+                {loadingEligibility ? (
+                  <Text style={styles.evalLoadingText}>Running smart eligibility checker...</Text>
+                ) : eligibility ? (
+                  <>
+                    <Text style={styles.evalSubHeader}>SYSTEM CHECKS</Text>
+                    <View style={styles.tagList}>
+                      {eligibility.tags?.map((tag, idx) => {
+                        const isAttendance = tag.startsWith('Attendance:');
+                        const isNoRecord = tag.includes('No records');
+                        const isFlag =
+                          (!isNoRecord &&
+                            (tag.includes('Below') ||
+                              tag.includes('Late') ||
+                              tag.includes('Failed') ||
+                              tag.includes('INC'))) ||
+                          (!isAttendance && isNoRecord);
+                        const isNeutral = isAttendance && isNoRecord;
+
+                        return (
+                          <View
+                            key={idx}
+                            style={[
+                              styles.tagItem,
+                              isNeutral
+                                ? styles.tagItemNeutral
+                                : isFlag
+                                ? styles.tagItemError
+                                : styles.tagItemSuccess,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.tagIcon,
+                                isNeutral
+                                  ? styles.tagTextNeutral
+                                  : isFlag
+                                  ? styles.tagTextError
+                                  : styles.tagTextSuccess,
+                              ]}
+                            >
+                              {isNeutral ? '–' : isFlag ? '✗' : '✓'}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.tagText,
+                                isNeutral
+                                  ? styles.tagTextNeutral
+                                  : isFlag
+                                  ? styles.tagTextError
+                                  : styles.tagTextSuccess,
+                                isFlag && { fontWeight: '700' },
+                              ]}
+                            >
+                              {tag}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+
+                    <View
+                      style={[
+                        styles.verdictBox,
+                        eligibility.isQualified ? styles.verdictSuccess : styles.verdictWarning,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.verdictText,
+                          eligibility.isQualified
+                            ? styles.verdictTextSuccess
+                            : styles.verdictTextWarning,
+                        ]}
+                      >
+                        {eligibility.isQualified
+                          ? '✓ You meet the baseline requirements and may proceed.'
+                          : '⚠ You have flags on your record. You may still proceed, but your renewal is subject to admin review.'}
+                      </Text>
+                    </View>
+
+                    {eligibility.aiEvaluation && (
+                      <View style={styles.aiSummarySection}>
+                        <Text style={styles.evalSubHeader}>🤖 AI SMART EVALUATION</Text>
+                        <Text style={styles.aiSummaryText}>{eligibility.aiEvaluation.summary}</Text>
+                        {eligibility.aiEvaluation.reasoning && (
+                          <Text style={styles.aiReasoningText}>
+                            <Text style={styles.aiReasoningLabel}>Basis: </Text>
+                            {eligibility.aiEvaluation.reasoning}
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  <Text style={styles.evalLoadingText}>Eligibility feedback unavailable right now.</Text>
+                )}
+              </View>
+            </View>
+
+            <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
+              <View style={styles.verticalPill} />
+              <Text style={styles.sectionHeader}>Academic Information</Text>
+            </View>
+
+            <View style={styles.readOnlyField}>
+              <Text style={styles.label}>Academic Year</Text>
+              <TextInput
+                style={styles.inputReadOnly}
+                value={form.academicYear}
+                editable={false}
+                placeholder="Auto-filled from current academic year"
+              />
+              {errors.academicYear && <Text style={styles.errorText}>{errors.academicYear}</Text>}
+            </View>
+
+            <View style={styles.readOnlyField}>
+              <Text style={styles.label}>Term</Text>
+              <TextInput
+                style={styles.inputReadOnly}
+                value={form.term}
+                editable={false}
+                placeholder="Auto-filled from latest term"
+              />
+              {errors.term && <Text style={styles.errorText}>{errors.term}</Text>}
+            </View>
+
+            <View style={styles.readOnlyField}>
+              <Text style={styles.label}>School</Text>
+              <TextInput
+                style={styles.inputReadOnly}
+                value={form.school}
+                editable={false}
+                placeholder="Auto-filled from application"
+              />
+              {errors.school && <Text style={styles.errorText}>{errors.school}</Text>}
+            </View>
+
+            <View style={styles.readOnlyField}>
+              <Text style={styles.label}>Program / Course</Text>
+              <TextInput
+                style={styles.inputReadOnly}
+                value={form.program}
+                editable={false}
+                placeholder="Auto-filled from application"
+              />
+              {errors.program && <Text style={styles.errorText}>{errors.program}</Text>}
+            </View>
+
+            <View style={styles.readOnlyField}>
+              <Text style={styles.label}>Current GWA</Text>
+              <TextInput
+                style={styles.inputReadOnly}
+                value={form.gwa}
+                editable={false}
+                placeholder="Auto-filled from grade compliance"
+              />
+              {errors.gwa && <Text style={styles.errorText}>{errors.gwa}</Text>}
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Step 2: Supporting Documents */}
+        {!success && !submitting && currentStep === 2 && (
+          <Animated.View style={{ opacity: stepAnim }}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.verticalPill} />
+              <Text style={styles.sectionHeader}>Supporting Documents</Text>
+            </View>
+
+            {renderFileUploadBox('Grade Report', 'PDF or clear image of grades', 'gradeReport')}
+            {renderFileUploadBox('Certificate of Registration', 'Latest term COR', 'cor')}
+            {renderFileUploadBox('Official Receipts (Optional)', 'Upload tuition or fee receipts', 'receipts')}
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Additional Notes</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                multiline
+                numberOfLines={4}
+                value={form.remarks}
+                onChangeText={(val) => setField('remarks', val)}
+                placeholder="Share context on grades, delays, or special circumstances."
+                placeholderTextColor="#9ca3af"
+              />
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Step 3: Review & Confirm */}
+        {!success && !submitting && currentStep === 3 && (
+          <Animated.View style={{ opacity: stepAnim }}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.verticalPill} />
+              <Text style={styles.sectionHeader}>Review & Confirm</Text>
+            </View>
+
+            <View style={styles.infoBox}>
+              <Text style={styles.infoBoxText}>
+                Please review your details below. Ensure information and documents reflect your
+                current academic standing.
+              </Text>
+            </View>
+
+            <View style={styles.reviewCard}>
+              <Text style={styles.reviewCardTitle}>Renewal Information</Text>
+              <View style={styles.reviewRow}>
+                <Text style={styles.reviewLabel}>Academic Year</Text>
+                <Text style={styles.reviewValue}>{form.academicYear || '--'}</Text>
+              </View>
+              <View style={styles.reviewRow}>
+                <Text style={styles.reviewLabel}>Term</Text>
+                <Text style={styles.reviewValue}>{form.term || '--'}</Text>
+              </View>
+              <View style={styles.reviewRow}>
+                <Text style={styles.reviewLabel}>School</Text>
+                <Text style={styles.reviewValue}>{form.school || '--'}</Text>
+              </View>
+              <View style={styles.reviewRow}>
+                <Text style={styles.reviewLabel}>Program</Text>
+                <Text style={styles.reviewValue}>{form.program || '--'}</Text>
+              </View>
+              <View style={styles.reviewRow}>
+                <Text style={styles.reviewLabel}>GWA</Text>
+                <Text style={styles.reviewValue}>{form.gwa || '--'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.reviewCard}>
+              <Text style={styles.reviewCardTitle}>Supporting Documents</Text>
+              <View style={styles.reviewDocRow}>
+                <Ionicons
+                  name={files.gradeReport ? 'checkmark-circle' : 'alert-circle'}
+                  size={16}
+                  color={files.gradeReport ? '#16a34a' : '#dc2626'}
+                />
+                <Text style={styles.reviewDocLabel}>Grade Report</Text>
+                <Text style={styles.reviewDocStatus}>
+                  {files.gradeReport ? 'Attached' : 'Missing'}
+                </Text>
+              </View>
+              <View style={styles.reviewDocRow}>
+                <Ionicons
+                  name={files.cor ? 'checkmark-circle' : 'alert-circle'}
+                  size={16}
+                  color={files.cor ? '#16a34a' : '#dc2626'}
+                />
+                <Text style={styles.reviewDocLabel}>Certificate of Registration</Text>
+                <Text style={styles.reviewDocStatus}>{files.cor ? 'Attached' : 'Missing'}</Text>
+              </View>
+              <View style={styles.reviewDocRow}>
+                <Ionicons
+                  name={files.receipts ? 'checkmark-circle' : 'remove-circle'}
+                  size={16}
+                  color={files.receipts ? '#16a34a' : '#9ca3af'}
+                />
+                <Text style={styles.reviewDocLabel}>Official Receipts</Text>
+                <Text style={styles.reviewDocStatus}>
+                  {files.receipts ? 'Attached' : 'Optional'}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.checkboxContainer}
+              onPress={() => {
+                setAgree(!agree);
+                clearFieldError('agree');
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.checkbox, agree && styles.checkboxChecked]}>
+                {agree && <Ionicons name="checkmark" size={14} color="#fff" />}
+              </View>
+              <Text style={styles.checkboxText}>
+                I confirm the details are correct and wish to submit my renewal.
+              </Text>
+            </TouchableOpacity>
+            {errors.agree && <Text style={styles.errorText}>{errors.agree}</Text>}
+          </Animated.View>
+        )}
       </ScrollView>
 
-      {!submitting && completeStage === "none" && (
-        <View style={styles.footerRow}>
-          {step === 0 ? (
-            <TouchableOpacity style={styles.backToHomeBtn} onPress={() => navigation.navigate("ScholarDashboardMain")}>
-              <Text style={styles.backToHomeText}>Back to Home</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.backToHomeBtn} onPress={() => setStep(step - 1)}>
-              <Text style={styles.backToHomeText}>Previous</Text>
+      {/* Footer Navigation Buttons */}
+      {!success && !submitting && (
+        <View style={styles.footer}>
+          {currentStep > 1 && (
+            <TouchableOpacity style={styles.secondaryBtn} onPress={goBack}>
+              <Text style={styles.secondaryBtnText}>Previous</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            style={[styles.nextBtn, step === maxStep && !confirmed && { backgroundColor: '#aeb4d2', elevation: 0 }]}
-            onPress={advance}
-            disabled={step === maxStep && !confirmed}
-          >
-            <Text style={styles.nextBtnText}>{step < maxStep ? "Continue" : "Submit Renewal"}</Text>
-          </TouchableOpacity>
+
+          {currentStep < steps.length ? (
+            <TouchableOpacity style={styles.primaryBtn} onPress={goNext}>
+              <Text style={styles.primaryBtnText}>Continue</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.primaryBtn, !agree && styles.primaryBtnDisabled]}
+              onPress={handleSubmit}
+              disabled={!agree}
+            >
+              <Text style={styles.primaryBtnText}>Submit Renewal</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </View>
   );
 }
 
+// ---------------- STYLES ----------------
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fbfbfe" },
-  progressHeader: { flexDirection: "row", alignItems: "center", paddingBottom: 16, paddingHorizontal: 24 },
-  backBtn: { width: 42, height: 42, borderRadius: 10, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#dbe2f6" },
-  empty: { width: 42 },
-  title: { flex: 1, textAlign: "center", fontSize: 22, fontWeight: "900", color: "#4f5fc5" },
-  headerTitles: { flex: 1, paddingLeft: 14 },
-  superTitle: { fontSize: 11, fontWeight: "700", color: "#5b61aa", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 },
-  mainTitle: { fontSize: 20, fontWeight: "900", color: "#111", letterSpacing: -0.3, marginBottom: 2 },
-  subTitle: { fontSize: 12, color: "#6e7798", fontWeight: "500" },
-  progressBarRow: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 24, marginTop: 4, marginBottom: 16 },
-  progressStep: { height: 6, flex: 1, marginHorizontal: 4, borderRadius: 5 },
-  progressStepActive: { backgroundColor: "#5b61aa" },
-  progressStepInactive: { backgroundColor: "#dde2ee" },
-  formContainer: { paddingHorizontal: 24, paddingTop: 10 },
-  subtextAboveHeader: { fontSize: 11, color: "#6d78a8", fontWeight: "600", marginBottom: 12 },
+  container: { flex: 1, backgroundColor: '#f8f9fc' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  headerTextContainer: { flex: 1 },
+  superTitle: { fontSize: 10, fontWeight: '700', color: '#5b5f97', letterSpacing: 1 },
+  mainTitle: { fontSize: 18, fontWeight: '800', color: '#1e293b', marginTop: 2 },
+  progressContainer: { paddingHorizontal: 20, paddingVertical: 16, backgroundColor: '#fff' },
+  progressBar: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  progressStep: { height: 6, flex: 1, borderRadius: 3 },
+  progressStepActive: { backgroundColor: '#5b5f97' },
+  progressStepInactive: { backgroundColor: '#e2e8f0' },
+  progressLabel: { fontSize: 12, fontWeight: '600', color: '#4a4e7d' },
+  content: { flex: 1, paddingTop: 16 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  verticalPill: { width: 4, height: 20, backgroundColor: '#5b61aa', borderRadius: 2, marginRight: 8 },
-  content: { flex: 1 },
-  sectionHeader: { fontSize: 17, fontWeight: "800", color: "#2d3a7c" },
-  row: { marginBottom: 16 },
-  label: { fontWeight: "600", color: "#1c2131", fontSize: 13, marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: "#dce1f0", borderRadius: 10, paddingHorizontal: 12, backgroundColor: "#ffffff", color: "#555", fontSize: 13, height: 50 },
-  uploadBtn: { borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, height: 50, justifyContent: "center", paddingHorizontal: 16, backgroundColor: "#ffffff" },
-  uploadText: { color: "#777", fontSize: 15, alignSelf: "center" },
-  uploadBoxDashed: { borderWidth: 1, borderColor: "#c2c9d6", borderStyle: "dashed", borderRadius: 10, backgroundColor: "#f8f9fc", width: "100%", height: 75, paddingHorizontal: 12, justifyContent: "center" },
-  uploadBoxTitle: { fontSize: 13, fontWeight: "600", color: "#4f5ec4", marginBottom: 2 },
-  uploadBoxSubtext: { fontSize: 11, color: "#6e7798" },
-  reviewRow: { padding: 10, borderColor: "#dbe2f6", borderWidth: 1, borderRadius: 10, marginBottom: 8, backgroundColor: "#fff" },
-  reviewLabel: { color: "#848baf", fontSize: 13, fontWeight: "600" },
-  reviewValue: { color: "#2d3a7c", fontSize: 14, marginTop: 2 },
-  reviewCard: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#dbe2f6", borderRadius: 10, padding: 16, marginBottom: 16, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
-  reviewCardTitle: { fontSize: 17, fontWeight: "900", color: "#4f5fc5", marginBottom: 4 },
-  reviewRowCardItem: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8, alignItems: "center" },
-  reviewValueCard: { fontSize: 12, color: "#1c2131", fontWeight: "700" },
-  infoBox: { backgroundColor: "#f8f9fc", padding: 14, borderRadius: 10, borderWidth: 1, borderColor: "#e4e8f6", marginBottom: 16 },
-  infoBoxText: { fontSize: 12, color: "#3d4076", lineHeight: 18, fontWeight: "500" },
-  checkboxRow: { flexDirection: "row", alignItems: "center", marginTop: 8, marginBottom: 20 },
-  checkboxText: { marginLeft: 10, fontSize: 13, color: "#2d3a7c", fontWeight: "700" },
-  rowTwoCol: { flexDirection: "row", gap: 12, marginBottom: 0 }, // no bottom margin since elements inside have row margin
-  colHalf: { flex: 1 },
-  yearPickerInput: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, paddingHorizontal: 16, backgroundColor: "#ffffff", height: 50 },
-  yearPickerText: { color: "#555", fontSize: 15, fontWeight: "500" },
-  yearPickerModal: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  yearPickerContent: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "80%", paddingTop: 16 },
-  yearPickerHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "#e4e8f8" },
-  yearPickerTitle: { fontSize: 18, fontWeight: "800", color: "#3d4fa0" },
-  yearPickerScroll: { paddingHorizontal: 16, paddingVertical: 12 },
-  yearPickerOption: { width: "100%", paddingVertical: 12, marginBottom: 8, borderRadius: 10, borderWidth: 1, borderColor: "#d7def8", backgroundColor: "#f8f9ff", alignItems: "center" },
-  yearPickerOptionActive: { backgroundColor: "#4f5fc5", borderColor: "#4f5fc5" },
-  yearPickerOptionText: { fontSize: 16, fontWeight: "700", color: "#4f5fc5" },
-  yearPickerOptionTextActive: { color: "#fff" },
-  footerRow: { flexDirection: 'row', paddingHorizontal: 24, paddingBottom: 30, justifyContent: 'flex-end', alignItems: 'center' },
-  backToHomeBtn: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, borderWidth: 1, borderColor: '#dce1f0', marginRight: 12 },
-  backToHomeText: { color: '#4f5ec4', fontWeight: '700', fontSize: 14 },
-  nextBtn: { backgroundColor: "#5b61a7", borderRadius: 12, paddingVertical: 14, paddingHorizontal: 26, alignItems: "center", shadowColor: "#2d3a7c", shadowOpacity: 0.2, shadowOffset: { width: 0, height: 4 }, shadowRadius: 6, elevation: 4 },
-  nextBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
-  centered: { alignItems: "center", justifyContent: "center", marginTop: 120 },
-  completeText: { fontSize: 22, fontWeight: "800", color: "#3f4ca8", marginTop: 16, marginBottom: 8 },
-  submitBtn: { borderRadius: 12, backgroundColor: "#4f5fc5", paddingVertical: 14, paddingHorizontal: 30, marginTop: 10 },
-  submitBtnText: { color: "#fff", fontWeight: "800", fontSize: 16 },
+  verticalPill: { width: 4, height: 20, backgroundColor: '#5b5f97', borderRadius: 2, marginRight: 8 },
+  sectionHeader: { fontSize: 16, fontWeight: '800', color: '#3d4076' },
+  label: { fontSize: 13, fontWeight: '600', color: '#3d4076', marginBottom: 6 },
+  readOnlyField: { marginBottom: 16 },
+  inputReadOnly: {
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: '#64748b',
+    fontSize: 14,
+  },
+  field: { marginBottom: 16 },
+  input: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: '#0f172a',
+    fontSize: 14,
+  },
+  textArea: { height: 100, textAlignVertical: 'top' },
+  errorText: { color: '#ef4444', fontSize: 12, marginTop: 4 },
+  
+  // Evaluation Card Styles
+  evalCard: { borderRadius: 12, borderWidth: 1, overflow: 'hidden', marginBottom: 8 },
+  evalCardLoading: { borderColor: '#e2e8f0' },
+  evalCardSuccess: { borderColor: '#bbf7d0' },
+  evalCardWarning: { borderColor: '#fef08a' },
+  evalHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
+  evalHeaderLoading: { backgroundColor: '#f8fafc', borderBottomColor: '#e2e8f0' },
+  evalHeaderSuccess: { backgroundColor: '#f0fdf4', borderBottomColor: '#bbf7d0' },
+  evalHeaderWarning: { backgroundColor: '#fefce8', borderBottomColor: '#fef08a' },
+  evalHeaderIcon: { fontSize: 16, marginRight: 8 },
+  evalHeaderTitle: { fontSize: 14, fontWeight: '700', color: '#3d4076', flex: 1 },
+  aiBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  aiBadgeSuccess: { backgroundColor: '#dcfce7' },
+  aiBadgeWarning: { backgroundColor: '#fef3c7' },
+  aiBadgeError: { backgroundColor: '#fee2e2' },
+  aiBadgeText: { fontSize: 11, fontWeight: '700' },
+  aiBadgeTextSuccess: { color: '#15803d' },
+  aiBadgeTextWarning: { color: '#b45309' },
+  aiBadgeTextError: { color: '#b91c1c' },
+  evalBody: { backgroundColor: '#fff', padding: 16 },
+  evalLoadingText: { fontSize: 13, color: '#64748b', fontStyle: 'italic' },
+  evalSubHeader: { fontSize: 10, fontWeight: '700', color: '#94a3b8', letterSpacing: 1, marginBottom: 8 },
+  tagList: { marginBottom: 16, gap: 8 },
+  tagItem: { flexDirection: 'row', alignItems: 'flex-start', padding: 10, borderRadius: 8 },
+  tagItemNeutral: { backgroundColor: '#f8fafc' },
+  tagItemSuccess: { backgroundColor: '#f0fdf4' },
+  tagItemError: { backgroundColor: '#fef2f2' },
+  tagIcon: { marginRight: 8, fontSize: 14, fontWeight: '700', marginTop: -2 },
+  tagText: { fontSize: 13, flex: 1 },
+  tagTextNeutral: { color: '#64748b' },
+  tagTextSuccess: { color: '#15803d' },
+  tagTextError: { color: '#b91c1c' },
+  verdictBox: { padding: 12, borderRadius: 8, marginBottom: 16 },
+  verdictSuccess: { backgroundColor: '#f0fdf4' },
+  verdictWarning: { backgroundColor: '#fefce8' },
+  verdictText: { fontSize: 13, fontWeight: '600' },
+  verdictTextSuccess: { color: '#15803d' },
+  verdictTextWarning: { color: '#a16207' },
+  aiSummarySection: { borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 16 },
+  aiSummaryText: { fontSize: 13, color: '#334155', lineHeight: 20, marginBottom: 8 },
+  aiReasoningText: { fontSize: 11, color: '#64748b', fontStyle: 'italic' },
+  aiReasoningLabel: { fontWeight: '600', fontStyle: 'normal' },
+
+  // Upload Box
+  uploadBoxDashed: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#cbd5e1',
+    borderRadius: 12,
+    backgroundColor: '#f8fafc',
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadBoxError: { borderColor: '#fca5a5', backgroundColor: '#fef2f2' },
+  uploadBoxSuccess: { borderColor: '#69b486', backgroundColor: '#f0fdf4', borderStyle: 'solid' },
+  uploadBoxTitle: { fontSize: 14, fontWeight: '700', color: '#4a4e7d', marginBottom: 4 },
+  uploadBoxSubtext: { fontSize: 12, color: '#94a3b8' },
+  textError: { color: '#ef4444' },
+  textSuccess: { color: '#15803d' },
+
+  // Review & Confirm
+  infoBox: { backgroundColor: '#f1f5f9', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 16 },
+  infoBoxText: { fontSize: 13, color: '#475569', lineHeight: 18 },
+  reviewCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  reviewCardTitle: { fontSize: 14, fontWeight: '700', color: '#3d4076', marginBottom: 12 },
+  reviewRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  reviewLabel: { fontSize: 12, fontWeight: '600', color: '#64748b' },
+  reviewValue: { fontSize: 12, fontWeight: '700', color: '#1e293b' },
+  reviewDocRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  reviewDocLabel: { fontSize: 12, fontWeight: '600', color: '#1e293b', flex: 1, marginLeft: 8 },
+  reviewDocStatus: { fontSize: 12, color: '#64748b' },
+  checkboxContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 2, borderColor: '#cbd5e1', marginRight: 10, justifyContent: 'center', alignItems: 'center' },
+  checkboxChecked: { backgroundColor: '#5b5f97', borderColor: '#5b5f97' },
+  checkboxText: { fontSize: 13, fontWeight: '600', color: '#3d4076', flex: 1 },
+
+  // Footer Actions
+  footer: { flexDirection: 'row', padding: 20, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f1f5f9', gap: 12 },
+  primaryBtn: { flex: 1, backgroundColor: '#5b5f97', paddingVertical: 14, borderRadius: 10, alignItems: 'center', shadowColor: '#5b5f97', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 3 },
+  primaryBtnDisabled: { backgroundColor: '#94a3b8', shadowOpacity: 0 },
+  primaryBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  secondaryBtn: { flex: 1, backgroundColor: '#fff', paddingVertical: 14, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#cbd5e1' },
+  secondaryBtnText: { color: '#4a4e7d', fontSize: 14, fontWeight: '700' },
+
+  // Success / Status States
+  centered: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
+  completeText: { fontSize: 20, fontWeight: '800', color: '#1e293b', marginTop: 24, marginBottom: 8 },
+  completeSubtext: { fontSize: 14, color: '#64748b', textAlign: 'center', marginBottom: 32 },
+  submitBtn: { backgroundColor: '#5b5f97', paddingVertical: 14, paddingHorizontal: 32, borderRadius: 10 },
+  submitBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  errorBanner: { backgroundColor: '#fef2f2', borderColor: '#fca5a5', borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 16 },
+  errorBannerText: { color: '#b91c1c', fontSize: 13 },
 });
