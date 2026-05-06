@@ -19,8 +19,8 @@ export default function FinancialRecordsScreen({ navigation }) {
     itemDescription: "",
     subject: "",
     purchasePlace: "",
-    academicYear: "2024-2025",
-    term: "1st Semester",
+    academicYear: user?.academicYear || "2024-2025",
+    term: user?.term || "1st Semester",
     purpose: "",
   });
   
@@ -44,6 +44,7 @@ export default function FinancialRecordsScreen({ navigation }) {
   const [isLoadingApps, setIsLoadingApps] = useState(true);
   const [recordsError, setRecordsError] = useState(null);
   const [appsError, setAppsError] = useState(null);
+  const [summary, setSummary] = useState(null);
 
   const {
     submitting,
@@ -74,6 +75,7 @@ export default function FinancialRecordsScreen({ navigation }) {
       const result = await financialRecordsService.getScholarRecords();
       if (result.success) {
         setTransactions(result.data);
+        setSummary(result.summary);
       } else {
         setRecordsError(result.message || "Failed to load records");
       }
@@ -329,6 +331,55 @@ export default function FinancialRecordsScreen({ navigation }) {
     .filter((t) => ["Confirmed", "Released"].includes(t.status))
     .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
 
+  const monthlyTransactions = transactions.filter(
+    (t) => (t.type?.toLowerCase().includes("monthly") || !t.type)
+  );
+
+  const monthlyAllowanceTotal = summary?.monthly?.total || monthlyTransactions
+    .filter((t) => ["Confirmed", "Released"].includes(t.status))
+    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+
+  const latestYear = transactions.length > 0
+    ? Math.max(...transactions.map(t => parseInt(t.periodYear || 0))).toString()
+    : new Date().getFullYear().toString();
+
+  const monthlyThisYear = summary?.monthly?.thisYear || monthlyTransactions
+    .filter((t) => 
+      ["Confirmed", "Released"].includes(t.status) && 
+      t.periodYear === latestYear
+    )
+    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+
+  const supplyTransactions = transactions.filter(
+    (t) => t.type?.toLowerCase().includes("supply")
+  );
+
+  const supplyAllowanceTotal = summary?.supply?.total || supplyTransactions
+    .filter((t) => ["Confirmed", "Released"].includes(t.status))
+    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+
+  // Total amount spent (all-time) based on approved and pending receipts
+  const totalAmountSpent = applications
+    .filter((s) => ["approved", "pending", "success"].includes(s.status))
+    .reduce((sum, sub) => {
+      const subData = Array.isArray(sub.expense_proof_submissions) 
+        ? sub.expense_proof_submissions[0] 
+        : sub.expense_proof_submissions;
+      const receipts = subData?.expense_proof_receipts || [];
+      return sum + receipts.reduce((rSum, r) => rSum + Number(r.amount || 0), 0);
+    }, 0);
+
+  // Identify current term from latest transaction to determine "This Semester" context
+  const currentTerm = transactions.length > 0 ? transactions[0].term : null;
+
+  const supplyThisSemester = summary?.supply?.thisSemester || transactions
+    .filter((t) => 
+      ["Confirmed", "Released"].includes(t.status) && 
+      t.type?.toLowerCase().includes("supply") &&
+      (currentTerm ? t.term === currentTerm : true)
+    )
+    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+
   const totalRequested = receiptItems.reduce((sum, item) => {
     const val = parseFloat(String(item.amount || "").replace(/,/g, ""));
     return sum + (isNaN(val) ? 0 : val);
@@ -477,21 +528,41 @@ export default function FinancialRecordsScreen({ navigation }) {
               <Text style={styles.pageHeaderSub}>Complete disbursement history</Text>
             </View>
 
-            <View style={styles.totalCard}>
-              <Text style={styles.totalLabel}>Total Received</Text>
-              <Text style={styles.totalValue}>{formatCurrency(totalReceived)}</Text>
-              <View style={styles.lineDivider} />
-              <View style={styles.totalStatsRow}>
-                <View style={styles.totalStatCol}>
-                  <Text style={styles.totalStatNum}>{formatCurrency(totalReceived)}</Text>
-                  <Text style={styles.totalStatLabel}>This Year</Text>
-                </View>
-                <View style={styles.totalStatColRight}>
-                  <Text style={styles.totalStatNum}>{transactions.length}</Text>
-                  <Text style={styles.totalStatLabel}>Transactions</Text>
+            {activeTab === "disbursements" ? (
+              /* Monthly Allowance Card */
+              <View style={[styles.totalCard, { borderLeftWidth: 4, borderLeftColor: '#0d7c47' }]}>
+                <Text style={styles.totalLabel}>Monthly Allowance</Text>
+                <Text style={[styles.totalValue, { color: '#0d7c47' }]}>{formatCurrency(monthlyAllowanceTotal)}</Text>
+                <View style={styles.lineDivider} />
+                <View style={styles.totalStatsRow}>
+                  <View style={styles.totalStatCol}>
+                    <Text style={styles.totalStatNum}>{formatCurrency(monthlyThisYear)}</Text>
+                    <Text style={styles.totalStatLabel}>This Year</Text>
+                  </View>
+                  <View style={styles.totalStatColRight}>
+                    <Text style={styles.totalStatNum}>{summary?.monthly?.transactions || monthlyTransactions.length}</Text>
+                    <Text style={styles.totalStatLabel}>Transactions</Text>
+                  </View>
                 </View>
               </View>
-            </View>
+            ) : (
+              /* Supply Allowance Card */
+              <View style={[styles.totalCard, { borderLeftWidth: 4, borderLeftColor: '#4f9bad' }]}>
+                <Text style={styles.totalLabel}>Total Supply Allowance</Text>
+                <Text style={[styles.totalValue, { color: '#4f9bad' }]}>{formatCurrency(supplyAllowanceTotal)}</Text>
+                <View style={styles.lineDivider} />
+                <View style={styles.totalStatsRow}>
+                  <View style={styles.totalStatCol}>
+                    <Text style={styles.totalStatNum}>{formatCurrency(supplyThisSemester)}</Text>
+                    <Text style={styles.totalStatLabel}>This Semester</Text>
+                  </View>
+                  <View style={styles.totalStatColRight}>
+                    <Text style={styles.totalStatNum}>{formatCurrency(totalAmountSpent)}</Text>
+                    <Text style={styles.totalStatLabel}>Amount Spent</Text>
+                  </View>
+                </View>
+              </View>
+            )}
 
             <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderRadius: 14, padding: 4, marginBottom: 20, borderWidth: 1, borderColor: '#e4e8f8' }}>
               <TouchableOpacity 
@@ -540,8 +611,8 @@ export default function FinancialRecordsScreen({ navigation }) {
                             <Text style={styles.txHeaderTitle}>{tx.title}</Text>
                             <Text style={styles.txHeaderSub}>{tx.period}</Text>
                           </View>
-                          <View style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}>
-                            <Text style={[styles.statusPillText, { color: statusStyle.text }]}>{tx.status}</Text>
+                          <View style={[styles.statusPill, { backgroundColor: statusStyle.bg, height: 26 }]}>
+                            <Text style={[styles.statusPillText, { color: statusStyle.text, fontSize: 11 }]}>{tx.status}</Text>
                           </View>
                         </View>
                         
@@ -554,7 +625,7 @@ export default function FinancialRecordsScreen({ navigation }) {
                           </View>
                           <View style={styles.txFooterCol}>
                             <Text style={styles.txFooterLabel}>Amount</Text>
-                            <Text style={[styles.txFooterValue, { color: '#0d7c47' }]}>{formatCurrency(tx.amount)}</Text>
+                            <Text style={[styles.txFooterValue, { color: '#0d7c47', fontWeight: '800' }]}>{formatCurrency(tx.amount)}</Text>
                           </View>
                           <View style={styles.txFooterColRight}>
                             <Text style={styles.txFooterLabel}>Type</Text>
@@ -607,8 +678,8 @@ export default function FinancialRecordsScreen({ navigation }) {
                             </Text>
                             <Text style={styles.proofDate}>Submitted: {formatDate(sub.submitted_at)}</Text>
                           </View>
-                          <View style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}>
-                            <Text style={[styles.statusPillText, { color: statusStyle.text }]}>
+                          <View style={[styles.statusPill, { backgroundColor: statusStyle.bg, height: 26 }]}>
+                            <Text style={[styles.statusPillText, { color: statusStyle.text, fontSize: 11 }]}>
                               {sub.status?.toUpperCase().replace("_", " ")}
                             </Text>
                           </View>
@@ -1031,7 +1102,7 @@ const styles = StyleSheet.create({
   proofAiBox: { marginTop: 16, backgroundColor: '#f8f9fa', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#e9ecef' },
   proofAiTitle: { fontSize: 13, fontWeight: '700', color: '#1a1a2e' },
   proofAiText: { fontSize: 12, color: '#495057', lineHeight: 18, fontStyle: 'italic' },
-  receiptsListTitle: { fontSize: 13, fontWeights: '700', color: '#1a1a2e' },
+  receiptsListTitle: { fontSize: 13, fontWeight: '700', color: '#1a1a2e' },
   receiptItemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, borderRadius: 10, backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb' },
   receiptItemName: { fontSize: 13, fontWeight: '600', color: '#374151' },
   receiptItemDate: { fontSize: 11, color: '#6b7280', marginTop: 2 },

@@ -26,7 +26,7 @@ const FormDatePicker = ({
     const year = dateObj.getFullYear();
     const month = String(dateObj.getMonth() + 1).padStart(2, '0');
     const day = String(dateObj.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return `${month}/${day}/${year}`;
   };
 
   const onChange = (event, selectedDate) => {
@@ -52,7 +52,18 @@ const FormDatePicker = ({
     setTempDate(value ? new Date(value) : new Date());
   };
 
-  const displayValue = value ? value : "";
+  const formatDisplayDate = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const displayValue = value ? formatDisplayDate(value) : "";
 
   return (
     <View style={styles.container}>

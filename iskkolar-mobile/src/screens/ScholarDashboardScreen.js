@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
-import { getScholarDashboardSummary } from '../services/scholarDashboardService';
+import { getScholarDashboardSummary, getScholarApplicationHistory } from '../services/scholarDashboardService';
 import { getGradeComplianceTerms } from '../services/gradeComplianceService';
 
 const getNextAcademicYear = (value) => {
@@ -22,21 +22,37 @@ export default function ScholarDashboardScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
   const [dashboardSummary, setDashboardSummary] = useState(null);
+  const [applicationHistory, setApplicationHistory] = useState([]);
   const [gradeComplianceSummary, setGradeComplianceSummary] = useState(null);
 
-  const currentYearLevel = dashboardSummary?.currentYearLevel || user?.yearLevel || 'Not set';
-  const currentProgram = dashboardSummary?.currentProgram || user?.program || user?.scholarshipType || '--';
-  const currentGwaValue = dashboardSummary?.currentGwa;
+  const currentYearLevel = dashboardSummary?.academicStatus?.yearLevel || user?.yearLevel || 'Not set';
+  const currentProgram = dashboardSummary?.academicStatus?.program || user?.program || user?.scholarshipType || '--';
+  const currentGwaValue = dashboardSummary?.academicStatus?.latestGwa;
   const currentGwa = Number.isFinite(Number(currentGwaValue)) ? Number(currentGwaValue).toFixed(2) : '--';
-  const rawAppsCount = dashboardSummary?.totalApplications ?? dashboardSummary?.applicationsSubmitted ?? dashboardSummary?.submittedApplicationsCount ?? dashboardSummary?.submittedApplications ?? dashboardSummary?.total_applications ?? dashboardSummary?.applications_submitted ?? dashboardSummary?.applicationsCount;
-  const submittedApplications = Number(rawAppsCount);
-  const applicationsSubmitted = Number.isFinite(submittedApplications) ? String(submittedApplications) : '0';
+  
+  const sourceSummary = dashboardSummary?.sourceSummary;
+  const historyItems = applicationHistory || [];
+  
+  // Exclude empty placeholders from count if they exist
+  const actualApplications = historyItems.filter(item => item.id && !item.id.includes('_empty') && item.status !== 'not_started');
+  
+  // Total applications submitted (Renewal, Tertiary, Vocational, KKFI, Exam Assistance, etc.)
+  const submittedApplicationsCount = (sourceSummary ? (
+    (sourceSummary.renewalsCount || 0) +
+    (sourceSummary.tertiaryApplicationsCount || 0) +
+    (sourceSummary.vocationalApplicationsCount || 0) +
+    (sourceSummary.kkfiChildApplicationsCount || 0) +
+    (sourceSummary.kkfiStaffApplicationsCount || 0)
+  ) : 0) + actualApplications.filter(a => ['exam_assistance', 'transfer_school'].includes(a.category)).length;
+
+  const applicationsSubmitted = String(submittedApplicationsCount);
+  
   const gradeComplianceTerms = gradeComplianceSummary?.terms || [];
   const nextPendingGradeComplianceTerm = gradeComplianceTerms.find(
     (item) => String(item?.status || '').toLowerCase() === 'pending'
   )?.term;
-  const gradeComplianceLatestTerm = gradeComplianceSummary?.latestSubmission?.term;
-  const currentTerm = nextPendingGradeComplianceTerm || dashboardSummary?.currentTerm || gradeComplianceLatestTerm || user?.term || '--';
+  
+  const currentTerm = nextPendingGradeComplianceTerm || dashboardSummary?.academicStatus?.term || user?.term || '--';
 
   const stats = useMemo(
     () => [
@@ -115,14 +131,16 @@ export default function ScholarDashboardScreen({ navigation }) {
 
     const loadDashboardMeta = async () => {
       try {
-        const [summary, gradeCompliance] = await Promise.all([
+        const [summary, history, gradeCompliance] = await Promise.all([
           getScholarDashboardSummary(),
+          getScholarApplicationHistory(),
           getGradeComplianceTerms(),
         ]);
 
         if (!isMounted) return;
 
         setDashboardSummary(summary?.data || summary || null);
+        setApplicationHistory(history?.data?.applicationItems || history?.applicationItems || []);
         setGradeComplianceSummary(gradeCompliance?.data || gradeCompliance || null);
       } catch (error) {
         if (__DEV__) {

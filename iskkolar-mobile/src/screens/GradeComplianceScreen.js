@@ -117,6 +117,7 @@ export default function GradeComplianceScreen({ navigation }) {
     setGwa("");
     setLastAiSummary("");
     setStep(1);
+    setIsSubmitting(false);
     setFieldErrors({ gradeReport: "", cor: "", term: "", nextTermStartDate: "", nextTermEndDate: "", gwa: "" });
     if (clearFeedback) setSuccessMessage("");
   };
@@ -224,6 +225,7 @@ export default function GradeComplianceScreen({ navigation }) {
       setLastAiSummary(response?.data?.ai_summary || "");
       setCompleteStage("preAssessment");
       await loadTerms();
+      setIsSubmitting(false);
     } catch (error) {
       setFieldErrors((current) => ({
         ...current,
@@ -408,6 +410,11 @@ export default function GradeComplianceScreen({ navigation }) {
 
     return (
       <View style={styles.formCard}>
+        {fieldErrors.term ? (
+          <View style={[styles.errorBanner, { marginBottom: 20 }]}>
+            <Text style={styles.errorBannerText}>{fieldErrors.term}</Text>
+          </View>
+        ) : null}
         <View style={styles.progressBarWrapper}>
           <View style={styles.progressBarRow}>
             <View style={[styles.progressStep, styles.progressStepActive]} />
