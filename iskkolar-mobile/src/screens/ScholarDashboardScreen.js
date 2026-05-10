@@ -74,24 +74,6 @@ export default function ScholarDashboardScreen({ navigation }) {
   const baseAcademicYear = dashboardSummary?.currentAcademicYear || user?.academicYear || '';
   const nextAcademicYear = getNextAcademicYear(baseAcademicYear);
 
-  const hasVocationalValue = (obj) => {
-    if (!obj) return false;
-    return Object.values(obj).some(val => {
-      if (typeof val === 'string') return val.toLowerCase().includes('vocational');
-      if (typeof val === 'object') return hasVocationalValue(val);
-      return false;
-    });
-  };
-
-  const isVocational = 
-    hasVocationalValue(user) || 
-    hasVocationalValue(dashboardSummary) || 
-    String(currentProgram).toLowerCase().includes('vocational');
-
-  const vocSchool = dashboardSummary?.school || user?.vocationalSchoolName || user?.schoolName || '--';
-  const vocDuration = dashboardSummary?.courseDuration || dashboardSummary?.duration || user?.courseDuration || '--';
-  const vocEndDate = dashboardSummary?.endDate || user?.endDate || '--';
-  const vocProgram = currentProgram;
 
   const services = [
     {
@@ -172,133 +154,74 @@ export default function ScholarDashboardScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
         style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
       >
-        {isVocational ? (
-          <>
-            <View style={[styles.heroBanner, { flexDirection: 'column', alignItems: 'stretch' }]}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#d0d4e9', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>
-                    VOCATIONAL DASHBOARD
-                  </Text>
-                  <Text style={styles.heroName}>{fullName}</Text>
-                  <View style={styles.heroBadge}>
-                    <Text style={styles.heroBadgeText}>Vocational / Certification Scholar</Text>
-                  </View>
-                </View>
+        {/* Header Banner */}
+        <View style={styles.heroBanner}>
+          <View style={styles.heroTextContent}>
+            <Text style={styles.heroGreeting}>Good day,</Text>
+            <Text style={styles.heroName}>{fullName}</Text>
+            <View style={styles.heroBadge}>
+              <Text style={styles.heroBadgeText}>Active Scholar</Text>
+            </View>
+          </View>
+          <View style={styles.heroIconWatermark}>
+            <Ionicons name="school" size={100} color="rgba(255,255,255,0.15)" />
+          </View>
+        </View>
 
-                <View style={{
-                  width: 80, height: 80, borderRadius: 40,
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  borderWidth: 6, borderColor: '#5c6496',
-                  justifyContent: 'center', alignItems: 'center',
-                  shadowColor: '#fff', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 0 }
-                }}>
-                  <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>0%</Text>
-                  <Text style={{ color: '#b2b8d9', fontSize: 9, fontWeight: '700', letterSpacing: 0.5 }}>READY</Text>
-                </View>
+        {/* Stats Row */}
+        <View style={styles.statsContainer}>
+          {stats.map((stat, idx) => (
+            <View key={idx} style={styles.statCard}>
+              <View style={[styles.statIconBox, { backgroundColor: stat.iconBg }]}>
+                <Ionicons name={stat.icon} size={20} color={stat.iconColor} />
               </View>
-
-              <View style={{ marginTop: 24 }}>
-                <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700', marginBottom: 4 }}>
-                  Program timeline available after approval
-                </Text>
-                <Text style={{ color: '#d0d4e9', fontSize: 13, fontWeight: '500' }}>
-                  Completion date not yet submitted
-                </Text>
-                <View style={{ width: '100%', height: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 3, marginTop: 16 }} />
+              <View style={styles.statTextCol}>
+                <Text style={styles.statTitle}>{stat.title}</Text>
+                <Text style={styles.statSub}>{stat.sub}</Text>
               </View>
             </View>
+          ))}
+        </View>
 
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 12 }}>
-              {[
-                { label: 'PROGRAM', value: vocProgram },
-                { label: 'SCHOOL / CENTER', value: vocSchool },
-                { label: 'DURATION', value: vocDuration },
-                { label: 'END DATE', value: vocEndDate }
-              ].map((item, idx) => (
-                <View key={idx} style={[styles.statCard, { width: '48%', flexDirection: 'column', alignItems: 'flex-start', paddingVertical: 18 }]}>
-                  <Text style={{ color: '#8b93b0', fontSize: 10, fontWeight: '700', letterSpacing: 0.5, marginBottom: 8 }}>{item.label}</Text>
-                  <Text style={{ color: '#111', fontSize: 15, fontWeight: '800' }}>{item.value}</Text>
-                </View>
-              ))}
-            </View>
-          </>
-        ) : (
-          <>
-            {/* Header Banner */}
-            <View style={styles.heroBanner}>
-              <View style={styles.heroTextContent}>
-                <Text style={styles.heroGreeting}>Good day,</Text>
-                <Text style={styles.heroName}>{fullName}</Text>
-                <View style={styles.heroBadge}>
-                  <Text style={styles.heroBadgeText}>Active Scholar</Text>
-                </View>
+        {/* Quick Links */}
+        <Text style={styles.sectionHeader}>Quick Links</Text>
+        <View style={styles.quickLinksGrid}>
+          {quickLinks.map((link, idx) => (
+            <TouchableOpacity
+              key={idx}
+              style={styles.quickLinkCard}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate(link.route)}
+            >
+              <View style={[styles.qlIconBox, { backgroundColor: link.iconBg }]}>
+                <Ionicons name={link.icon} size={24} color={link.iconColor} />
               </View>
-              <View style={styles.heroIconWatermark}>
-                <Ionicons name="school" size={100} color="rgba(255,255,255,0.15)" />
+              <Text style={styles.qlTitle}>{link.title}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Scholar Services */}
+        <Text style={styles.sectionHeader}>Scholar Services</Text>
+        <View style={styles.servicesContainer}>
+          {services.map((svc, idx) => (
+            <TouchableOpacity
+              key={idx}
+              style={styles.serviceCard}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate(svc.route)}
+            >
+              <View style={[styles.svcIconBox, { backgroundColor: svc.iconBg }]}>
+                <Ionicons name={svc.icon} size={28} color={svc.iconColor} />
               </View>
-            </View>
-
-            {/* Stats Row */}
-            <View style={styles.statsContainer}>
-              {stats.map((stat, idx) => (
-                <View key={idx} style={styles.statCard}>
-                  <View style={[styles.statIconBox, { backgroundColor: stat.iconBg }]}>
-                    <Ionicons name={stat.icon} size={20} color={stat.iconColor} />
-                  </View>
-                  <View style={styles.statTextCol}>
-                    <Text style={styles.statTitle}>{stat.title}</Text>
-                    <Text style={styles.statSub}>{stat.sub}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </>
-        )}
-
-        {!isVocational && (
-          <>
-            {/* Quick Links */}
-            <Text style={styles.sectionHeader}>Quick Links</Text>
-            <View style={styles.quickLinksGrid}>
-              {quickLinks.map((link, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={styles.quickLinkCard}
-                  activeOpacity={0.8}
-                  onPress={() => navigation.navigate(link.route)}
-                >
-                  <View style={[styles.qlIconBox, { backgroundColor: link.iconBg }]}>
-                    <Ionicons name={link.icon} size={24} color={link.iconColor} />
-                  </View>
-                  <Text style={styles.qlTitle}>{link.title}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Scholar Services */}
-            <Text style={styles.sectionHeader}>Scholar Services</Text>
-            <View style={styles.servicesContainer}>
-              {services.map((svc, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={styles.serviceCard}
-                  activeOpacity={0.8}
-                  onPress={() => navigation.navigate(svc.route)}
-                >
-                  <View style={[styles.svcIconBox, { backgroundColor: svc.iconBg }]}>
-                    <Ionicons name={svc.icon} size={28} color={svc.iconColor} />
-                  </View>
-                  <View style={styles.svcTextCol}>
-                    <Text style={styles.svcTitle}>{svc.title}</Text>
-                    <Text style={styles.svcSub}>{svc.sub}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={24} color="#d4dae8" />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </>
-        )}
+              <View style={styles.svcTextCol}>
+                <Text style={styles.svcTitle}>{svc.title}</Text>
+                <Text style={styles.svcSub}>{svc.sub}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#d4dae8" />
+            </TouchableOpacity>
+          ))}
+        </View>
 
       </Animated.ScrollView>
     </View>
