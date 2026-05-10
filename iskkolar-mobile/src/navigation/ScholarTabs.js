@@ -16,15 +16,33 @@ import ApplicationScreen from "../screens/ApplicationScreen";
 import GradeComplianceScreen from "../screens/GradeComplianceScreen";
 import FinancialRecordsScreen from "../screens/FinancialRecordsScreen";
 import TransferSchoolScreen from "../screens/TransferSchoolScreen";
+import VocationalDashboardScreen from "../screens/VocationalDashboardScreen";
+import VocationalCompletionScreen from "../screens/VocationalCompletionScreen";
 
 const Tab = createBottomTabNavigator();
 const DashboardStack = createNativeStackNavigator();
 
 // Create a stack for the Scholar Dashboard so it can route to Notifications
 function ScholarDashboardStackScreen() {
+  const { user } = useContext(AuthContext);
+  
+  // Basic check for vocational status to decide which main dashboard to show
+  const hasVocationalValue = (obj) => {
+    if (!obj) return false;
+    return Object.values(obj).some(val => {
+      if (typeof val === 'string') return val.toLowerCase().includes('vocational');
+      if (typeof val === 'object') return hasVocationalValue(val);
+      return false;
+    });
+  };
+  const isVocational = hasVocationalValue(user) || String(user?.program || '').toLowerCase().includes('vocational');
+
   return (
     <DashboardStack.Navigator screenOptions={{ headerShown: false }}>
-      <DashboardStack.Screen name="ScholarDashboardMain" component={ScholarDashboardScreen} />
+      <DashboardStack.Screen 
+        name="ScholarDashboardMain" 
+        component={isVocational ? VocationalDashboardScreen : ScholarDashboardScreen} 
+      />
       <DashboardStack.Screen name="ScholarshipRenewal" component={ScholarshipRenewalScreen} />
       <DashboardStack.Screen name="ExamAssistance" component={ExamAssistanceScreen} />
       <DashboardStack.Screen name="GradeCompliance" component={GradeComplianceScreen} />
@@ -32,6 +50,7 @@ function ScholarDashboardStackScreen() {
       <DashboardStack.Screen name="TransferSchool" component={TransferSchoolScreen} />
       <DashboardStack.Screen name="Activities" component={ActivitiesScreen} />
       <DashboardStack.Screen name="Application" component={ApplicationScreen} />
+      <DashboardStack.Screen name="VocationalCompletion" component={VocationalCompletionScreen} />
     </DashboardStack.Navigator>
   );
 }
