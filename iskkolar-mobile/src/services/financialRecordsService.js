@@ -1,4 +1,5 @@
 import api from "./api";
+import { isMissingUserProfileError } from './serviceErrorHelpers';
 
 export const financialRecordsService = {
   /**
@@ -11,6 +12,10 @@ export const financialRecordsService = {
       const response = await api.get("/assistance/financial-records");
       return response.data;
     } catch (error) {
+      if (isMissingUserProfileError(error)) {
+        return { success: true, data: [], summary: null };
+      }
+
       console.error("Failed to fetch financial records:", error);
       throw error;
     }

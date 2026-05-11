@@ -832,6 +832,11 @@ export default function FinancialRecordsScreen({ navigation }) {
             </TouchableOpacity>
 
             <Text style={[styles.sectionTitleHeader, { marginBottom: 16 }]}>| Upload Official Receipt</Text>
+            {fieldErrors.receiptItems && (
+              <View style={{ marginBottom: 12, padding: 12, borderRadius: 12, backgroundColor: '#fff3f3', borderWidth: 1, borderColor: '#fecaca' }}>
+                <Text style={{ color: '#dc2626', fontWeight: '700', textAlign: 'center' }}>{fieldErrors.receiptItems}</Text>
+              </View>
+            )}
             
             {receiptItems.map((item, idx) => (
               <View key={`receipt_${idx}`} style={{ borderWidth: 1, borderColor: '#e4e8f8', borderRadius: 12, padding: 16, marginBottom: 16, backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 }}>
@@ -864,6 +869,7 @@ export default function FinancialRecordsScreen({ navigation }) {
                 <FormDatePicker
                   label="Purchase Date"
                   value={item.purchaseDate}
+                  dateFormat="dd/mm/yyyy"
                   onDateChange={(val) => {
                     updateReceiptField(idx, 'purchaseDate', val);
                     clearFieldError(`receipt_date_${idx}`);

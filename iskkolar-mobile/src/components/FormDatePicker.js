@@ -11,35 +11,63 @@ const FormDatePicker = ({
   placeholder = "Select Date",
   minimumDate,
   maximumDate,
-  required = false
+  required = false,
+  dateFormat = 'mm/dd/yyyy'
 }) => {
   const [show, setShow] = useState(false);
   const [tempDate, setTempDate] = useState(value ? new Date(value) : new Date());
 
+  const parseDate = (dateValue) => {
+    if (!dateValue) return null;
+    if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) {
+      return dateValue;
+    }
+
+    const text = String(dateValue).trim();
+
+    const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+    if (isoMatch) {
+      return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+    }
+
+    const slashMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(text);
+    if (!slashMatch) return null;
+
+    const first = Number(slashMatch[1]);
+    const second = Number(slashMatch[2]);
+    const year = Number(slashMatch[3]);
+
+    if (dateFormat === 'dd/mm/yyyy') {
+      return new Date(year, second - 1, first);
+    }
+
+    return new Date(year, first - 1, second);
+  };
+
   useEffect(() => {
     if (value) {
-      setTempDate(new Date(value));
+      const parsed = parseDate(value);
+      if (parsed) setTempDate(parsed);
     }
-  }, [value]);
+  }, [value, dateFormat]);
 
   const formatDate = (dateObj) => {
     const year = dateObj.getFullYear();
     const month = String(dateObj.getMonth() + 1).padStart(2, '0');
     const day = String(dateObj.getDate()).padStart(2, '0');
-    return `${month}/${day}/${year}`;
+    return dateFormat === 'dd/mm/yyyy' ? `${day}/${month}/${year}` : `${month}/${day}/${year}`;
   };
 
-  const onChange = (event, selectedDate) => {
+  const handleValueChange = (_event, selectedDate) => {
+    if (!selectedDate) return;
+
     if (Platform.OS === 'android') {
       setShow(false);
-      if (selectedDate && event.type === 'set') {
-        onDateChange(formatDate(selectedDate));
-      }
-    } else {
-      if (selectedDate) {
-        setTempDate(selectedDate);
-      }
+      onDateChange(formatDate(selectedDate));
+      return;
     }
+
+    setTempDate(selectedDate);
   };
 
   const confirmIOS = () => {
@@ -49,18 +77,21 @@ const FormDatePicker = ({
 
   const cancelIOS = () => {
     setShow(false);
-    setTempDate(value ? new Date(value) : new Date());
+    const parsed = parseDate(value);
+    setTempDate(parsed || new Date());
+  };
+
+  const handleDismiss = () => {
+    setShow(false);
+    const parsed = parseDate(value);
+    setTempDate(parsed || new Date());
   };
 
   const formatDisplayDate = (dateString) => {
     if (!dateString) return "";
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString;
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    const date = parseDate(dateString);
+    if (!date) return dateString;
+    return formatDate(date);
   };
 
   const displayValue = value ? formatDisplayDate(value) : "";
@@ -104,7 +135,8 @@ const FormDatePicker = ({
                 display="spinner"
                 minimumDate={minimumDate}
                 maximumDate={maximumDate}
-                onChange={onChange}
+                onValueChange={handleValueChange}
+                onDismiss={handleDismiss}
                 textColor="#000000"
               />
             </View>
@@ -113,12 +145,13 @@ const FormDatePicker = ({
       ) : (
         show && (
           <DateTimePicker
-            value={value ? new Date(value) : new Date()}
+            value={parseDate(value) || new Date()}
             mode="date"
             display="default"
             minimumDate={minimumDate}
             maximumDate={maximumDate}
-            onChange={onChange}
+            onValueChange={handleValueChange}
+            onDismiss={handleDismiss}
           />
         )
       )}

@@ -12,11 +12,20 @@ const REQUIRED_FIELDS = {
 
 const isValidDateString = (value) => /^\d{2}\/\d{2}\/\d{4}$/.test(String(value || ""));
 
+const hasReceiptContent = (item) => {
+  return Boolean(
+    item?.file ||
+    item?.purchaseDate ||
+    item?.amount ||
+    item?.additionalNotes
+  );
+};
+
 const toIsoDate = (value) => {
   const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(value || "").trim());
   if (!match) return value;
-  const month = match[1];
-  const day = match[2];
+  const day = match[1];
+  const month = match[2];
   const year = match[3];
   return `${year}-${month}-${day}`;
 };
@@ -37,6 +46,7 @@ export const useFinancialAssistance = () => {
 
   const validateForm = useCallback((values, receiptItems) => {
     const nextErrors = {};
+    const activeReceiptItems = (receiptItems || []).filter(hasReceiptContent);
 
     Object.entries(REQUIRED_FIELDS).forEach(([key, message]) => {
       if (!values?.[key]) {
@@ -44,14 +54,18 @@ export const useFinancialAssistance = () => {
       }
     });
 
-    receiptItems.forEach((item, idx) => {
+    if (activeReceiptItems.length === 0) {
+      nextErrors.receiptItems = "Add at least one receipt.";
+    }
+
+    activeReceiptItems.forEach((item, idx) => {
       if (!item.file) {
         nextErrors[`receipt_file_${idx}`] = "Receipt file is missing.";
       }
       if (!item.purchaseDate) {
         nextErrors[`receipt_date_${idx}`] = "Purchase Date is missing.";
       } else if (!isValidDateString(item.purchaseDate)) {
-        nextErrors[`receipt_date_${idx}`] = "Use mm/dd/yyyy format.";
+        nextErrors[`receipt_date_${idx}`] = "Use dd/mm/yyyy format.";
       }
       
       const amountValue = Number(String(item.amount || "").replace(/,/g, ""));
@@ -70,6 +84,8 @@ export const useFinancialAssistance = () => {
     setError("");
     setFieldErrors({});
 
+    const activeReceiptItems = (receiptItems || []).filter(hasReceiptContent);
+
     const formData = {
       itemDescription: values.itemDescription,
       subject: values.subject,
@@ -77,8 +93,7 @@ export const useFinancialAssistance = () => {
       academicYear: values.academicYear,
       term: values.term,
       purpose: values.purpose,
-      defaultReason: "Study Needs",
-      receipts: receiptItems.map(r => ({ 
+      receipts: activeReceiptItems.map(r => ({ 
         purchaseDate: toIsoDate(r.purchaseDate), 
         amount: Number(String(r.amount || "").replace(/,/g, "")),
         notes: r.additionalNotes || "" 
@@ -87,7 +102,7 @@ export const useFinancialAssistance = () => {
 
     const files = {
       supportingDocument: supportingDocument,
-      receipts: receiptItems.map(r => r.file)
+      receipts: activeReceiptItems.map(r => r.file)
     };
 
     try {

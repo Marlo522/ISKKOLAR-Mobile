@@ -1,5 +1,25 @@
 import api from './api';
 
+const appendFile = (data, key, file, defaultName, defaultType) => {
+  if (!file) return;
+
+  if (typeof file === 'string') {
+    data.append(key, file);
+    return;
+  }
+
+  if (file.uri) {
+    data.append(key, {
+      uri: file.uri,
+      type: file.type || file.mimeType || defaultType,
+      name: file.name || defaultName,
+    });
+    return;
+  }
+
+  data.append(key, file);
+};
+
 export const submitFinancialAssistance = async (formData, files) => {
   try {
     const data = new FormData();
@@ -12,23 +32,11 @@ export const submitFinancialAssistance = async (formData, files) => {
       }
     });
 
-    if (files.supportingDocument && files.supportingDocument.uri) {
-      data.append('supportingDocument', {
-        uri: files.supportingDocument.uri,
-        type: files.supportingDocument.mimeType || files.supportingDocument.type || 'application/pdf',
-        name: files.supportingDocument.name || 'document.pdf',
-      });
-    }
+    appendFile(data, 'supportingDocument', files.supportingDocument, 'document.pdf', 'application/pdf');
 
     if (files.receipts && Array.isArray(files.receipts)) {
       files.receipts.forEach((file, idx) => {
-        if (file && file.uri) {
-          data.append(`receipt_file_${idx}`, {
-            uri: file.uri,
-            type: file.mimeType || file.type || 'image/jpeg',
-            name: file.name || `receipt_${idx}.jpg`,
-          });
-        }
+        appendFile(data, `receipt_file_${idx}`, file, `receipt_${idx}.jpg`, 'image/jpeg');
       });
     }
 
@@ -47,7 +55,7 @@ export const submitFinancialAssistance = async (formData, files) => {
 export const getFinancialAssistanceApplications = async () => {
   try {
     const response = await api.get('/assistance/financial-assistance');
-    return response.data?.data || response.data || [];
+    return response.data;
   } catch (error) {
     throw error;
   }
