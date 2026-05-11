@@ -1,4 +1,5 @@
 import api from './api';
+import { isMissingUserProfileError } from './serviceErrorHelpers';
 
 /**
  * Submit a scholarship renewal application with supporting documents.
@@ -70,6 +71,10 @@ export const checkScholarEligibility = async () => {
     const response = await api.get('/scholarships/renewal/eligibility');
     return response.data;
   } catch (error) {
+    if (isMissingUserProfileError(error)) {
+      return { success: true, data: null };
+    }
+
     throw error?.message || error;
   }
 };
@@ -83,6 +88,10 @@ export const fetchScholarAcademicStatus = async () => {
     const response = await api.get('/scholarships/renewal/academic-status');
     return response.data;
   } catch (error) {
+    if (isMissingUserProfileError(error)) {
+      return { success: true, data: null };
+    }
+
     throw error?.message || error;
   }
 };
