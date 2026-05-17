@@ -341,6 +341,7 @@ export default function ProfileScreen({ navigation }) {
                     secureTextEntry={!showCurrentPw}
                     onChangeText={(value) => setPasswords({ ...passwords, current: value })}
                     style={[styles.formInput, { flex: 1 }]}
+                    contextMenuHidden={true}
                   />
                   <TouchableOpacity 
                     style={styles.eyeIcon} 
@@ -359,6 +360,7 @@ export default function ProfileScreen({ navigation }) {
                     secureTextEntry={!showNewPw}
                     onChangeText={(value) => setPasswords({ ...passwords, newPassword: value })}
                     style={[styles.formInput, { flex: 1 }]}
+                    contextMenuHidden={true}
                   />
                   <TouchableOpacity 
                     style={styles.eyeIcon} 
@@ -377,6 +379,7 @@ export default function ProfileScreen({ navigation }) {
                     secureTextEntry={!showConfirmPw}
                     onChangeText={(value) => setPasswords({ ...passwords, confirm: value })}
                     style={[styles.formInput, { flex: 1 }]}
+                    contextMenuHidden={true}
                   />
                   <TouchableOpacity 
                     style={styles.eyeIcon} 
