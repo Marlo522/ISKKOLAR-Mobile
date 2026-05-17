@@ -1,12 +1,21 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Animated, ScrollView, RefreshControl, ActivityIndicator } from "react-native";
+import React, { useState, useEffect, useMemo, useRef, useContext } from "react";
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Animated, 
+  ScrollView, 
+  RefreshControl, 
+  ActivityIndicator 
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { AuthContext } from "../context/AuthContext";
 import { getScholarApplicationHistory } from "../services/scholarDashboardService";
+import { getMyVocationalCompletion } from "../services/vocationalDashboardService";
 
 /* ─────────── Status / Step metadata ─────────── */
-const STEPS = ["Under Review", "Approved"];
-
 const STATUS_TO_STEP = {
   under_review: 0,
   reviewing: 0,
@@ -25,6 +34,7 @@ const CATEGORY_ICONS = {
   exam_assistance: { icon: "checkmark-circle-outline", color: "#7c3aed", lightBg: "#ede9fe", topColor: "#ddd6fe" },
   renewal: { icon: "refresh-outline", color: "#d97706", lightBg: "#fef3c7", topColor: "#fde68a" },
   receipt_submission: { icon: "receipt-outline", color: "#db2777", lightBg: "#fce7f3", topColor: "#fbcfe8" },
+  vocational_completion: { icon: "ribbon-outline", color: "#41b5bd", lightBg: "#eefafc", topColor: "#bae6fd" },
 };
 
 const CATEGORY_FILTERS = [
@@ -34,6 +44,7 @@ const CATEGORY_FILTERS = [
   { key: "exam_assistance", label: "Exam Assistance" },
   { key: "renewal", label: "Renewal" },
   { key: "receipt_submission", label: "Receipt Submission" },
+  { key: "vocational_completion", label: "Vocational Completion" },
 ];
 
 const normalizeStatus = (raw) => {
@@ -65,7 +76,9 @@ const STATUS_BADGE = {
 };
 
 export default function ApplicationScreen({ navigation }) {
+  const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
+  
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -73,11 +86,25 @@ export default function ApplicationScreen({ navigation }) {
   const [applicationItems, setApplicationItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [expandedCards, setExpandedCards] = useState({});
+  // Vocational specific states (Mirroring web's VocationalScholarApplicationTab)
+  const [vocSubmission, setVocSubmission] = useState(undefined);
+  const [vocLoading, setVocLoading] = useState(true);
 
   const slideAnim = useRef(new Animated.Value(20)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  // Detect if user is a vocational scholar
+  const hasVocationalValue = (obj) => {
+    if (!obj) return false;
+    return Object.values(obj).some(val => {
+      if (typeof val === 'string') return val.toLowerCase().includes('vocational');
+      if (typeof val === 'object') return hasVocationalValue(val);
+      return false;
+    });
+  };
+  const isVocational = hasVocationalValue(user) || String(user?.program || '').toLowerCase().includes('vocational');
+
+  // Fetch standard tertiary history
   const fetchHistory = async () => {
     try {
       setLoading(true);
@@ -92,17 +119,40 @@ export default function ApplicationScreen({ navigation }) {
     }
   };
 
+  // Fetch vocational completion proof details
+  const fetchVocSubmission = async () => {
+    try {
+      setVocLoading(true);
+      const res = await getMyVocationalCompletion();
+      setVocSubmission(res?.data || null);
+    } catch (error) {
+      console.warn("Failed to fetch vocational submission", error);
+      setVocSubmission(null);
+    } finally {
+      setVocLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchHistory();
+    if (isVocational) {
+      fetchVocSubmission();
+    } else {
+      fetchHistory();
+    }
+
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
     ]).start();
-  }, []);
+  }, [isVocational]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchHistory();
+    if (isVocational) {
+      await fetchVocSubmission();
+    } else {
+      await fetchHistory();
+    }
     setRefreshing(false);
   };
 
@@ -140,9 +190,11 @@ export default function ApplicationScreen({ navigation }) {
   const disapprovedCount = validItems.filter(i => normalizeStatus(i.status) === "rejected").length;
   const totalCount = validItems.length;
 
-  const toggleCard = (id) => {
-    setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }));
-  };
+  // Dynamic counts for vocational completeness
+  const vocTotalCount = vocSubmission ? 1 : 0;
+  const vocIsApproved = vocSubmission?.status === 'approved';
+  const vocIsRejected = vocSubmission?.status === 'rejected';
+  const vocIsUnderReview = vocSubmission?.status === 'pending';
 
   const renderStepper = (currentStep, isRejected, category) => {
     const steps = category === "grade_compliance"
@@ -211,6 +263,104 @@ export default function ApplicationScreen({ navigation }) {
     );
   };
 
+  // ── BRANCH: VOCATIONAL SCHOLAR VIEW (Mirroring web exactly) ──
+  if (isVocational) {
+    const vocNormalized = vocSubmission ? normalizeStatus(vocSubmission.status) : "not_started";
+    const vocBadgeStyle = STATUS_BADGE[vocNormalized] || STATUS_BADGE.not_started;
+    
+    return (
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={[styles.header, { paddingTop: insets.top + 16, zIndex: 100, elevation: 15 }]}>
+          <Text style={styles.title}>Application</Text>
+          <Text style={styles.subtitle}>Track the progress of your certification completion submission.</Text>
+
+          {/* Stats pills */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsRow}>
+            <View style={styles.statPill}>
+              <View style={[styles.statDot, { backgroundColor: "#5b5f97" }]} />
+              <Text style={styles.statText}>{vocIsUnderReview ? 1 : 0} Under Review</Text>
+            </View>
+            <View style={styles.statPill}>
+              <View style={[styles.statDot, { backgroundColor: "#10b981" }]} />
+              <Text style={styles.statText}>{vocIsApproved ? 1 : 0} Approved</Text>
+            </View>
+            <View style={styles.statPill}>
+              <View style={[styles.statDot, { backgroundColor: "#ef4444" }]} />
+              <Text style={styles.statText}>{vocIsRejected ? 1 : 0} Disapproved</Text>
+            </View>
+            <View style={styles.statPill}>
+              <View style={[styles.statDot, { backgroundColor: "#d1d5db" }]} />
+              <Text style={styles.statText}>{vocTotalCount} Total</Text>
+            </View>
+          </ScrollView>
+        </View>
+
+        <Animated.ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], zIndex: 1, elevation: 1 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
+          {vocLoading ? (
+            <View style={{ alignItems: 'center', marginTop: 40 }}>
+              <ActivityIndicator size="large" color="#5b5f97" />
+              <Text style={{ color: '#9ca3af', marginTop: 12, fontSize: 15, fontWeight: '500' }}>Loading submission status...</Text>
+            </View>
+          ) : !vocSubmission ? (
+            <View style={{ alignItems: 'center', marginTop: 40 }}>
+              <Ionicons name="clipboard-outline" size={48} color="#d1d5db" />
+              <Text style={{ color: '#9ca3af', marginTop: 12, fontSize: 15, fontWeight: '500' }}>No completion submission found</Text>
+            </View>
+          ) : (
+            <View style={styles.cardContainer}>
+              <View style={[styles.cardTopBorder, { backgroundColor: "#ddd6fe" }]} />
+              <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardHeaderLeft}>
+                    <View style={[styles.iconBox, { backgroundColor: "#eefafc" }]}>
+                      <Ionicons name="ribbon-outline" size={20} color="#41b5bd" />
+                    </View>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={styles.cardTitle}>Certification of Completion</Text>
+                      {!!(vocSubmission.submitted_at || vocSubmission.submittedAt) && (
+                        <Text style={styles.cardSubtitle}>
+                          Submitted {formatDate(vocSubmission.submitted_at || vocSubmission.submittedAt)}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+
+                  <View style={[styles.statusBadge, { backgroundColor: vocBadgeStyle.bg }]}>
+                    <View style={[styles.statusBadgeDot, { backgroundColor: vocBadgeStyle.dot }]} />
+                    <Text style={[styles.statusBadgeText, { color: vocBadgeStyle.text }]} numberOfLines={1}>
+                      {vocSubmission.status ? vocSubmission.status.charAt(0).toUpperCase() + vocSubmission.status.slice(1).toLowerCase() : "Under Review"}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.cardBodyContainer}>
+                  {renderStepper(
+                    STATUS_TO_STEP[vocNormalized] ?? -2, 
+                    vocNormalized === "rejected", 
+                    "vocational_completion"
+                  )}
+
+                  {!!(vocSubmission.updated_at || vocSubmission.updatedAt) && (
+                    <Text style={styles.updatedText}>
+                      Last updated {formatDate(vocSubmission.updated_at || vocSubmission.updatedAt)}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </View>
+          )}
+        </Animated.ScrollView>
+      </View>
+    );
+  }
+
+  // ── BRANCH: STANDARD TERTIARY SCHOLAR VIEW ──
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -298,7 +448,6 @@ export default function ApplicationScreen({ navigation }) {
           
           const isStarted = currentStatus !== "not_started";
           const isRejected = currentStatus === "rejected";
-          const isExpanded = !!expandedCards[item.id];
           const stepIdx = STATUS_TO_STEP[currentStatus] ?? -2;
 
           const theme = CATEGORY_ICONS[item.category] || CATEGORY_ICONS.grade_compliance;
@@ -388,6 +537,7 @@ const styles = StyleSheet.create({
     elevation: 10
   },
   title: { fontSize: 24, fontWeight: "900", color: "#111827", letterSpacing: -0.5, marginBottom: 16 },
+  subtitle: { fontSize: 13, color: "#6b7280", marginTop: -10, marginBottom: 16, fontWeight: "500", lineHeight: 18 },
 
   statsRow: { flexDirection: "row", gap: 8, marginBottom: 20 },
   statPill: {
@@ -578,4 +728,3 @@ const styles = StyleSheet.create({
   stepLabelCompleted: { color: "#16a34a" },
   stepLabelRejected: { color: "#ef4444" },
 });
-

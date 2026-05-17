@@ -106,9 +106,9 @@ export default function ScholarTabs() {
       })}
     >
       <Tab.Screen name="Home" component={ScholarDashboardStackScreen} />
-      {!isVocational && <Tab.Screen name="Activities" component={ActivitiesScreen} />}
+      <Tab.Screen name="Activities" component={ActivitiesScreen} />
       <Tab.Screen name="Notifications" component={NotificationsScreen} />
-      {!isVocational && <Tab.Screen name="Application" component={ApplicationScreen} />}
+      <Tab.Screen name="Application" component={ApplicationScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
