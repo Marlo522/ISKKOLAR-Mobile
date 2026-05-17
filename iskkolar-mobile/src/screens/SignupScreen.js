@@ -314,6 +314,7 @@ export default function SignupScreen({ navigation }) {
             style={styles.input}
             secureTextEntry={!showPassword}
             autoCapitalize="none"
+            contextMenuHidden={true}
           />
           <TouchableOpacity onPress={() => setShowPassword((v) => !v)} style={styles.eyeButton}>
             <Ionicons name={showPassword ? "eye" : "eye-off"} size={18} color="#999" />
@@ -335,6 +336,7 @@ export default function SignupScreen({ navigation }) {
             style={styles.input}
             secureTextEntry={!showConfirmPassword}
             autoCapitalize="none"
+            contextMenuHidden={true}
           />
           <TouchableOpacity onPress={() => setShowConfirmPassword((v) => !v)} style={styles.eyeButton}>
             <Ionicons name={showConfirmPassword ? "eye" : "eye-off"} size={18} color="#999" />

@@ -157,6 +157,7 @@ export default function ResetPasswordScreen({ route, navigation }) {
                     style={styles.input}
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
+                    contextMenuHidden={true}
                   />
                   <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                     <Ionicons name={showPassword ? "eye-off" : "eye"} size={20} color="#999" />
@@ -174,6 +175,7 @@ export default function ResetPasswordScreen({ route, navigation }) {
                     style={styles.input}
                     secureTextEntry={!showConfirmPassword}
                     autoCapitalize="none"
+                    contextMenuHidden={true}
                   />
                   <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
                     <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={20} color="#999" />

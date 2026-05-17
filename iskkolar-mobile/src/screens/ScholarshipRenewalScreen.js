@@ -95,6 +95,22 @@ export default function ScholarshipRenewalScreen({ navigation }) {
   // Animations
   const stepAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
+  const spinAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (submitting) {
+      spinAnim.setValue(0);
+      Animated.loop(
+        Animated.timing(spinAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        })
+      ).start();
+    } else {
+      spinAnim.stopAnimation();
+    }
+  }, [submitting, spinAnim]);
 
   // Trigger step transition animation
   useEffect(() => {
@@ -427,7 +443,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
               style={{
                 transform: [
                   {
-                    rotate: stepAnim.interpolate({
+                    rotate: spinAnim.interpolate({
                       inputRange: [0, 1],
                       outputRange: ['0deg', '360deg'],
                     }),
