@@ -1,39 +1,46 @@
 import React, { useEffect, useRef, useContext, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, ScrollView, RefreshControl } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Animated, 
+  ScrollView, 
+  RefreshControl 
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import { getScholarDashboardSummary } from '../services/scholarDashboardService';
+import { getMyVocationalCompletion } from '../services/vocationalDashboardService';
+
+// Format display date helper matching the web implementation
+const formatDisplayDate = (value) => {
+  if (!value || value === '--') return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
 
 export default function VocationalDashboardScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
+  
   const [dashboardSummary, setDashboardSummary] = useState(null);
+  const [completionSubmission, setCompletionSubmission] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-
-  const vocData = dashboardSummary?.vocational;
-  const vocSchool = vocData?.school || user?.vocationalSchoolName || user?.schoolName || '--';
-  const vocProgram = vocData?.program || user?.program || user?.scholarshipType || '--';
-  const vocDuration = vocData?.duration || user?.courseDuration || '--';
-  const vocEndDate = vocData?.endDate || user?.endDate || '--';
-  const completionStatus = vocData?.completion?.status || null;
-
-  const fullName = [
-    user?.firstName || user?.first_name,
-    user?.middleName || user?.middle_name,
-    user?.lastName || user?.last_name,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .trim() || 'Scholar';
 
   const slideAnim = useRef(new Animated.Value(20)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  // Fetch summary and completion status
   const loadData = async () => {
     try {
       const summary = await getScholarDashboardSummary();
       setDashboardSummary(summary?.data || summary || null);
+      
+      const completion = await getMyVocationalCompletion();
+      setCompletionSubmission(completion?.data || completion || null);
     } catch (error) {
       console.warn('Failed to load vocational dashboard data', error);
     }
@@ -53,18 +60,72 @@ export default function VocationalDashboardScreen({ navigation }) {
     setRefreshing(false);
   };
 
-  const getCompletionPercentage = () => {
+  // ─────────── RESOLVE VALUES & TIMELINE (PARITY WITH WEB) ───────────
+  const vocData = dashboardSummary?.vocational;
+  const vocSchool = vocData?.school || user?.vocationalSchoolName || user?.schoolName || '--';
+  const vocProgram = vocData?.program || user?.program || user?.scholarshipType || '--';
+  const vocDuration = vocData?.duration || user?.courseDuration || '--';
+
+  const completionStatus = completionSubmission?.status || vocData?.completion?.status || null;
+
+  const latestVocationalApplication = dashboardSummary?.vocationalApplications?.[0] || null;
+  const latestVocationalEducation = Array.isArray(latestVocationalApplication?.vocational_education)
+    ? latestVocationalApplication.vocational_education[0]
+    : latestVocationalApplication?.vocational_education || null;
+
+  const vocEndDateRaw = completionSubmission?.completion_date || vocData?.endDate || user?.endDate || latestVocationalEducation?.completion_date || null;
+  const vocEndDateFormatted = formatDisplayDate(vocEndDateRaw);
+
+  const now = new Date();
+  const completionDate = vocEndDateRaw ? new Date(vocEndDateRaw) : null;
+  const daysLeft = completionDate && !Number.isNaN(completionDate.getTime())
+    ? Math.ceil((completionDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  const startDateRaw = latestVocationalApplication?.created_at || latestVocationalEducation?.created_at || vocData?.startDate || null;
+  const startDate = startDateRaw ? new Date(startDateRaw) : null;
+
+  // Calculate readiness percentage matching the web exactly
+  const readiness = useMemo(() => {
     if (completionStatus === 'approved') return 100;
+    
+    if (completionDate && startDate && !Number.isNaN(startDate.getTime()) && !Number.isNaN(completionDate.getTime())) {
+      const totalDuration = completionDate.getTime() - startDate.getTime();
+      const elapsed = now.getTime() - startDate.getTime();
+      if (totalDuration > 0) {
+        let pct = Math.round((elapsed / totalDuration) * 100);
+        if (pct < 0) pct = 0;
+        if (pct > 100) pct = 100;
+        
+        // Ensure pending status is at least 50%
+        if (completionStatus === 'pending' && pct < 50) return 50;
+        return pct;
+      }
+      return 100;
+    } else if (completionDate && daysLeft !== null && daysLeft <= 0) {
+      return 100;
+    }
+    
     if (completionStatus === 'pending') return 50;
     return 0;
-  };
+  }, [completionStatus, completionDate, startDate, daysLeft]);
 
+  // Dynamic colors for status bar
   const getStatusColor = () => {
-    if (completionStatus === 'approved') return '#39a751';
-    if (completionStatus === 'pending') return '#f39c12';
-    if (completionStatus === 'rejected') return '#e74c3c';
+    if (completionStatus === 'approved') return '#16a34a'; // Emerald
+    if (completionStatus === 'pending') return '#d97706'; // Amber
+    if (completionStatus === 'rejected') return '#dc2626'; // Red
     return '#8b93b0';
   };
+
+  const fullName = [
+    user?.firstName || user?.first_name,
+    user?.middleName || user?.middle_name,
+    user?.lastName || user?.last_name,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim() || 'Scholar';
 
   return (
     <View style={styles.container}>
@@ -74,41 +135,45 @@ export default function VocationalDashboardScreen({ navigation }) {
         style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#727ab6']} />}
       >
+        {/* Banner with Circle Progress (Mirroring Web) */}
         <View style={styles.heroBanner}>
           <View style={styles.heroHeader}>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, marginRight: 8 }}>
               <Text style={styles.heroLabel}>VOCATIONAL DASHBOARD</Text>
-              <Text style={styles.heroName}>{fullName}</Text>
+              <Text style={styles.heroName} numberOfLines={2}>{fullName}</Text>
               <View style={styles.heroBadge}>
                 <Text style={styles.heroBadgeText}>Vocational / Certification Scholar</Text>
               </View>
             </View>
 
             <View style={styles.progressCircle}>
-              <Text style={styles.progressText}>{getCompletionPercentage()}%</Text>
+              <Text style={styles.progressText}>{readiness}%</Text>
               <Text style={styles.progressLabel}>READY</Text>
             </View>
           </View>
 
           <View style={styles.timelineSection}>
             <Text style={styles.timelineTitle}>
-              {completionStatus === 'approved' ? 'Program Completed' : 'Program timeline available after approval'}
+              {daysLeft !== null
+                ? (daysLeft >= 0 ? `${daysLeft} day${daysLeft === 1 ? "" : "s"} until completion` : "Training completion date reached")
+                : "Program timeline available after approval"}
             </Text>
             <Text style={styles.timelineSub}>
-              {completionStatus ? `Submission status: ${completionStatus.toUpperCase()}` : 'Completion proof not yet submitted'}
+              {vocEndDateFormatted !== "--" ? `Estimated completion: ${vocEndDateFormatted}` : "Completion date not yet submitted"}
             </Text>
             <View style={styles.progressBarContainer}>
-              <View style={[styles.progressBar, { width: `${getCompletionPercentage()}%`, backgroundColor: getStatusColor() }]} />
+              <View style={[styles.progressBar, { width: `${readiness}%`, backgroundColor: getStatusColor() }]} />
             </View>
           </View>
         </View>
 
+        {/* Stats Grid */}
         <View style={styles.statsGrid}>
           {[
             { label: 'PROGRAM', value: vocProgram, icon: 'book' },
             { label: 'SCHOOL / CENTER', value: vocSchool, icon: 'school' },
             { label: 'DURATION', value: vocDuration, icon: 'time' },
-            { label: 'END DATE', value: vocEndDate, icon: 'calendar' }
+            { label: 'END DATE', value: vocEndDateFormatted, icon: 'calendar' }
           ].map((item, idx) => (
             <View key={idx} style={styles.statCard}>
               <View style={styles.statIconHeader}>
@@ -120,10 +185,13 @@ export default function VocationalDashboardScreen({ navigation }) {
           ))}
         </View>
 
+        {/* Action Card */}
         <Text style={styles.sectionHeader}>Completion Actions</Text>
         <TouchableOpacity 
           style={styles.actionCard} 
-          onPress={() => navigation.navigate('VocationalCompletion')}
+          onPress={() => navigation.navigate('VocationalCompletion', {
+            completionDate: vocEndDateRaw
+          })}
           activeOpacity={0.8}
         >
           <View style={[styles.actionIconBox, { backgroundColor: '#eefafc' }]}>
@@ -136,11 +204,12 @@ export default function VocationalDashboardScreen({ navigation }) {
           <Ionicons name="chevron-forward" size={24} color="#d4dae8" />
         </TouchableOpacity>
 
+        {/* Quick Links */}
         <Text style={styles.sectionHeader}>Quick Links</Text>
         <View style={styles.quickLinksGrid}>
           {[
             { title: "My Profile", route: "Profile", icon: "person-outline", bg: "#f4effe", color: "#7e52d8" },
-            { title: "Notifications", route: "Notifications", icon: "notifications-outline", bg: "#eefafc", color: "#41b5bd" }
+            { title: "Application History", route: "Application", icon: "clipboard-outline", bg: "#eefafc", color: "#41b5bd" }
           ].map((link, idx) => (
             <TouchableOpacity
               key={idx}
@@ -176,20 +245,21 @@ const styles = StyleSheet.create({
   },
   heroHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   heroLabel: { color: '#d0d4e9', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8 },
-  heroName: { color: '#fff', fontSize: 28, fontWeight: '800', marginBottom: 12 },
+  heroName: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 12 },
   heroBadge: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, alignSelf: 'flex-start' },
-  heroBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  heroBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   progressCircle: {
     width: 80, height: 80, borderRadius: 40,
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 6, borderColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center', alignItems: 'center',
+    marginLeft: 8,
   },
-  progressText: { color: '#fff', fontSize: 20, fontWeight: '800' },
+  progressText: { color: '#fff', fontSize: 18, fontWeight: '800' },
   progressLabel: { color: '#b2b8d9', fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
   timelineSection: { marginTop: 24 },
-  timelineTitle: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 4 },
-  timelineSub: { color: '#d0d4e9', fontSize: 13, fontWeight: '500' },
+  timelineTitle: { color: '#fff', fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  timelineSub: { color: '#d0d4e9', fontSize: 12, fontWeight: '500' },
   progressBarContainer: { width: '100%', height: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 4, marginTop: 16, overflow: 'hidden' },
   progressBar: { height: '100%', borderRadius: 4 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
@@ -200,8 +270,8 @@ const styles = StyleSheet.create({
   },
   statIconHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   statLabel: { color: '#8b93b0', fontSize: 10, fontWeight: '700', letterSpacing: 0.5, marginLeft: 6 },
-  statValue: { color: '#111', fontSize: 15, fontWeight: '800' },
-  sectionHeader: { fontSize: 18, fontWeight: '800', color: '#343a40', marginBottom: 16, marginTop: 8 },
+  statValue: { color: '#111', fontSize: 14, fontWeight: '800' },
+  sectionHeader: { fontSize: 17, fontWeight: '800', color: '#343a40', marginBottom: 16, marginTop: 8 },
   actionCard: {
     backgroundColor: '#fff', borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 20,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
@@ -218,5 +288,5 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#edf0f8'
   },
   qlIconBox: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  qlTitle: { fontSize: 14, fontWeight: '700', color: '#111' },
+  qlTitle: { fontSize: 13, fontWeight: '700', color: '#111', textAlign: 'center' },
 });

@@ -6,13 +6,10 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
   Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '../context/AuthContext';
 
 // Import our new services that match the web backend calls
@@ -25,7 +22,6 @@ import {
 // Form Steps defining the flow of the renewal process
 const steps = [
   { key: 'status', label: 'Scholar Status' },
-  { key: 'documents', label: 'Documents' },
   { key: 'review', label: 'Review & Submit' },
 ];
 
@@ -61,7 +57,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
   const autoAcademicYear = getCurrentAcademicYear();
   const autoTerm = academicStatus?.current_term || user?.term || '';
 
-  // State management for the current step (1, 2, or 3)
+  // State management for the current step (1 or 2)
   const [currentStep, setCurrentStep] = useState(1);
 
   // Form fields state
@@ -74,19 +70,13 @@ export default function ScholarshipRenewalScreen({ navigation }) {
     remarks: '',
   });
 
-  // State for file uploads
-  const [files, setFiles] = useState({
-    gradeReport: null,
-    cor: null,
-    receipts: null,
-  });
-
   // State for the final confirmation checkbox
   const [agree, setAgree] = useState(false);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [aiFeedback, setAiFeedback] = useState(null);
 
   // Eligibility state from the AI checker backend
   const [eligibility, setEligibility] = useState(null);
@@ -189,73 +179,6 @@ export default function ScholarshipRenewalScreen({ navigation }) {
     clearFieldError(field);
   };
 
-  // Helper to update file fields
-  const setFileField = (field, fileObj) => {
-    setFiles((prev) => ({ ...prev, [field]: fileObj }));
-    clearFieldError(field);
-  };
-
-  // Handle file selection using ImagePicker or DocumentPicker
-  const handleFileUpload = async (key) => {
-    const handleResult = (result) => {
-      if (result.canceled) return;
-      if (result.assets && result.assets.length > 0) {
-        let file = result.assets[0];
-        // Ensure the file object has the properties expected by our multipart uploader
-        if (!file.name) {
-          file = {
-            ...file,
-            name: file.uri.split('/').pop(),
-            type: file.mimeType || 'image/jpeg',
-          };
-        }
-        setFileField(key, file);
-      }
-    };
-
-    Alert.alert('Upload Document', 'Choose an option', [
-      {
-        text: 'Take Photo',
-        onPress: async () => {
-          try {
-            const permission = await ImagePicker.requestCameraPermissionsAsync();
-            if (permission.status !== 'granted') {
-              Alert.alert('Permission Required', 'Camera permission is required to take photos.');
-              return;
-            }
-            const result = await ImagePicker.launchCameraAsync({
-              mediaTypes: ['images'],
-              allowsEditing: false,
-              quality: 0.8,
-            });
-            handleResult(result);
-          } catch (err) {
-            Alert.alert('Error', 'Could not capture image.');
-          }
-        },
-      },
-      {
-        text: 'Choose File',
-        onPress: async () => {
-          try {
-            const result = await DocumentPicker.getDocumentAsync({
-              type: ['application/pdf', 'image/*'],
-              copyToCacheDirectory: true,
-            });
-            handleResult(result);
-          } catch (error) {
-            console.log('Error picking file:', error);
-            Alert.alert('Error', 'Failed to select document.');
-          }
-        },
-      },
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
-    ]);
-  };
-
   // Form validation per step
   const validate = (step) => {
     const nextErrors = {};
@@ -283,11 +206,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
         nextErrors.gwa = 'Auto-filled from grade compliance. Submit grade compliance to proceed.';
       }
     }
-    if (step === 2) {
-      if (!files.gradeReport) nextErrors.gradeReport = 'Upload grade report';
-      if (!files.cor) nextErrors.cor = 'Upload certificate of registration';
-    }
-    if (step === 3 && !agree) {
+    if (step === 2 && !agree) {
       nextErrors.agree = 'Please confirm the certification.';
     }
     return nextErrors;
@@ -307,7 +226,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
 
   // Final submission handler
   const handleSubmit = async () => {
-    const nextErrors = validate(3);
+    const nextErrors = validate(2);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
@@ -324,11 +243,15 @@ export default function ScholarshipRenewalScreen({ navigation }) {
         remarks: form.remarks,
       };
 
-      // Call the API service to submit the form and files
-      await submitScholarshipRenewal(payload, files);
+      // Call the API service to submit the form (JSON payload)
+      const response = await submitScholarshipRenewal(payload);
 
       setSubmitting(false);
       setSuccess(true);
+
+      if (response?.ai_evaluation) {
+        setAiFeedback(response.ai_evaluation);
+      }
       
       // Trigger success animation
       scaleAnim.setValue(0.5);
@@ -345,38 +268,6 @@ export default function ScholarshipRenewalScreen({ navigation }) {
   };
 
   const nextAcademicYear = getNextAcademicYear(form.academicYear);
-
-  // Reusable File Upload Field Component inside React Native
-  const renderFileUploadBox = (label, subtext, key) => {
-    const hasError = !!errors[key];
-    const hasFile = !!files[key];
-    
-    return (
-      <View style={{ marginBottom: 16 }}>
-        <Text style={styles.label}>{label}</Text>
-        <TouchableOpacity
-          style={[
-            styles.uploadBoxDashed,
-            hasError ? styles.uploadBoxError : hasFile ? styles.uploadBoxSuccess : {},
-          ]}
-          onPress={() => handleFileUpload(key)}
-        >
-          <Text
-            style={[
-              styles.uploadBoxTitle,
-              hasError ? styles.textError : hasFile ? styles.textSuccess : {},
-            ]}
-          >
-            {hasFile ? files[key].name : 'Tap to upload'}
-          </Text>
-          <Text style={styles.uploadBoxSubtext} numberOfLines={1} ellipsizeMode="middle">
-            {hasFile ? 'File selected ✓' : subtext}
-          </Text>
-        </TouchableOpacity>
-        {hasError && <Text style={styles.errorText}>{errors[key]}</Text>}
-      </View>
-    );
-  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -415,18 +306,39 @@ export default function ScholarshipRenewalScreen({ navigation }) {
       )}
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 60, paddingHorizontal: 20 }}>
-        {/* Alerts */}
+        {/* Success Screen */}
         {success && (
-          <View style={styles.centered}>
-            <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-              <Ionicons name="checkmark-circle" size={120} color="#2cae57" />
-            </Animated.View>
-            <Text style={styles.completeText}>Renewal submitted.</Text>
-            <Text style={styles.completeSubtext}>
-              We will review your documents and notify you via email.
-            </Text>
-            <TouchableOpacity style={styles.submitBtn} onPress={() => navigation.goBack()}>
-              <Text style={styles.submitBtnText}>Back to Home</Text>
+          <View style={styles.successContainer}>
+            <View style={styles.centered}>
+              <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+                <Ionicons name="checkmark-circle" size={100} color="#2cae57" />
+              </Animated.View>
+              <Text style={styles.completeText}>Success!</Text>
+              <Text style={styles.completeSubtext}>
+                Renewal submitted. We will review your details and notify you via email.
+              </Text>
+            </View>
+
+            {aiFeedback && (
+              <View style={styles.aiFeedbackCard}>
+                <View style={styles.aiFeedbackHeader}>
+                  <View style={styles.aiFeedbackIconContainer}>
+                    <Ionicons name="sparkles" size={16} color="#fff" />
+                  </View>
+                  <Text style={styles.aiFeedbackTitle}>AI ANALYSIS & ADVICE</Text>
+                </View>
+                <Text style={styles.aiFeedbackSummary}>
+                  "{aiFeedback.summary}"
+                </Text>
+                <View style={styles.aiFeedbackFooter}>
+                  <Text style={styles.aiFeedbackFooterLeft}>Generated by Iskkolar AI Assistant</Text>
+                  <Text style={styles.aiFeedbackFooterRight}>Verified Analysis</Text>
+                </View>
+              </View>
+            )}
+
+            <TouchableOpacity style={styles.returnBtn} onPress={() => navigation.goBack()}>
+              <Text style={styles.returnBtnText}>Return to Dashboard</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -679,23 +591,9 @@ export default function ScholarshipRenewalScreen({ navigation }) {
               />
               {errors.gwa && <Text style={styles.errorText}>{errors.gwa}</Text>}
             </View>
-          </Animated.View>
-        )}
-
-        {/* Step 2: Supporting Documents */}
-        {!success && !submitting && currentStep === 2 && (
-          <Animated.View style={{ opacity: stepAnim }}>
-            <View style={styles.sectionHeaderRow}>
-              <View style={styles.verticalPill} />
-              <Text style={styles.sectionHeader}>Supporting Documents</Text>
-            </View>
-
-            {renderFileUploadBox('Grade Report', 'PDF or clear image of grades', 'gradeReport')}
-            {renderFileUploadBox('Certificate of Registration', 'Latest term COR', 'cor')}
-            {renderFileUploadBox('Official Receipts (Optional)', 'Upload tuition or fee receipts', 'receipts')}
 
             <View style={styles.field}>
-              <Text style={styles.label}>Additional Notes</Text>
+              <Text style={styles.label}>Additional Notes (Optional)</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
                 multiline
@@ -709,8 +607,8 @@ export default function ScholarshipRenewalScreen({ navigation }) {
           </Animated.View>
         )}
 
-        {/* Step 3: Review & Confirm */}
-        {!success && !submitting && currentStep === 3 && (
+        {/* Step 2: Review & Confirm */}
+        {!success && !submitting && currentStep === 2 && (
           <Animated.View style={{ opacity: stepAnim }}>
             <View style={styles.sectionHeaderRow}>
               <View style={styles.verticalPill} />
@@ -719,7 +617,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
 
             <View style={styles.infoBox}>
               <Text style={styles.infoBoxText}>
-                Please review your details below. Ensure information and documents reflect your
+                Please review your details below. Ensure information reflects your
                 current academic standing.
               </Text>
             </View>
@@ -746,41 +644,12 @@ export default function ScholarshipRenewalScreen({ navigation }) {
                 <Text style={styles.reviewLabel}>GWA</Text>
                 <Text style={styles.reviewValue}>{form.gwa || '--'}</Text>
               </View>
-            </View>
-
-            <View style={styles.reviewCard}>
-              <Text style={styles.reviewCardTitle}>Supporting Documents</Text>
-              <View style={styles.reviewDocRow}>
-                <Ionicons
-                  name={files.gradeReport ? 'checkmark-circle' : 'alert-circle'}
-                  size={16}
-                  color={files.gradeReport ? '#16a34a' : '#dc2626'}
-                />
-                <Text style={styles.reviewDocLabel}>Grade Report</Text>
-                <Text style={styles.reviewDocStatus}>
-                  {files.gradeReport ? 'Attached' : 'Missing'}
-                </Text>
-              </View>
-              <View style={styles.reviewDocRow}>
-                <Ionicons
-                  name={files.cor ? 'checkmark-circle' : 'alert-circle'}
-                  size={16}
-                  color={files.cor ? '#16a34a' : '#dc2626'}
-                />
-                <Text style={styles.reviewDocLabel}>Certificate of Registration</Text>
-                <Text style={styles.reviewDocStatus}>{files.cor ? 'Attached' : 'Missing'}</Text>
-              </View>
-              <View style={styles.reviewDocRow}>
-                <Ionicons
-                  name={files.receipts ? 'checkmark-circle' : 'remove-circle'}
-                  size={16}
-                  color={files.receipts ? '#16a34a' : '#9ca3af'}
-                />
-                <Text style={styles.reviewDocLabel}>Official Receipts</Text>
-                <Text style={styles.reviewDocStatus}>
-                  {files.receipts ? 'Attached' : 'Optional'}
-                </Text>
-              </View>
+              {form.remarks ? (
+                <View style={styles.remarksReviewSection}>
+                  <Text style={styles.reviewLabel}>Additional Notes</Text>
+                  <Text style={styles.remarksText}>{form.remarks}</Text>
+                </View>
+              ) : null}
             </View>
 
             <TouchableOpacity
@@ -935,24 +804,6 @@ const styles = StyleSheet.create({
   aiReasoningText: { fontSize: 11, color: '#64748b', fontStyle: 'italic' },
   aiReasoningLabel: { fontWeight: '600', fontStyle: 'normal' },
 
-  // Upload Box
-  uploadBoxDashed: {
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#cbd5e1',
-    borderRadius: 12,
-    backgroundColor: '#f8fafc',
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  uploadBoxError: { borderColor: '#fca5a5', backgroundColor: '#fef2f2' },
-  uploadBoxSuccess: { borderColor: '#69b486', backgroundColor: '#f0fdf4', borderStyle: 'solid' },
-  uploadBoxTitle: { fontSize: 14, fontWeight: '700', color: '#4a4e7d', marginBottom: 4 },
-  uploadBoxSubtext: { fontSize: 12, color: '#94a3b8' },
-  textError: { color: '#ef4444' },
-  textSuccess: { color: '#15803d' },
-
   // Review & Confirm
   infoBox: { backgroundColor: '#f1f5f9', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 16 },
   infoBoxText: { fontSize: 13, color: '#475569', lineHeight: 18 },
@@ -961,9 +812,8 @@ const styles = StyleSheet.create({
   reviewRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   reviewLabel: { fontSize: 12, fontWeight: '600', color: '#64748b' },
   reviewValue: { fontSize: 12, fontWeight: '700', color: '#1e293b' },
-  reviewDocRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  reviewDocLabel: { fontSize: 12, fontWeight: '600', color: '#1e293b', flex: 1, marginLeft: 8 },
-  reviewDocStatus: { fontSize: 12, color: '#64748b' },
+  remarksReviewSection: { marginTop: 8, borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 8 },
+  remarksText: { fontSize: 12, color: '#475569', marginTop: 4, lineHeight: 16 },
   checkboxContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 2, borderColor: '#cbd5e1', marginRight: 10, justifyContent: 'center', alignItems: 'center' },
   checkboxChecked: { backgroundColor: '#5b5f97', borderColor: '#5b5f97' },
@@ -978,11 +828,89 @@ const styles = StyleSheet.create({
   secondaryBtnText: { color: '#4a4e7d', fontSize: 14, fontWeight: '700' },
 
   // Success / Status States
-  centered: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
-  completeText: { fontSize: 20, fontWeight: '800', color: '#1e293b', marginTop: 24, marginBottom: 8 },
-  completeSubtext: { fontSize: 14, color: '#64748b', textAlign: 'center', marginBottom: 32 },
-  submitBtn: { backgroundColor: '#5b5f97', paddingVertical: 14, paddingHorizontal: 32, borderRadius: 10 },
-  submitBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  successContainer: { paddingVertical: 10, width: '100%' },
+  centered: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
+  completeText: { fontSize: 22, fontWeight: '800', color: '#1e293b', marginTop: 20, marginBottom: 8 },
+  completeSubtext: { fontSize: 14, color: '#64748b', textAlign: 'center', paddingHorizontal: 16, lineHeight: 20 },
   errorBanner: { backgroundColor: '#fef2f2', borderColor: '#fca5a5', borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 16 },
   errorBannerText: { color: '#b91c1c', fontSize: 13 },
+
+  // Premium AI Evaluation Card (Success State)
+  aiFeedbackCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  aiFeedbackHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  aiFeedbackIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#8b5cf6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  aiFeedbackTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+    letterSpacing: 1,
+  },
+  aiFeedbackSummary: {
+    fontSize: 14,
+    color: '#334155',
+    lineHeight: 22,
+    fontStyle: 'italic',
+    fontWeight: '500',
+  },
+  aiFeedbackFooter: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  aiFeedbackFooterLeft: {
+    fontSize: 10,
+    color: '#64748b',
+    flex: 1,
+  },
+  aiFeedbackFooterRight: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+  },
+  returnBtn: {
+    backgroundColor: '#5b5f97',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#5b5f97',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  returnBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
 });
