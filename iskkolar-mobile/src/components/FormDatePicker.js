@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 
 const FormDatePicker = ({ 
   label, 
@@ -15,77 +14,67 @@ const FormDatePicker = ({
   dateFormat = 'mm/dd/yyyy'
 }) => {
   const [show, setShow] = useState(false);
-  const [tempDate, setTempDate] = useState(value ? new Date(value) : new Date());
-
+  
   const parseDate = (dateValue) => {
     if (!dateValue) return null;
     if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) {
       return dateValue;
     }
-
     const text = String(dateValue).trim();
-
     const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
     if (isoMatch) {
       return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
     }
-
     const slashMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(text);
     if (!slashMatch) return null;
-
     const first = Number(slashMatch[1]);
     const second = Number(slashMatch[2]);
     const year = Number(slashMatch[3]);
-
     if (dateFormat === 'dd/mm/yyyy') {
       return new Date(year, second - 1, first);
     }
-
     return new Date(year, first - 1, second);
   };
 
+  const initialDate = parseDate(value) || new Date();
+  
+  const [year, setYear] = useState(initialDate.getFullYear());
+  const [month, setMonth] = useState(initialDate.getMonth());
+  const [day, setDay] = useState(initialDate.getDate());
+
   useEffect(() => {
-    if (value) {
-      const parsed = parseDate(value);
-      if (parsed) setTempDate(parsed);
+    if (show) {
+      const d = parseDate(value) || new Date();
+      setYear(d.getFullYear());
+      setMonth(d.getMonth());
+      setDay(d.getDate());
     }
-  }, [value, dateFormat]);
+  }, [show, value]);
 
   const formatDate = (dateObj) => {
-    const year = dateObj.getFullYear();
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const day = String(dateObj.getDate()).padStart(2, '0');
-    return dateFormat === 'dd/mm/yyyy' ? `${day}/${month}/${year}` : `${month}/${day}/${year}`;
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    return dateFormat === 'dd/mm/yyyy' ? `${d}/${m}/${y}` : `${m}/${d}/${y}`;
   };
 
-  const handleValueChange = (_event, selectedDate) => {
-    if (!selectedDate) return;
-
-    if (Platform.OS === 'android') {
-      setShow(false);
-      onDateChange(formatDate(selectedDate));
-      return;
-    }
-
-    setTempDate(selectedDate);
-  };
-
-  const confirmIOS = () => {
+  const handleConfirm = () => {
+    const selectedDate = new Date(year, month, day);
+    onDateChange(formatDate(selectedDate));
     setShow(false);
-    onDateChange(formatDate(tempDate));
   };
 
-  const cancelIOS = () => {
-    setShow(false);
-    const parsed = parseDate(value);
-    setTempDate(parsed || new Date());
-  };
-
-  const handleDismiss = () => {
-    setShow(false);
-    const parsed = parseDate(value);
-    setTempDate(parsed || new Date());
-  };
+  const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  
+  const currentYear = new Date().getFullYear();
+  const minYear = minimumDate ? minimumDate.getFullYear() : currentYear - 80;
+  const maxYear = maximumDate ? maximumDate.getFullYear() : currentYear;
+  
+  const years = [];
+  for (let y = maxYear; y >= minYear; y--) {
+    years.push(y);
+  }
 
   const formatDisplayDate = (dateString) => {
     if (!dateString) return "";
@@ -117,44 +106,69 @@ const FormDatePicker = ({
       
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-      {Platform.OS === 'ios' ? (
-        <Modal visible={show} transparent={true} animationType="slide">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <TouchableOpacity onPress={cancelIOS} style={styles.modalBtn}>
-                  <Text style={styles.modalCancel}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={confirmIOS} style={styles.modalBtn}>
-                  <Text style={styles.modalConfirm}>Done</Text>
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker
-                value={tempDate}
-                mode="date"
-                display="spinner"
-                minimumDate={minimumDate}
-                maximumDate={maximumDate}
-                onValueChange={handleValueChange}
-                onDismiss={handleDismiss}
-                textColor="#000000"
-              />
+      <Modal visible={show} transparent animationType="fade">
+        <View style={modalStyles.overlay}>
+          <View style={modalStyles.dateModal}>
+            <Text style={modalStyles.modalTitle}>{label || "Pick a date"}</Text>
+            <View style={modalStyles.pickerRow}>
+              <ScrollView style={modalStyles.pickerColumn} showsVerticalScrollIndicator={false}>
+                {months.map((m, idx) => (
+                  <TouchableOpacity
+                    key={m}
+                    style={[modalStyles.option, idx === month ? modalStyles.optionSelected : null]}
+                    onPress={() => { 
+                      setMonth(idx); 
+                      const max = daysInMonth(year, idx); 
+                      if (day > max) setDay(max); 
+                    }}
+                  >
+                    <Text style={[modalStyles.optionText, idx === month ? modalStyles.optionTextSelected : null]}>
+                      {m}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <ScrollView style={modalStyles.pickerColumn} showsVerticalScrollIndicator={false}>
+                {Array.from({ length: daysInMonth(year, month) }, (_, i) => i + 1).map((d) => (
+                  <TouchableOpacity
+                    key={d}
+                    style={[modalStyles.option, d === day ? modalStyles.optionSelected : null]}
+                    onPress={() => setDay(d)}
+                  >
+                    <Text style={[modalStyles.optionText, d === day ? modalStyles.optionTextSelected : null]}>
+                      {d}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <ScrollView style={modalStyles.pickerColumn} showsVerticalScrollIndicator={false}>
+                {years.map((y) => (
+                  <TouchableOpacity
+                    key={y}
+                    style={[modalStyles.option, y === year ? modalStyles.optionSelected : null]}
+                    onPress={() => setYear(y)}
+                  >
+                    <Text style={[modalStyles.optionText, y === year ? modalStyles.optionTextSelected : null]}>
+                      {y}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+            <View style={modalStyles.buttonRow}>
+              <TouchableOpacity style={modalStyles.modalButton} onPress={() => setShow(false)}>
+                <Text style={modalStyles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={modalStyles.modalButton}
+                onPress={handleConfirm}
+              >
+                <Text style={modalStyles.modalButtonText}>Select</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </Modal>
-      ) : (
-        show && (
-          <DateTimePicker
-            value={parseDate(value) || new Date()}
-            mode="date"
-            display="default"
-            minimumDate={minimumDate}
-            maximumDate={maximumDate}
-            onValueChange={handleValueChange}
-            onDismiss={handleDismiss}
-          />
-        )
-      )}
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -209,45 +223,71 @@ const styles = StyleSheet.create({
     marginTop: 4, 
     fontWeight: "600",
     lineHeight: 14
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)'
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 10
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0'
-  },
-  modalBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4
-  },
-  modalCancel: {
-    color: '#848baf',
-    fontSize: 16,
-    fontWeight: '600'
-  },
-  modalConfirm: {
-    color: '#4f5fc5',
-    fontSize: 16,
-    fontWeight: '800'
   }
+});
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1, 
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center", 
+    alignItems: "center", 
+    padding: 24,
+  },
+  dateModal: { 
+    width: "100%", 
+    backgroundColor: "#fff", 
+    borderRadius: 18, 
+    padding: 16 
+  },
+  modalTitle: { 
+    fontSize: 16, 
+    fontWeight: "700", 
+    marginBottom: 12, 
+    color: "#3d4076" 
+  },
+  option: { 
+    paddingVertical: 12, 
+    paddingHorizontal: 12, 
+    borderRadius: 14, 
+    marginBottom: 6 
+  },
+  optionSelected: { 
+    backgroundColor: "rgba(91,95,151,0.12)" 
+  },
+  optionText: { 
+    fontSize: 14, 
+    color: "#333",
+    textAlign: "center"
+  },
+  optionTextSelected: { 
+    fontWeight: "700", 
+    color: "#3d4076" 
+  },
+  pickerRow: { 
+    flexDirection: "row", 
+    justifyContent: "space-between" 
+  },
+  pickerColumn: { 
+    width: "30%", 
+    maxHeight: 260 
+  },
+  buttonRow: { 
+    flexDirection: "row", 
+    justifyContent: "flex-end", 
+    marginTop: 14 
+  },
+  modalButton: {
+    paddingVertical: 10, 
+    paddingHorizontal: 14,
+    borderRadius: 12, 
+    backgroundColor: "rgba(91,95,151,0.12)", 
+    marginLeft: 8,
+  },
+  modalButtonText: { 
+    color: "#3d4076", 
+    fontWeight: "700" 
+  },
 });
 
 export default FormDatePicker;

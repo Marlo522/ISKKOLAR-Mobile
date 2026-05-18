@@ -13,30 +13,50 @@ const buildFamilyMembers = (values, dynamicFamilyMembers) => {
     return member;
   };
 
-  const family = [
-    cleanMember({
+  const family = [];
+
+  if (!values.hasGuardian || values.fatherName) {
+    family.push(cleanMember({
       role: "father",
       full_name: values.fatherName || "",
+      birthday: values.fatherBirthday || "",
       employment_status: values.fatherStatus || "",
       occupation: values.fatherOccupation || "",
       monthly_income: values.fatherIncome || "",
       contact_number: values.fatherContact || "",
-    }),
-    cleanMember({
+    }));
+  }
+
+  if (!values.hasGuardian || values.motherName) {
+    family.push(cleanMember({
       role: "mother",
       full_name: values.motherName || "",
+      birthday: values.motherBirthday || "",
       employment_status: values.motherStatus || "",
       occupation: values.motherOccupation || "",
       monthly_income: values.motherIncome || "",
       contact_number: values.motherContact || "",
-    }),
-  ];
+    }));
+  }
+
+  if (values.hasGuardian) {
+    family.push(cleanMember({
+      role: "guardian",
+      full_name: values.guardianName || "",
+      birthday: values.guardianBirthday || "",
+      employment_status: values.guardianStatus || "",
+      occupation: values.guardianOccupation || "",
+      monthly_income: values.guardianIncome || "",
+      contact_number: values.guardianContact || "",
+    }));
+  }
 
   // Append any additional family members the user added dynamically
   (dynamicFamilyMembers || []).forEach((member) => {
     family.push(cleanMember({
       role: member.relationship || "",
       full_name: member.name || "",
+      birthday: member.birthday || "",
       employment_status: member.status || "",
       occupation: member.occupation || "",
       monthly_income: member.income || "",
@@ -62,15 +82,11 @@ const prepareFormData = (values, uploads, dynamicFamilyMembers) => {
   const formData = new FormData();
 
   // Scalar academic / school fields
-  formData.append("scholarship_type", values.scholarshipType || "TESDA");
-  formData.append("incoming_freshman", values.incomingFreshman === "Yes" ? "true" : "false");
-  formData.append("secondary_school", values.schoolName || "");
+  formData.append("scholarship_type", values.scholarshipType || "TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY (TESDA)");
+  formData.append("secondary_school", values.secondarySchool || "");
   formData.append("strand", values.strand || "");
   formData.append("year_graduated", values.yearGraduated || "");
-  
-  if (values.incomingFreshman === "Yes") {
-    formData.append("gwa", values.gwa || "");
-  }
+  formData.append("secondary_gwa", values.secondaryGwa || "");
   
   // Vocational specific fields
   formData.append("vocational_school", values.vocationalSchoolName || "");
@@ -87,7 +103,6 @@ const prepareFormData = (values, uploads, dynamicFamilyMembers) => {
     appendFile(formData, "cor", uploads.cor);
     appendFile(formData, "grade_report", uploads.gradeReport);
     appendFile(formData, "current_term_report", uploads.currentTermGradeReport);
-    appendFile(formData, "certificate_of_indigency", uploads.indigency);
     appendFile(formData, "birth_certificate", uploads.birthCert);
     appendFile(formData, "essay", uploads.essay);
     appendFile(formData, "recommendation_letter", uploads.recommendation);
@@ -95,6 +110,11 @@ const prepareFormData = (values, uploads, dynamicFamilyMembers) => {
     appendFile(formData, "income_cert_mother", uploads.incomeMother);
     appendFile(formData, "indigency_cert_father", uploads.indigencyFather);
     appendFile(formData, "indigency_cert_mother", uploads.indigencyMother);
+
+    if (values.hasGuardian) {
+      if (uploads.incomeGuardian) appendFile(formData, "income_cert_guardian", uploads.incomeGuardian);
+      if (uploads.indigencyGuardian) appendFile(formData, "indigency_cert_guardian", uploads.indigencyGuardian);
+    }
 
     // Dynamic member income/indigency certs use index-based keys
     (dynamicFamilyMembers || []).forEach((_, idx) => {

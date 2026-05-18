@@ -10,15 +10,14 @@ import {
 // Used to attach server validation errors to the right input field.
 const FIELD_MAP = {
   scholarship_type: "scholarshipType",
-  incoming_freshman: "incomingFreshman",
-  secondary_school: "schoolName",
+  secondary_school: "secondarySchool",
   vocational_school: "vocationalSchoolName",
   strand: "strand",
   vocational_program: "vocationalProgram",
   course_duration: "courseDuration",
   completion_date: "completionDate",
   year_graduated: "yearGraduated",
-  gwa: "gwa",
+  secondary_gwa: "secondaryGwa",
   grade_report: "gradeReport",
   cor: "cor",
   certificate_of_indigency: "indigency",
@@ -40,14 +39,43 @@ const normalizeFieldPath = (field) =>
 
 // Maps a resolved family_members.N.prop path to a UI field key.
 // Index 0 = father, index 1 = mother, index 2+ = dynamic members.
-const mapFamilyFieldToUi = (normalizedField) => {
+const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
   const parts = normalizedField.split(".");
   if (parts.length < 3) return null;
 
   const index = Number(parts[1]);
   const prop = parts[2];
 
-  if (index === 0) {
+  if (!rolesArray) {
+    if (index === 0) {
+      if (prop === "full_name") return "fatherName";
+      if (prop === "employment_status") return "fatherStatus";
+      if (prop === "occupation") return "fatherOccupation";
+      if (prop === "monthly_income") return "fatherIncome";
+      if (prop === "contact_number") return "fatherContact";
+      return null;
+    }
+    if (index === 1) {
+      if (prop === "full_name") return "motherName";
+      if (prop === "employment_status") return "motherStatus";
+      if (prop === "occupation") return "motherOccupation";
+      if (prop === "monthly_income") return "motherIncome";
+      if (prop === "contact_number") return "motherContact";
+      return null;
+    }
+    const dynIndex = index - 2;
+    if (prop === "full_name") return "dynFamily_" + dynIndex + "_name";
+    if (prop === "role") return "dynFamily_" + dynIndex + "_relationship";
+    if (prop === "employment_status") return "dynFamily_" + dynIndex + "_status";
+    if (prop === "occupation") return "dynFamily_" + dynIndex + "_occupation";
+    if (prop === "monthly_income") return "dynFamily_" + dynIndex + "_income";
+    if (prop === "contact_number") return "dynFamily_" + dynIndex + "_contactNo";
+    return null;
+  }
+
+  const role = rolesArray[index];
+  
+  if (role === "father") {
     if (prop === "full_name") return "fatherName";
     if (prop === "employment_status") return "fatherStatus";
     if (prop === "occupation") return "fatherOccupation";
@@ -56,7 +84,7 @@ const mapFamilyFieldToUi = (normalizedField) => {
     return null;
   }
 
-  if (index === 1) {
+  if (role === "mother") {
     if (prop === "full_name") return "motherName";
     if (prop === "employment_status") return "motherStatus";
     if (prop === "occupation") return "motherOccupation";
@@ -65,25 +93,37 @@ const mapFamilyFieldToUi = (normalizedField) => {
     return null;
   }
 
-  // Dynamic member (index 2 maps to dynFamily_0, etc.)
-  const dynIndex = index - 2;
-  if (prop === "full_name") return "dynFamily_" + dynIndex + "_name";
-  if (prop === "role") return "dynFamily_" + dynIndex + "_relationship";
-  if (prop === "employment_status") return "dynFamily_" + dynIndex + "_status";
-  if (prop === "occupation") return "dynFamily_" + dynIndex + "_occupation";
-  if (prop === "monthly_income") return "dynFamily_" + dynIndex + "_income";
-  if (prop === "contact_number") return "dynFamily_" + dynIndex + "_contactNo";
+  if (role === "guardian") {
+    if (prop === "full_name") return "guardianName";
+    if (prop === "employment_status") return "guardianStatus";
+    if (prop === "occupation") return "guardianOccupation";
+    if (prop === "monthly_income") return "guardianIncome";
+    if (prop === "contact_number") return "guardianContact";
+    return null;
+  }
+
+  let dynCount = 0;
+  for (let i = 0; i < index; i++) {
+    if (rolesArray[i] !== "father" && rolesArray[i] !== "mother" && rolesArray[i] !== "guardian") dynCount++;
+  }
+  
+  if (prop === "full_name") return "dynFamily_" + dynCount + "_name";
+  if (prop === "role") return "dynFamily_" + dynCount + "_relationship";
+  if (prop === "employment_status") return "dynFamily_" + dynCount + "_status";
+  if (prop === "occupation") return "dynFamily_" + dynCount + "_occupation";
+  if (prop === "monthly_income") return "dynFamily_" + dynCount + "_income";
+  if (prop === "contact_number") return "dynFamily_" + dynCount + "_contactNo";
 
   return null;
 };
 
 // Resolves an API error field to the matching UI key.
-const mapApiFieldToUiKey = (field) => {
+const mapApiFieldToUiKey = (field, rolesArray) => {
   const normalized = normalizeFieldPath(field);
   if (!normalized) return "_general";
 
   if (normalized.startsWith("family_members.")) {
-    return mapFamilyFieldToUi(normalized) || "familyMembers";
+    return mapFamilyFieldToUi(normalized, rolesArray) || "familyMembers";
   }
 
   if (normalized.startsWith("income_cert_member_")) {
@@ -126,14 +166,14 @@ export const useVocationalApplication = () => {
   }, []);
 
   // Parses server errors and maps them to UI field keys or the general banner.
-  const handleApiError = (rawError) => {
+  const handleApiError = (rawError, rolesArray) => {
     const err = normalizeApiErrorShape(rawError);
 
     // 400 with field-level errors → show inline field errors, hide general banner
     if (err.status === 400 && err.errors.length > 0) {
       const mappedErrors = {};
       err.errors.forEach((e) => {
-        const key = mapApiFieldToUiKey(e.field);
+        const key = mapApiFieldToUiKey(e.field, rolesArray);
         let msg = e.message || "Invalid value.";
 
         // Convert Zod's "at least 1 character" messages to friendlier phrasing
@@ -206,8 +246,8 @@ export const useVocationalApplication = () => {
 
     if (uiStep === 0) {
       // Required text fields — must not be blank
-      if (!values.schoolName || values.schoolName.trim() === "")
-        preFlightErrors.schoolName = "Secondary School Name is required.";
+      if (!values.secondarySchool || values.secondarySchool.trim() === "")
+        preFlightErrors.secondarySchool = "Secondary School Name is required.";
       if (!values.vocationalSchoolName || values.vocationalSchoolName.trim() === "")
         preFlightErrors.vocationalSchoolName = "School / Training Center Name is required.";
       if (!values.vocationalProgram || values.vocationalProgram.trim() === "")
@@ -222,10 +262,8 @@ export const useVocationalApplication = () => {
         preFlightErrors.yearGraduated = "Year must be exactly 4 digits.";
 
       // Required uploads on step 0 — backend doesn't validate files here
-      if (values.incomingFreshman === "Yes") {
-        if (!values.gwa || values.gwa.trim() === "") preFlightErrors.gwa = "GWA is required.";
-        if (!uploads.gradeReport) preFlightErrors.gradeReport = "Grade Report is required.";
-      }
+      if (!values.secondaryGwa || values.secondaryGwa.trim() === "") preFlightErrors.secondaryGwa = "GWA is required.";
+      if (!uploads.gradeReport) preFlightErrors.gradeReport = "Grade Report is required.";
       if (!uploads.cor)
         preFlightErrors.cor = "COR is required.";
     }
@@ -246,24 +284,37 @@ export const useVocationalApplication = () => {
         }
       };
 
-      if (values.fatherStatus !== "Deceased") {
-        checkMember(
-          values.fatherName, values.fatherStatus,
-          values.fatherOccupation, values.fatherIncome,
-          "father", "Father's"
-        );
-        if (!values.fatherContact || values.fatherContact.length < 11)
-          preFlightErrors.fatherContact = "Contact Number must be 11 digits.";
+      if (values.hasGuardian) {
+        if (values.guardianStatus !== "Deceased") {
+          checkMember(values.guardianName, values.guardianStatus, values.guardianOccupation, values.guardianIncome, "guardian", "Guardian's");
+          if (!values.guardianContact || values.guardianContact.length < 11) preFlightErrors.guardianContact = "Contact Number must be 11 digits.";
+        }
       }
 
+      const fatherIsOptional = values.hasGuardian;
+      if (values.fatherStatus !== "Deceased") {
+        if (!fatherIsOptional || values.fatherName) {
+          checkMember(
+            values.fatherName, values.fatherStatus,
+            values.fatherOccupation, values.fatherIncome,
+            "father", "Father's"
+          );
+          if (!values.fatherContact || values.fatherContact.length < 11)
+            preFlightErrors.fatherContact = "Contact Number must be 11 digits.";
+        }
+      }
+
+      const motherIsOptional = values.hasGuardian;
       if (values.motherStatus !== "Deceased") {
-        checkMember(
-          values.motherName, values.motherStatus,
-          values.motherOccupation, values.motherIncome,
-          "mother", "Mother's"
-        );
-        if (!values.motherContact || values.motherContact.length < 11)
-          preFlightErrors.motherContact = "Contact Number must be 11 digits.";
+        if (!motherIsOptional || values.motherName) {
+          checkMember(
+            values.motherName, values.motherStatus,
+            values.motherOccupation, values.motherIncome,
+            "mother", "Mother's"
+          );
+          if (!values.motherContact || values.motherContact.length < 11)
+            preFlightErrors.motherContact = "Contact Number must be 11 digits.";
+        }
       }
 
       // Validate each dynamically added family member
@@ -287,8 +338,6 @@ export const useVocationalApplication = () => {
 
     if (uiStep === 2) {
       // Required documents — backend does not validate files during step-check
-      if (!uploads.indigency)
-        preFlightErrors.indigency = "Certificate of Indigency is required.";
       if (!uploads.birthCert)
         preFlightErrors.birthCert = "Birth Certificate is required.";
       if (!uploads.essay)
@@ -298,15 +347,24 @@ export const useVocationalApplication = () => {
         ["Employed", "Self-Employed"].includes(status);
       const requiresIndigency = (status) => status === "Unemployed";
 
-      if (requiresProof(values.fatherStatus) && !uploads.incomeFather)
-        preFlightErrors.incomeFather = "Income certificate required.";
-      if (requiresIndigency(values.fatherStatus) && !uploads.indigencyFather)
-        preFlightErrors.indigencyFather = "Certificate of indigency required.";
+      if (values.hasGuardian) {
+        if (requiresProof(values.guardianStatus) && !uploads.incomeGuardian) preFlightErrors.incomeGuardian = "Income certificate required.";
+        if (requiresIndigency(values.guardianStatus) && !uploads.indigencyGuardian) preFlightErrors.indigencyGuardian = "Certificate of indigency required.";
+      }
 
-      if (requiresProof(values.motherStatus) && !uploads.incomeMother)
-        preFlightErrors.incomeMother = "Income certificate required.";
-      if (requiresIndigency(values.motherStatus) && !uploads.indigencyMother)
-        preFlightErrors.indigencyMother = "Certificate of indigency required.";
+      if (!fatherIsOptional || values.fatherName) {
+        if (requiresProof(values.fatherStatus) && !uploads.incomeFather)
+          preFlightErrors.incomeFather = "Income certificate required.";
+        if (requiresIndigency(values.fatherStatus) && !uploads.indigencyFather)
+          preFlightErrors.indigencyFather = "Certificate of indigency required.";
+      }
+
+      if (!motherIsOptional || values.motherName) {
+        if (requiresProof(values.motherStatus) && !uploads.incomeMother)
+          preFlightErrors.incomeMother = "Income certificate required.";
+        if (requiresIndigency(values.motherStatus) && !uploads.indigencyMother)
+          preFlightErrors.indigencyMother = "Certificate of indigency required.";
+      }
 
       (dynamicFamilyMembers || []).forEach((mem, idx) => {
         if (requiresProof(mem.status) && !uploads[`incomeMember_${idx}`]) {
@@ -330,13 +388,19 @@ export const useVocationalApplication = () => {
       await validateVocationalStep(apiStep, values, uploads, dynamicFamilyMembers);
       return true;
     } catch (err) {
+      const rolesArray = [];
+      if (!values.hasGuardian || values.fatherName) rolesArray.push("father");
+      if (!values.hasGuardian || values.motherName) rolesArray.push("mother");
+      if (values.hasGuardian) rolesArray.push("guardian");
+      (dynamicFamilyMembers || []).forEach(m => rolesArray.push(m.relationship));
+
       // DEBUG: Log the exact error to terminal so I can extract it!
       console.log("VOCATIONAL_VALIDATION_ERROR", JSON.stringify(err, null, 2));
       require("react-native").Alert.alert("Backend Validation Error", JSON.stringify(err));
       
       // Only hard-block on 400 (field validation errors from the server).
       if (err?.status === 400 && Array.isArray(err?.errors) && err.errors.length > 0) {
-        handleApiError(err);
+        handleApiError(err, rolesArray);
         return false;
       }
       // For any other server error, show a soft warning banner but still advance
@@ -359,7 +423,13 @@ export const useVocationalApplication = () => {
       }
       return response;
     } catch (err) {
-      handleApiError(err);
+      const rolesArray = [];
+      if (!values.hasGuardian || values.fatherName) rolesArray.push("father");
+      if (!values.hasGuardian || values.motherName) rolesArray.push("mother");
+      if (values.hasGuardian) rolesArray.push("guardian");
+      (dynamicFamilyMembers || []).forEach(m => rolesArray.push(m.relationship));
+
+      handleApiError(err, rolesArray);
       throw err;
     } finally {
       setSubmitting(false);

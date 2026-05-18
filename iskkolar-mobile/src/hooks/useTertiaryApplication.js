@@ -37,14 +37,44 @@ const FIELD_MAP = {
 const normalizeFieldPath = (field) =>
   String(field || "").replace(/\[(\d+)\]/g, ".$1");
 
-const mapFamilyFieldToUi = (normalizedField) => {
+const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
   const parts = normalizedField.split(".");
   if (parts.length < 3) return null;
 
   const index = Number(parts[1]);
   const prop = parts[2];
 
-  if (index === 0) {
+  // If we don't have rolesArray, fallback to legacy index mapping
+  if (!rolesArray) {
+    if (index === 0) {
+      if (prop === "full_name") return "fatherName";
+      if (prop === "employment_status") return "fatherStatus";
+      if (prop === "occupation") return "fatherOccupation";
+      if (prop === "monthly_income") return "fatherIncome";
+      if (prop === "contact_number") return "fatherContact";
+      return null;
+    }
+    if (index === 1) {
+      if (prop === "full_name") return "motherName";
+      if (prop === "employment_status") return "motherStatus";
+      if (prop === "occupation") return "motherOccupation";
+      if (prop === "monthly_income") return "motherIncome";
+      if (prop === "contact_number") return "motherContact";
+      return null;
+    }
+    const dynIndex = index - 2;
+    if (prop === "full_name") return "dynFamily_" + dynIndex + "_name";
+    if (prop === "role") return "dynFamily_" + dynIndex + "_relationship";
+    if (prop === "employment_status") return "dynFamily_" + dynIndex + "_status";
+    if (prop === "occupation") return "dynFamily_" + dynIndex + "_occupation";
+    if (prop === "monthly_income") return "dynFamily_" + dynIndex + "_income";
+    if (prop === "contact_number") return "dynFamily_" + dynIndex + "_contactNo";
+    return null;
+  }
+
+  const role = rolesArray[index];
+  
+  if (role === "father") {
     if (prop === "full_name") return "fatherName";
     if (prop === "employment_status") return "fatherStatus";
     if (prop === "occupation") return "fatherOccupation";
@@ -53,7 +83,7 @@ const mapFamilyFieldToUi = (normalizedField) => {
     return null;
   }
 
-  if (index === 1) {
+  if (role === "mother") {
     if (prop === "full_name") return "motherName";
     if (prop === "employment_status") return "motherStatus";
     if (prop === "occupation") return "motherOccupation";
@@ -62,22 +92,38 @@ const mapFamilyFieldToUi = (normalizedField) => {
     return null;
   }
 
-  const dynIndex = index - 2;
-  if (prop === "full_name") return "dynFamily_" + dynIndex + "_name";
-  if (prop === "role") return "dynFamily_" + dynIndex + "_relationship";
-  if (prop === "employment_status") return "dynFamily_" + dynIndex + "_status";
-  if (prop === "occupation") return "dynFamily_" + dynIndex + "_occupation";
-  if (prop === "monthly_income") return "dynFamily_" + dynIndex + "_income";
-  if (prop === "contact_number") return "dynFamily_" + dynIndex + "_contactNo";
+  if (role === "guardian") {
+    if (prop === "full_name") return "guardianName";
+    if (prop === "employment_status") return "guardianStatus";
+    if (prop === "occupation") return "guardianOccupation";
+    if (prop === "monthly_income") return "guardianIncome";
+    if (prop === "contact_number") return "guardianContact";
+    return null;
+  }
+
+  // Dynamic members
+  let dynCount = 0;
+  for (let i = 0; i < index; i++) {
+    if (rolesArray[i] !== "father" && rolesArray[i] !== "mother" && rolesArray[i] !== "guardian") {
+      dynCount++;
+    }
+  }
+  
+  if (prop === "full_name") return "dynFamily_" + dynCount + "_name";
+  if (prop === "role") return "dynFamily_" + dynCount + "_relationship";
+  if (prop === "employment_status") return "dynFamily_" + dynCount + "_status";
+  if (prop === "occupation") return "dynFamily_" + dynCount + "_occupation";
+  if (prop === "monthly_income") return "dynFamily_" + dynCount + "_income";
+  if (prop === "contact_number") return "dynFamily_" + dynCount + "_contactNo";
 
   return null;
 };
 
-const mapApiFieldToUiKey = (field) => {
+const mapApiFieldToUiKey = (field, rolesArray) => {
   const normalized = normalizeFieldPath(field);
   if (!normalized) return "_general";
   if (normalized.startsWith("family_members.")) {
-    return mapFamilyFieldToUi(normalized) || "familyMembers";
+    return mapFamilyFieldToUi(normalized, rolesArray) || "familyMembers";
   }
   if (normalized.startsWith("income_cert_member_")) {
     const idx = normalized.replace("income_cert_member_", "");
@@ -115,13 +161,13 @@ export const useTertiaryApplication = () => {
 
 
 
-  const handleApiError = (rawError) => {
+  const handleApiError = (rawError, rolesArray) => {
     const err = normalizeApiErrorShape(rawError);
 
     if (err.status === 400 && err.errors.length > 0) {
       const mappedErrors = {};
       err.errors.forEach((e) => {
-        const key = mapApiFieldToUiKey(e.field);
+        const key = mapApiFieldToUiKey(e.field, rolesArray);
         let msg = e.message || "Invalid value.";
 
         // Rewrite generic Zod minimum length messages to native phrasing
@@ -221,14 +267,27 @@ export const useTertiaryApplication = () => {
         }
       };
 
+      if (values.hasGuardian) {
+        if (values.guardianStatus !== "Deceased") {
+          checkMember(values.guardianName, values.guardianStatus, values.guardianOccupation, values.guardianIncome, "guardian", "Guardian's");
+          if (!values.guardianContact || values.guardianContact.length < 11) preFlightErrors.guardianContact = "Contact Number must be 11 digits.";
+        }
+      }
+
+      const fatherIsOptional = values.hasGuardian;
       if (values.fatherStatus !== "Deceased") {
-        checkMember(values.fatherName, values.fatherStatus, values.fatherOccupation, values.fatherIncome, "father", "Father's");
-        if (!values.fatherContact || values.fatherContact.length < 11) preFlightErrors.fatherContact = "Contact Number must be 11 digits.";
+        if (!fatherIsOptional || values.fatherName) {
+          checkMember(values.fatherName, values.fatherStatus, values.fatherOccupation, values.fatherIncome, "father", "Father's");
+          if (!values.fatherContact || values.fatherContact.length < 11) preFlightErrors.fatherContact = "Contact Number must be 11 digits.";
+        }
       }
       
+      const motherIsOptional = values.hasGuardian;
       if (values.motherStatus !== "Deceased") {
-        checkMember(values.motherName, values.motherStatus, values.motherOccupation, values.motherIncome, "mother", "Mother's");
-        if (!values.motherContact || values.motherContact.length < 11) preFlightErrors.motherContact = "Contact Number must be 11 digits.";
+        if (!motherIsOptional || values.motherName) {
+          checkMember(values.motherName, values.motherStatus, values.motherOccupation, values.motherIncome, "mother", "Mother's");
+          if (!values.motherContact || values.motherContact.length < 11) preFlightErrors.motherContact = "Contact Number must be 11 digits.";
+        }
       }
 
       // Automatically validate all dynamically injected family members
@@ -247,18 +306,26 @@ export const useTertiaryApplication = () => {
 
     if (uiStep === 2) {
       // Step 2: Validate essential files
-      if (!uploads.indigency) preFlightErrors.indigency = "Certificate of indigency is required.";
       if (!uploads.birthCert) preFlightErrors.birthCert = "Birth certificate is required.";
       if (!uploads.essay) preFlightErrors.essay = "Essay is required.";
 
       const requiresProof = (status) => ["Employed", "Self-Employed"].includes(status);
       const requiresIndigency = (status) => status === "Unemployed";
       
-      if (requiresProof(values.fatherStatus) && !uploads.incomeFather) preFlightErrors.incomeFather = "Income certificate required.";
-      if (requiresIndigency(values.fatherStatus) && !uploads.indigencyFather) preFlightErrors.indigencyFather = "Certificate of indigency required.";
+      if (values.hasGuardian) {
+        if (requiresProof(values.guardianStatus) && !uploads.incomeGuardian) preFlightErrors.incomeGuardian = "Income certificate required.";
+        if (requiresIndigency(values.guardianStatus) && !uploads.indigencyGuardian) preFlightErrors.indigencyGuardian = "Certificate of indigency required.";
+      }
 
-      if (requiresProof(values.motherStatus) && !uploads.incomeMother) preFlightErrors.incomeMother = "Income certificate required.";
-      if (requiresIndigency(values.motherStatus) && !uploads.indigencyMother) preFlightErrors.indigencyMother = "Certificate of indigency required.";
+      if (!fatherIsOptional || values.fatherName) {
+        if (requiresProof(values.fatherStatus) && !uploads.incomeFather) preFlightErrors.incomeFather = "Income certificate required.";
+        if (requiresIndigency(values.fatherStatus) && !uploads.indigencyFather) preFlightErrors.indigencyFather = "Certificate of indigency required.";
+      }
+
+      if (!motherIsOptional || values.motherName) {
+        if (requiresProof(values.motherStatus) && !uploads.incomeMother) preFlightErrors.incomeMother = "Income certificate required.";
+        if (requiresIndigency(values.motherStatus) && !uploads.indigencyMother) preFlightErrors.indigencyMother = "Certificate of indigency required.";
+      }
 
       if (values.incomingFreshman === "No" && !uploads.currentTermGradeReport) {
         preFlightErrors.currentTermGradeReport = "Current term report card is required.";
@@ -285,7 +352,13 @@ export const useTertiaryApplication = () => {
       await validateTertiaryStep(apiStep, values, uploads, dynamicFamilyMembers);
       return true;
     } catch (err) {
-      handleApiError(err);
+      const rolesArray = [];
+      if (!values.hasGuardian || values.fatherName) rolesArray.push("father");
+      if (!values.hasGuardian || values.motherName) rolesArray.push("mother");
+      if (values.hasGuardian) rolesArray.push("guardian");
+      (dynamicFamilyMembers || []).forEach(m => rolesArray.push(m.relationship));
+
+      handleApiError(err, rolesArray);
       return false;
     }
   }, []);
@@ -303,7 +376,13 @@ export const useTertiaryApplication = () => {
       }
       return response;
     } catch (err) {
-      handleApiError(err);
+      const rolesArray = [];
+      if (!values.hasGuardian || values.fatherName) rolesArray.push("father");
+      if (!values.hasGuardian || values.motherName) rolesArray.push("mother");
+      if (values.hasGuardian) rolesArray.push("guardian");
+      (dynamicFamilyMembers || []).forEach(m => rolesArray.push(m.relationship));
+
+      handleApiError(err, rolesArray);
       throw err;
     } finally {
       setSubmitting(false);
