@@ -39,17 +39,17 @@ export const useLogin = (navigation) => {
 
     try {
       const response = await login(form.email.trim(), form.password);
-      
+
       const normalizedRole = resolveAllowedRole(response.rawRole || response.user.userType);
 
       if (normalizedRole !== "applicant" && normalizedRole !== "scholar") {
-        setApiError("Invalid account. Only applicant or scholar accounts can log in.");
+        setApiError("Invalid account.");
         setLoading(false);
         return;
       }
 
       const userData = { ...response.user, role: normalizedRole };
-      
+
       await loginUser(userData);
 
       switch (normalizedRole) {
@@ -60,7 +60,7 @@ export const useLogin = (navigation) => {
           navigation.replace("ScholarTabs");
           break;
         default:
-          setApiError("Login failed. Unrecognized account role.");
+          setApiError("Login failed.");
       }
     } catch (err) {
       if (err.errors) {

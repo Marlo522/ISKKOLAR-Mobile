@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "169109726054",
+    "project_id": "iskkolar-b3c3b",
+    "storage_bucket": "iskkolar-b3c3b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:169109726054:android:d38be73a5cd284ccf71ea7",
+        "android_client_info": {
+          "package_name": "com.integra.iskkolarmobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDY8gYFB-_ro5VM-vLqhELdNd7fyv8XEsg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

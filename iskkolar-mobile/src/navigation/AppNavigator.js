@@ -13,6 +13,8 @@ import ScholarTabs from "./ScholarTabs";
 import MainTabs from "./MainTabs";
 import { AuthProvider } from "../context/AuthContext";
 
+import { usePushNotifications } from "../hooks/usePushNotifications";
+
 const Stack = createNativeStackNavigator();
 
 const linking = {
@@ -46,22 +48,31 @@ const linking = {
   }
 };
 
+function NavigationWrapper() {
+  // Call hook inside the provider context
+  usePushNotifications();
+
+  return (
+    <NavigationContainer theme={DefaultTheme} linking={linking}>
+      <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Splash" component={SplashScreen} />
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+        <Stack.Screen name="Signup" component={SignupScreen} />
+        <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
+        <Stack.Screen name="ScholarTabs" component={ScholarTabs} />
+        <Stack.Screen name="Main" component={MainTabs} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+
 export default function AppNavigator() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <NavigationContainer theme={DefaultTheme} linking={linking}>
-          <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Splash" component={SplashScreen} />
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-            <Stack.Screen name="Signup" component={SignupScreen} />
-            <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
-            <Stack.Screen name="ScholarTabs" component={ScholarTabs} />
-            <Stack.Screen name="Main" component={MainTabs} />
-          </Stack.Navigator>
-        </NavigationContainer>
+        <NavigationWrapper />
       </AuthProvider>
     </SafeAreaProvider>
   );

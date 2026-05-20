@@ -1,10 +1,12 @@
 import React, { useState, useContext, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Animated, Platform, Image } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Animated, Platform, Image, Switch, NativeModules } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthContext } from "../context/AuthContext";
 import * as profileService from "../services/profileService";
+import { registerPushToken, deletePushToken } from "../services/pushNotificationService";
 
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -26,6 +28,7 @@ export default function ProfileScreen({ navigation }) {
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(true);
 
   // Mount animation
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -46,6 +49,19 @@ export default function ProfileScreen({ navigation }) {
         useNativeDriver: true,
       })
     ]).start();
+
+    // Load push preference
+    const loadPushPreference = async () => {
+      try {
+        const stored = await AsyncStorage.getItem("push_notifications_enabled");
+        if (stored !== null) {
+          setPushEnabled(stored === "true");
+        }
+      } catch (err) {
+        console.warn("FCM: Failed to load push preference:", err);
+      }
+    };
+    loadPushPreference();
 
     // Fetch latest profile
     const fetchProfile = async () => {
@@ -72,6 +88,45 @@ export default function ProfileScreen({ navigation }) {
   const onLogout = async () => {
     await logoutUser();
     navigation.replace("Login");
+  };
+
+  const handleTogglePush = async (newValue) => {
+    setPushEnabled(newValue);
+    if (!NativeModules.RNFBAppModule) {
+      alert("Push notifications are not supported in Expo Go. Please compile a native development build to enable this feature.");
+      setPushEnabled(!newValue);
+      return;
+    }
+    try {
+      await AsyncStorage.setItem("push_notifications_enabled", String(newValue));
+      const messaging = require("@react-native-firebase/messaging").default;
+      
+      if (newValue) {
+        // Request permissions and register token on backend
+        const authStatus = await messaging().requestPermission();
+        const enabled =
+          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+        if (enabled) {
+          const token = await messaging().getToken().catch(() => null);
+          if (token) {
+            await registerPushToken(token, Platform.OS);
+            console.log("FCM: Registered push token dynamically via switch toggle.");
+          }
+        }
+      } else {
+        // Delete token on backend
+        const token = await messaging().getToken().catch(() => null);
+        if (token) {
+          await deletePushToken(token);
+          console.log("FCM: Deleted push token dynamically via switch toggle.");
+        }
+      }
+    } catch (err) {
+      console.warn("FCM: Failed to update push preference:", err);
+      setPushEnabled(!newValue);
+      alert("Failed to update push notification settings. Please check your network and try again.");
+    }
   };
 
   const handleSaveMobile = async () => {
@@ -324,6 +379,22 @@ export default function ProfileScreen({ navigation }) {
               </View>
             </View>
 
+            <Text style={styles.sectionTitleHeader}>| Preferences</Text>
+            <View style={styles.preferencesContainer}>
+              <View style={styles.preferenceRow}>
+                <View style={styles.preferenceTextCol}>
+                  <Text style={styles.preferenceLabel}>Push Notifications</Text>
+                  <Text style={styles.preferenceSublabel}>Receive alerts about announcements and activities</Text>
+                </View>
+                <Switch
+                  value={pushEnabled}
+                  onValueChange={handleTogglePush}
+                  trackColor={{ false: "#d1d5db", true: "#a5b4fc" }}
+                  thumbColor={pushEnabled ? "#5b61a7" : "#f4f4f5"}
+                />
+              </View>
+            </View>
+
             <TouchableOpacity style={styles.secondaryButton} onPress={onLogout} activeOpacity={0.8}>
               <Text style={styles.secondaryButtonText}>Sign Out</Text>
             </TouchableOpacity>
@@ -440,4 +511,9 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: "#fff", fontWeight: "800", fontSize: 16 },
   secondaryButton: { backgroundColor: "#fff", borderColor: "#f9e0e0", borderWidth: 2, borderRadius: 14, paddingVertical: 16, alignItems: "center", marginTop: 12 },
   secondaryButtonText: { color: "#de3a47", fontWeight: "800", fontSize: 16 },
+  preferencesContainer: { marginBottom: 20 },
+  preferenceRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eff2f9" },
+  preferenceTextCol: { flex: 1, paddingRight: 16 },
+  preferenceLabel: { fontSize: 15, fontWeight: "700", color: "#1c2131", marginBottom: 4 },
+  preferenceSublabel: { fontSize: 12, color: "#7f88a3", lineHeight: 16 },
 });

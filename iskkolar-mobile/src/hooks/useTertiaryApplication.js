@@ -309,6 +309,9 @@ export const useTertiaryApplication = () => {
       if (!uploads.birthCert) preFlightErrors.birthCert = "Birth certificate is required.";
       if (!uploads.essay) preFlightErrors.essay = "Essay is required.";
 
+      const fatherIsOptional = values.hasGuardian;
+      const motherIsOptional = values.hasGuardian;
+
       const requiresProof = (status) => ["Employed", "Self-Employed"].includes(status);
       const requiresIndigency = (status) => status === "Unemployed";
       
