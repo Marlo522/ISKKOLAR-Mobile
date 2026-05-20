@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useContext } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Animated, Alert, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,6 +6,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import FormDatePicker from "../components/FormDatePicker";
 import { getGradeComplianceTerms, submitGradeCompliance } from "../services/gradeComplianceService";
+import { AuthContext } from "../context/AuthContext";
 
 const statusColors = {
   Pending: { bg: "#fff8e6", text: "#b5850a" },
@@ -16,6 +17,7 @@ const statusColors = {
 };
 
 export default function GradeComplianceScreen({ navigation }) {
+  const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
   const [completeStage, setCompleteStage] = useState("none");
   const [termRequirements, setTermRequirements] = useState([]);
@@ -26,6 +28,9 @@ export default function GradeComplianceScreen({ navigation }) {
   const [successMessage, setSuccessMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState({ gradeReport: "", cor: "", term: "" });
   const [step, setStep] = useState(1);
+  const [isGraduate, setIsGraduate] = useState(false);
+
+  const resolvedIsGraduate = isGraduate || user?.is_graduate || user?.isGraduate || false;
 
   const [selectedTermId, setSelectedTermId] = useState(null);
   const [gradeReportFile, setGradeReportFile] = useState(null);
@@ -51,11 +56,13 @@ export default function GradeComplianceScreen({ navigation }) {
     try {
       const response = await getGradeComplianceTerms();
       const payload = response?.data || response || {};
+      setIsGraduate(payload.isGraduate || false);
       setAcademicYear(payload.academicYear || "");
       setCurrentScholarship(payload.currentScholarship || "");
       setTermRequirements(payload.terms || []);
       setFieldErrors((current) => ({ ...current, term: "" }));
     } catch (error) {
+      setIsGraduate(false);
       setFieldErrors((current) => ({
         ...current,
         term: error?.message || "Failed to load grade compliance terms.",
@@ -78,6 +85,14 @@ export default function GradeComplianceScreen({ navigation }) {
       useNativeDriver: true,
     }).start();
   }, [selectedTermId, completeStage, isSubmitting]);
+
+  useEffect(() => {
+    if (selectedTerm?.isLastSemesterBeforeGraduation) {
+      setStep(2);
+    } else {
+      setStep(1);
+    }
+  }, [selectedTerm]);
 
   useEffect(() => {
     if (isSubmitting) {
@@ -190,18 +205,24 @@ export default function GradeComplianceScreen({ navigation }) {
   };
 
   const handleSubmit = async () => {
+    const isGraduating = selectedTerm?.isLastSemesterBeforeGraduation;
     const nextFieldErrors = {
       gradeReport: gradeReportFile ? "" : "Grade report is required.",
-      cor: corFile ? "" : "COR is required.",
+      cor: isGraduating || corFile ? "" : "COR is required.",
       term: selectedTerm ? "" : "Please select a term.",
-      nextTermStartDate: nextTermStartDate ? "" : "Next term start date is required.",
-      nextTermEndDate: nextTermEndDate ? "" : "Next term end date is required.",
+      nextTermStartDate: isGraduating || nextTermStartDate ? "" : "Next term start date is required.",
+      nextTermEndDate: isGraduating || nextTermEndDate ? "" : "Next term end date is required.",
       gwa: gwa ? "" : "GWA is required.",
     };
 
     setFieldErrors(nextFieldErrors);
 
-    if (!selectedTerm || !gradeReportFile || !corFile || !nextTermStartDate || !nextTermEndDate || !gwa) {
+    if (
+      !selectedTerm ||
+      !gradeReportFile ||
+      (!isGraduating && (!corFile || !nextTermStartDate || !nextTermEndDate)) ||
+      !gwa
+    ) {
       return;
     }
 
@@ -213,12 +234,12 @@ export default function GradeComplianceScreen({ navigation }) {
         term: selectedTerm.term,
         scholarshipName: currentScholarship,
         remarks: "",
-        nextTermStartDate,
-        nextTermEndDate,
+        nextTermStartDate: isGraduating ? null : nextTermStartDate,
+        nextTermEndDate: isGraduating ? null : nextTermEndDate,
         gwa,
         files: {
           gradeReport: gradeReportFile,
-          cor: corFile,
+          cor: isGraduating ? null : corFile,
         },
       });
 
@@ -233,6 +254,46 @@ export default function GradeComplianceScreen({ navigation }) {
       }));
       setIsSubmitting(false);
     }
+  };
+
+  const renderGraduationCard = () => {
+    return (
+      <View style={styles.gradCard}>
+        {/* Ambient top decoration */}
+        <View style={styles.gradOuterCircle} />
+        
+        <View style={styles.gradHeaderContainer}>
+          <View style={styles.gradCapCircle}>
+            <Text style={styles.gradCapEmoji}>🎓</Text>
+          </View>
+          
+          <Text style={styles.gradTitle}>Congratulations, Scholar!</Text>
+          
+          <Text style={styles.gradText}>
+            You have successfully completed all your academic grade compliance terms and officially graduated! We are incredibly proud of your journey, dedication, and outstanding achievements as an Iskkolar.
+          </Text>
+          
+          <View style={styles.gradBadgeRow}>
+            <View style={styles.gradBadge}>
+              <Text style={styles.gradBadgeText}>✨ Academic Excellence</Text>
+            </View>
+            <View style={styles.gradBadge}>
+              <Text style={styles.gradBadgeText}>🚀 Compliance Completed</Text>
+            </View>
+            <View style={styles.gradBadge}>
+              <Text style={styles.gradBadgeText}>🌟 Official Graduate</Text>
+            </View>
+          </View>
+          
+          <View style={styles.gradNextStepsCard}>
+            <Text style={styles.gradNextStepsTitle}>NEXT STEPS</Text>
+            <Text style={styles.gradNextStepsText}>
+              Your portal has been transitioned to graduate status. Submissions are now officially locked. For further details on your graduation incentives or alumni status, please coordinate with the KKFI scholarship committee.
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
   };
 
   const renderTodoCard = (termItem) => {
@@ -346,7 +407,7 @@ export default function GradeComplianceScreen({ navigation }) {
                 </View>
                 <Text style={styles.aiTitle}>AI ANALYSIS & ADVICE</Text>
               </View>
-              <Text style={styles.aiText}>"{lastAiSummary}"</Text>
+              <Text style={styles.aiText}>{`"${lastAiSummary}"`}</Text>
               <View style={styles.aiFooter}>
                 <Text style={styles.aiFooterText}>Generated by Iskkolar AI Assistant</Text>
                 <Text style={styles.aiFooterBadge}>VERIFIED ANALYSIS</Text>
@@ -387,9 +448,11 @@ export default function GradeComplianceScreen({ navigation }) {
       return (
         <View style={styles.landingContainer}>
           <Text style={[styles.landingHeader, { marginBottom: 4 }]}>COR & Grade Compliance</Text>
-          <Text style={{ fontSize: 13, color: '#6870a3', marginBottom: 20, marginLeft: 2, fontWeight: '500' }}>
-            Academic Year: {academicYear || "2025-2026"}
-          </Text>
+          {resolvedIsGraduate ? null : (
+            <Text style={{ fontSize: 13, color: '#6870a3', marginBottom: 20, marginLeft: 2, fontWeight: '500' }}>
+              Academic Year: {academicYear || "2025-2026"}
+            </Text>
+          )}
           
           {fieldErrors.term ? (
             <View style={styles.errorBanner}>
@@ -397,7 +460,9 @@ export default function GradeComplianceScreen({ navigation }) {
             </View>
           ) : null}
 
-          {termRequirements.length === 0 ? (
+          {resolvedIsGraduate ? (
+            renderGraduationCard()
+          ) : termRequirements.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyCardText}>No grade compliance terms available yet. Complete a scholarship application first.</Text>
             </View>
@@ -415,21 +480,27 @@ export default function GradeComplianceScreen({ navigation }) {
             <Text style={styles.errorBannerText}>{fieldErrors.term}</Text>
           </View>
         ) : null}
-        <View style={styles.progressBarWrapper}>
-          <View style={styles.progressBarRow}>
-            <View style={[styles.progressStep, styles.progressStepActive]} />
-            <View style={[styles.progressStep, step === 2 ? styles.progressStepActive : styles.progressStepInactive]} />
+        {!selectedTerm?.isLastSemesterBeforeGraduation && (
+          <View style={styles.progressBarWrapper}>
+            <View style={styles.progressBarRow}>
+              <View style={[styles.progressStep, styles.progressStepActive]} />
+              <View style={[styles.progressStep, step === 2 ? styles.progressStepActive : styles.progressStepInactive]} />
+            </View>
+            <View style={styles.progressBarLabelRow}>
+              <Text style={styles.progressTextActive}>COR Submission</Text>
+              <Text style={step === 2 ? styles.progressTextActive : styles.progressTextInactive}>Grade Submission</Text>
+            </View>
           </View>
-          <View style={styles.progressBarLabelRow}>
-            <Text style={styles.progressTextActive}>COR Submission</Text>
-            <Text style={step === 2 ? styles.progressTextActive : styles.progressTextInactive}>Grade Submission</Text>
-          </View>
-        </View>
+        )}
         
         <View style={styles.stepHeaderRow}>
           <Text style={styles.termTitle}>{selectedTerm?.termLabel}</Text>
           <View style={styles.stepBadge}>
-            <Text style={styles.stepBadgeText}>Step {step}: {step === 1 ? "COR Submission" : "Grade Submission"}</Text>
+            <Text style={styles.stepBadgeText}>
+              {selectedTerm?.isLastSemesterBeforeGraduation
+                ? "Grade Submission (Final Semester)"
+                : `Step ${step}: ${step === 1 ? "COR Submission" : "Grade Submission"}`}
+            </Text>
           </View>
         </View>
 
@@ -488,7 +559,15 @@ export default function GradeComplianceScreen({ navigation }) {
           <>
             <View style={styles.infoBanner}>
               <Text style={styles.infoBannerText}>
-                <Text style={{ fontWeight: "700" }}>Note:</Text> Please upload the Official Grades or Report Card for your <Text style={{ fontWeight: "700" }}>RECENTLY COMPLETED</Text> academic term.
+                {selectedTerm?.isLastSemesterBeforeGraduation ? (
+                  <Text>
+                    <Text style={{ fontWeight: "700" }}>Note:</Text> This is your <Text style={{ fontWeight: "700" }}>FINAL SEMESTER</Text> before graduation! You only need to upload your Official Grades or Report Card and provide your final GWA. No COR or next term details are required.
+                  </Text>
+                ) : (
+                  <Text>
+                    <Text style={{ fontWeight: "700" }}>Note:</Text> Please upload the Official Grades or Report Card for your <Text style={{ fontWeight: "700" }}>RECENTLY COMPLETED</Text> academic term.
+                  </Text>
+                )}
               </Text>
             </View>
             {renderUpload("Grade Report", gradeReportFile, "gradeReport", fieldErrors.gradeReport)}
@@ -517,9 +596,20 @@ export default function GradeComplianceScreen({ navigation }) {
     <View style={styles.container}>
       {selectedTermId && step === 2 && completeStage === "none" ? (
         <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 10 }}>
-          <TouchableOpacity onPress={() => setStep(1)} style={styles.textBackBtn}>
+          <TouchableOpacity 
+            onPress={() => {
+              if (selectedTerm?.isLastSemesterBeforeGraduation) {
+                resetFormState();
+              } else {
+                setStep(1);
+              }
+            }} 
+            style={styles.textBackBtn}
+          >
             <Ionicons name="arrow-back" size={16} color="#5b6095" style={{ marginRight: 8 }} />
-            <Text style={styles.textBackBtnText}>Back to COR Submission</Text>
+            <Text style={styles.textBackBtnText}>
+              {selectedTerm?.isLastSemesterBeforeGraduation ? "Back to Terms Overview" : "Back to COR Submission"}
+            </Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -711,4 +801,110 @@ const styles = StyleSheet.create({
   flagTextAmber: { color: '#b45309', fontSize: 11, fontWeight: '600' },
   flagTextRed: { color: '#b91c1c', fontSize: 11, fontWeight: '600' },
   flagTextOrange: { color: '#c2410c', fontSize: 11, fontWeight: '600' },
+  gradCard: {
+    backgroundColor: "#1e1b4b",
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    shadowColor: "#1e1b4b",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 8,
+    overflow: "hidden",
+    position: "relative",
+    marginBottom: 20,
+  },
+  gradOuterCircle: {
+    position: "absolute",
+    top: -50,
+    left: -50,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: "rgba(139, 92, 246, 0.15)",
+  },
+  gradHeaderContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+    paddingVertical: 12,
+  },
+  gradCapCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#fbbf24",
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+    shadowColor: "#fbbf24",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  gradCapEmoji: {
+    fontSize: 40,
+  },
+  gradTitle: {
+    fontSize: 24,
+    fontWeight: "900",
+    color: "#fef08a",
+    textAlign: "center",
+    marginBottom: 12,
+    letterSpacing: -0.3,
+  },
+  gradText: {
+    fontSize: 15,
+    color: "#ddd6fe",
+    textAlign: "center",
+    lineHeight: 22,
+    fontWeight: "500",
+    marginBottom: 24,
+    paddingHorizontal: 10,
+  },
+  gradBadgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 24,
+  },
+  gradBadge: {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  gradBadgeText: {
+    color: "#fde047",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  gradNextStepsCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 16,
+    padding: 16,
+    width: "100%",
+  },
+  gradNextStepsTitle: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#fbbf24",
+    marginBottom: 6,
+    letterSpacing: 1,
+  },
+  gradNextStepsText: {
+    fontSize: 13,
+    color: "#cbd5e1",
+    lineHeight: 18,
+  },
 });

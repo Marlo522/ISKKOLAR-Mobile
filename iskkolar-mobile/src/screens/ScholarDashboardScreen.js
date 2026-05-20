@@ -47,12 +47,13 @@ export default function ScholarDashboardScreen({ navigation }) {
 
   const applicationsSubmitted = String(submittedApplicationsCount);
   
+  const gradeComplianceLatest = gradeComplianceSummary?.latestSubmission || null;
   const gradeComplianceTerms = gradeComplianceSummary?.terms || [];
   const nextPendingGradeComplianceTerm = gradeComplianceTerms.find(
     (item) => String(item?.status || '').toLowerCase() === 'pending'
   )?.term;
   
-  const currentTerm = nextPendingGradeComplianceTerm || dashboardSummary?.academicStatus?.term || user?.term || '--';
+  const currentTerm = nextPendingGradeComplianceTerm || gradeComplianceLatest?.term || dashboardSummary?.academicStatus?.term || user?.term || '--';
 
   const stats = useMemo(
     () => [
