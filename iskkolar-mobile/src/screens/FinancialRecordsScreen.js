@@ -9,6 +9,8 @@ import { AuthContext } from "../context/AuthContext";
 import { useFinancialAssistance } from "../hooks/useFinancialAssistance";
 import { financialRecordsService } from "../services/financialRecordsService";
 import { getFinancialAssistanceApplications } from "../services/financialAssistanceService";
+import { getScholarDashboardSummary } from "../services/scholarDashboardService";
+import { getGradeComplianceTerms } from "../services/gradeComplianceService";
 
 export default function FinancialRecordsScreen({ navigation }) {
   const { user } = useContext(AuthContext);
@@ -19,7 +21,7 @@ export default function FinancialRecordsScreen({ navigation }) {
     itemDescription: "",
     subject: "",
     purchasePlace: "",
-    academicYear: user?.academicYear || "2024-2025",
+    academicYear: user?.academicYear || "2025-2026",
     term: user?.term || "1st Semester",
     purpose: "",
   });
@@ -33,6 +35,49 @@ export default function FinancialRecordsScreen({ navigation }) {
   
   const [supportingDocument, setSupportingDocument] = useState(null);
   const [completeStage, setCompleteStage] = useState("none");
+  
+  const academicYearStart = parseInt(String(values.academicYear || "").split("-")[0]);
+  const limitYear = isNaN(academicYearStart) ? new Date().getFullYear() : academicYearStart;
+  const minReceiptDate = new Date(limitYear, 0, 1);
+  
+  useEffect(() => {
+    let isMounted = true;
+    const loadAcademicStatus = async () => {
+      try {
+        const [summary, gradeCompliance] = await Promise.all([
+          getScholarDashboardSummary().catch(() => null),
+          getGradeComplianceTerms().catch(() => null),
+        ]);
+
+        if (!isMounted) return;
+
+        const dashData = summary?.data || summary || null;
+        const gcData = gradeCompliance?.data || gradeCompliance || null;
+
+        const gradeComplianceLatest = gcData?.latestSubmission || null;
+        const gradeComplianceTerms = gcData?.terms || [];
+        const nextPendingGradeComplianceTerm = gradeComplianceTerms.find(
+          (item) => String(item?.status || '').toLowerCase() === 'pending'
+        )?.term;
+
+        const computedTerm = nextPendingGradeComplianceTerm || gradeComplianceLatest?.term || dashData?.academicStatus?.term || user?.term || "1st Semester";
+        const computedYear = dashData?.currentAcademicYear || dashData?.academicStatus?.academicYear || user?.academicYear || "2025-2026";
+
+        setValues((prev) => ({
+          ...prev,
+          term: computedTerm,
+          academicYear: computedYear,
+        }));
+      } catch (err) {
+        console.warn("Failed to load active academic status for values:", err);
+      }
+    };
+
+    loadAcademicStatus();
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
   
 
 
@@ -386,7 +431,16 @@ export default function FinancialRecordsScreen({ navigation }) {
   }, 0);
 
   const submitReceipt = async () => {
-    if (!validateForm(values, receiptItems)) {
+    const validation = validateForm(values, receiptItems);
+    const isValid = typeof validation === "boolean" ? validation : validation.isValid;
+    const errors = typeof validation === "boolean" ? {} : validation.errors;
+
+    if (!isValid) {
+      const errorList = Object.values(errors);
+      const errorMessage = errorList.length > 0
+        ? errorList.map((err) => `• ${err}`).join("\n")
+        : "Please check the highlighted fields.";
+      Alert.alert("Submission Failed", errorMessage);
       return;
     }
     
@@ -395,9 +449,18 @@ export default function FinancialRecordsScreen({ navigation }) {
       setSubmissionResult(res);
       setCompleteStage("success");
     } catch (err) {
-      if (!err?.isValidationError) {
-         Alert.alert("Submission Failed", err?.message || "An error occurred.");
+      let errorMessage = err?.message || "An error occurred.";
+      if (err?.isValidationError && err?.details) {
+        const details = err.details;
+        if (Array.isArray(details)) {
+          errorMessage = details.map(d => `• ${d.message}`).join("\n");
+        } else if (typeof details === "object") {
+          errorMessage = Object.values(details)
+            .map(v => `• ${Array.isArray(v) ? v[0] : String(v)}`)
+            .join("\n");
+        }
       }
+      Alert.alert("Submission Failed", errorMessage);
     }
   };
 
@@ -786,32 +849,10 @@ export default function FinancialRecordsScreen({ navigation }) {
             
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <View style={{ flex: 1 }}>
-                {renderReadOnly("Academic Year", user?.academicYear || "2025-2026")}
+                {renderReadOnly("Academic Year", values.academicYear)}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Term <Text style={{color: 'red'}}>*</Text></Text>
-                <View style={[styles.row, { height: 50, borderWidth: 1, borderColor: '#a9b1c0', borderRadius: 12, backgroundColor: '#fff', overflow: 'hidden' }]}>
-                   <TextInput
-                      style={[styles.input, { borderWidth: 0 }]}
-                      value={values.term}
-                      editable={false}
-                   />
-                   <View style={{ position: 'absolute', right: 12, top: 15 }}>
-                      <Ionicons name="chevron-down" size={18} color="#555" />
-                   </View>
-                   {/* Simplified select using a hidden Touchable for demo purposes or I can implement a proper modal picker */}
-                   <TouchableOpacity 
-                      style={StyleSheet.absoluteFill} 
-                      onPress={() => {
-                        Alert.alert("Select Term", "", [
-                          { text: "1st Semester", onPress: () => setValues({...values, term: "1st Semester"}) },
-                          { text: "2nd Semester", onPress: () => setValues({...values, term: "2nd Semester"}) },
-                          { text: "Summer", onPress: () => setValues({...values, term: "Summer"}) },
-                          { text: "Cancel", style: "cancel" }
-                        ]);
-                      }}
-                   />
-                </View>
+                {renderReadOnly("Term", values.term)}
               </View>
             </View>
 
@@ -876,7 +917,12 @@ export default function FinancialRecordsScreen({ navigation }) {
                   }}
                   error={fieldErrors[`receipt_date_${idx}`]}
                   required
-                  maximumDate={new Date()}
+                  minimumDate={minReceiptDate}
+                  maximumDate={(() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + 1);
+                    return d;
+                  })()}
                 />
 
                 <Text style={styles.label}>Amount (Php) <Text style={{color: 'red'}}>*</Text></Text>

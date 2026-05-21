@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const FormDatePicker = ({ 
@@ -60,6 +60,30 @@ const FormDatePicker = ({
 
   const handleConfirm = () => {
     const selectedDate = new Date(year, month, day);
+    
+    if (minimumDate) {
+      const minVal = new Date(minimumDate);
+      minVal.setHours(0, 0, 0, 0);
+      const selVal = new Date(selectedDate);
+      selVal.setHours(0, 0, 0, 0);
+      if (selVal < minVal) {
+        Alert.alert("Invalid Date", `Date cannot be before ${formatDate(minVal)}.`);
+        return;
+      }
+    }
+    
+    if (maximumDate) {
+      const maxVal = new Date(maximumDate);
+      maxVal.setDate(maxVal.getDate() + 1);
+      maxVal.setHours(23, 59, 59, 999);
+      const selVal = new Date(selectedDate);
+      selVal.setHours(0, 0, 0, 0);
+      if (selVal > maxVal) {
+        Alert.alert("Invalid Date", `Date cannot be after ${formatDate(new Date(maximumDate))}.`);
+        return;
+      }
+    }
+    
     onDateChange(formatDate(selectedDate));
     setShow(false);
   };
@@ -68,8 +92,8 @@ const FormDatePicker = ({
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   
   const currentYear = new Date().getFullYear();
-  const minYear = minimumDate ? minimumDate.getFullYear() : currentYear - 80;
-  const maxYear = maximumDate ? maximumDate.getFullYear() : currentYear;
+  const minYear = currentYear - 80;
+  const maxYear = currentYear + 1;
   
   const years = [];
   for (let y = maxYear; y >= minYear; y--) {

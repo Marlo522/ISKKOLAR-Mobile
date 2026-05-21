@@ -204,6 +204,17 @@ export default function GradeComplianceScreen({ navigation }) {
     );
   };
 
+  const parseStringToDate = (str) => {
+    if (!str) return null;
+    const parts = str.split('/');
+    if (parts.length !== 3) return null;
+    const m = parseInt(parts[0], 10);
+    const d = parseInt(parts[1], 10);
+    const y = parseInt(parts[2], 10);
+    if (isNaN(m) || isNaN(d) || isNaN(y)) return null;
+    return new Date(y, m - 1, d);
+  };
+
   const handleSubmit = async () => {
     const isGraduating = selectedTerm?.isLastSemesterBeforeGraduation;
     const nextFieldErrors = {
@@ -215,12 +226,28 @@ export default function GradeComplianceScreen({ navigation }) {
       gwa: gwa ? "" : "GWA is required.",
     };
 
+    if (!isGraduating && nextTermStartDate && nextTermEndDate) {
+      const startD = parseStringToDate(nextTermStartDate);
+      const endD = parseStringToDate(nextTermEndDate);
+      
+      const today = new Date();
+      today.setDate(today.getDate() - 1); // 1-day lag buffer
+      today.setHours(0, 0, 0, 0);
+
+      if (startD && startD < today) {
+        nextFieldErrors.nextTermStartDate = "Start date cannot be in the past.";
+      }
+      if (startD && endD && endD <= startD) {
+        nextFieldErrors.nextTermEndDate = "End date must be after start date.";
+      }
+    }
+
     setFieldErrors(nextFieldErrors);
 
     if (
       !selectedTerm ||
       !gradeReportFile ||
-      (!isGraduating && (!corFile || !nextTermStartDate || !nextTermEndDate)) ||
+      (!isGraduating && (!corFile || !nextTermStartDate || !nextTermEndDate || nextFieldErrors.nextTermStartDate || nextFieldErrors.nextTermEndDate)) ||
       !gwa
     ) {
       return;
@@ -261,18 +288,18 @@ export default function GradeComplianceScreen({ navigation }) {
       <View style={styles.gradCard}>
         {/* Ambient top decoration */}
         <View style={styles.gradOuterCircle} />
-        
+
         <View style={styles.gradHeaderContainer}>
           <View style={styles.gradCapCircle}>
             <Text style={styles.gradCapEmoji}>🎓</Text>
           </View>
-          
+
           <Text style={styles.gradTitle}>Congratulations, Scholar!</Text>
-          
+
           <Text style={styles.gradText}>
             You have successfully completed all your academic grade compliance terms and officially graduated! We are incredibly proud of your journey, dedication, and outstanding achievements as an Iskkolar.
           </Text>
-          
+
           <View style={styles.gradBadgeRow}>
             <View style={styles.gradBadge}>
               <Text style={styles.gradBadgeText}>✨ Academic Excellence</Text>
@@ -284,7 +311,7 @@ export default function GradeComplianceScreen({ navigation }) {
               <Text style={styles.gradBadgeText}>🌟 Official Graduate</Text>
             </View>
           </View>
-          
+
           <View style={styles.gradNextStepsCard}>
             <Text style={styles.gradNextStepsTitle}>NEXT STEPS</Text>
             <Text style={styles.gradNextStepsText}>
@@ -329,7 +356,7 @@ export default function GradeComplianceScreen({ navigation }) {
             )}
           </View>
         )}
-        
+
         <View style={styles.todoGrid}>
           <View style={styles.gridItem}>
             <Text style={styles.gridLabel}>Academic Year</Text>
@@ -355,17 +382,31 @@ export default function GradeComplianceScreen({ navigation }) {
           <View style={[styles.submitBtnAction, { backgroundColor: '#b6bdd9' }]}>
             <Text style={[styles.submitBtnActionText, { color: '#ffffff' }]}>Already Submitted</Text>
           </View>
-        ) : (
-          <TouchableOpacity 
-            style={styles.submitBtnAction} 
-            onPress={() => {
-              setSelectedTermId(termItem.id);
-              clearFieldError("term");
-            }}
-          >
-            <Text style={styles.submitBtnActionText}>Start Submission</Text>
-          </TouchableOpacity>
-        )}
+        ) : (() => {
+          const currentIdx = termRequirements.findIndex(t => t.id === termItem.id);
+          const hasPendingPreviousTerm = termRequirements.slice(0, currentIdx).some(t => t.status === "Pending");
+          
+          if (hasPendingPreviousTerm) {
+            return (
+              <View style={[styles.submitBtnAction, { backgroundColor: '#e2e5f1', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }]}>
+                <Ionicons name="lock-closed-outline" size={15} color="#8c95b7" style={{ marginRight: 6 }} />
+                <Text style={[styles.submitBtnActionText, { color: '#8c95b7' }]}>Locked (Submit Previous Term First)</Text>
+              </View>
+            );
+          }
+          
+          return (
+            <TouchableOpacity
+              style={styles.submitBtnAction}
+              onPress={() => {
+                setSelectedTermId(termItem.id);
+                clearFieldError("term");
+              }}
+            >
+              <Text style={styles.submitBtnActionText}>Start Submission</Text>
+            </TouchableOpacity>
+          );
+        })()}
       </View>
     );
   };
@@ -453,7 +494,7 @@ export default function GradeComplianceScreen({ navigation }) {
               Academic Year: {academicYear || "2025-2026"}
             </Text>
           )}
-          
+
           {fieldErrors.term ? (
             <View style={styles.errorBanner}>
               <Text style={styles.errorBannerText}>{fieldErrors.term}</Text>
@@ -492,7 +533,7 @@ export default function GradeComplianceScreen({ navigation }) {
             </View>
           </View>
         )}
-        
+
         <View style={styles.stepHeaderRow}>
           <Text style={styles.termTitle}>{selectedTerm?.termLabel}</Text>
           <View style={styles.stepBadge}>
@@ -532,6 +573,11 @@ export default function GradeComplianceScreen({ navigation }) {
                 <FormDatePicker
                   label="Next Term Start Date"
                   value={nextTermStartDate}
+                  minimumDate={(() => {
+                    const today = new Date();
+                    today.setDate(today.getDate() - 1); // 1-day safety buffer
+                    return today;
+                  })()}
                   onDateChange={(val) => {
                     setNextTermStartDate(val);
                     clearFieldError("nextTermStartDate");
@@ -544,6 +590,17 @@ export default function GradeComplianceScreen({ navigation }) {
                 <FormDatePicker
                   label="Next Term End Date"
                   value={nextTermEndDate}
+                  minimumDate={(() => {
+                    const startD = parseStringToDate(nextTermStartDate);
+                    if (startD) {
+                      const nextDay = new Date(startD);
+                      nextDay.setDate(nextDay.getDate() + 1);
+                      return nextDay;
+                    }
+                    const today = new Date();
+                    today.setDate(today.getDate() - 1);
+                    return today;
+                  })()}
                   onDateChange={(val) => {
                     setNextTermEndDate(val);
                     clearFieldError("nextTermEndDate");
@@ -596,14 +653,14 @@ export default function GradeComplianceScreen({ navigation }) {
     <View style={styles.container}>
       {selectedTermId && step === 2 && completeStage === "none" ? (
         <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 10 }}>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => {
               if (selectedTerm?.isLastSemesterBeforeGraduation) {
                 resetFormState();
               } else {
                 setStep(1);
               }
-            }} 
+            }}
             style={styles.textBackBtn}
           >
             <Ionicons name="arrow-back" size={16} color="#5b6095" style={{ marginRight: 8 }} />
@@ -614,7 +671,7 @@ export default function GradeComplianceScreen({ navigation }) {
         </View>
       ) : (
         <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => {
               if (completeStage === "preAssessment") {
                 setCompleteStage("none");
@@ -624,19 +681,19 @@ export default function GradeComplianceScreen({ navigation }) {
               } else {
                 navigation.goBack();
               }
-            }} 
+            }}
             style={styles.backBtn}
           >
             <Ionicons name="arrow-back" size={24} color="#5b6095" />
           </TouchableOpacity>
-          
+
           <View style={{ flex: 1, marginLeft: 16 }}>
             <Text style={styles.titleLanding}>COR & Grade Compliance</Text>
             <Text style={styles.subtitleLanding} numberOfLines={1}>
               {selectedTerm ? `Submit grades for ${selectedTerm.termLabel}` : "Track your academic standing"}
             </Text>
           </View>
-          
+
           <TouchableOpacity style={styles.bellBtn} activeOpacity={0.8}>
             <Ionicons name="notifications-outline" size={24} color="#6a72b2" />
           </TouchableOpacity>
@@ -657,8 +714,8 @@ export default function GradeComplianceScreen({ navigation }) {
 
       {!isSubmitting && completeStage === "none" && selectedTermId && (
         <View style={styles.footerActionRow}>
-          <TouchableOpacity 
-            style={styles.cancelBtn} 
+          <TouchableOpacity
+            style={styles.cancelBtn}
             onPress={() => {
               setCompleteStage("none");
               resetFormState();
@@ -668,8 +725,8 @@ export default function GradeComplianceScreen({ navigation }) {
           </TouchableOpacity>
 
           {step === 1 ? (
-            <TouchableOpacity 
-              style={styles.nextBtn} 
+            <TouchableOpacity
+              style={styles.nextBtn}
               onPress={() => {
                 const nextFieldErrors = {
                   cor: corFile ? "" : "COR is required.",
@@ -677,7 +734,7 @@ export default function GradeComplianceScreen({ navigation }) {
                   nextTermEndDate: nextTermEndDate ? "" : "Next term end date is required.",
                 };
                 setFieldErrors(prev => ({ ...prev, ...nextFieldErrors }));
-                
+
                 if (!corFile || !nextTermStartDate || !nextTermEndDate) {
                   return;
                 }
@@ -687,8 +744,8 @@ export default function GradeComplianceScreen({ navigation }) {
               <Text style={styles.nextBtnText}>Continue to Grade Submission</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity 
-              style={styles.nextBtn} 
+            <TouchableOpacity
+              style={styles.nextBtn}
               onPress={handleSubmit}
             >
               <Text style={styles.nextBtnText}>Submit Grade Compliance</Text>
@@ -726,30 +783,30 @@ const styles = StyleSheet.create({
   textBackBtnText: { fontSize: 13, fontWeight: '700', color: '#5b6095' },
   landingContainer: { paddingHorizontal: 20, paddingTop: 20 },
   landingHeader: { fontSize: 18, fontWeight: "900", color: "#111", marginBottom: 16, marginLeft: 2 },
-  
+
   todoCard: { backgroundColor: "#fff", borderRadius: 16, padding: 20, marginBottom: 16, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2, borderWidth: 1, borderColor: "#f0f0f0" },
   todoHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   todoTitle: { fontSize: 16, fontWeight: "700", color: "#1a1a2e" },
   badgeBase: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 16 },
   badgeText: { fontSize: 12, fontWeight: "700" },
-  
+
   todoGrid: { flexDirection: "row", flexWrap: "wrap", marginHorizontal: -6, marginBottom: 12 },
   gridItem: { width: '50%', paddingHorizontal: 6, marginBottom: 12 },
   gridLabel: { color: "#888", fontSize: 12, marginBottom: 4 },
   gridValue: { color: "#1a1a2e", fontSize: 13, fontWeight: "600" },
-  
+
   submitBtnAction: { backgroundColor: "#5b5f97", borderRadius: 10, paddingVertical: 14, alignItems: "center", marginTop: 4 },
   submitBtnActionText: { color: "#fff", fontSize: 14, fontWeight: "600" },
-  
+
   content: { flex: 1 },
   underlinedTitleWrapper: { alignSelf: "flex-start", marginBottom: 20 },
   underlinedTitle: { fontSize: 18, fontWeight: "700", color: "#1a1a2e", borderBottomWidth: 2, borderBottomColor: "#1a1a2e", paddingBottom: 4 },
-  
+
   row: { marginBottom: 16 },
   label: { fontWeight: "500", color: "#555", fontSize: 14, marginBottom: 8 },
   inputReadOnly: { borderWidth: 1, borderColor: "#e0e0e0", borderRadius: 12, paddingHorizontal: 16, minHeight: 50, paddingVertical: 12, backgroundColor: "#fafafa", justifyContent: 'center' },
   inputReadOnlyText: { color: "#666", fontSize: 14, lineHeight: 20 },
-  
+
   uploadWrapper: { flexDirection: "row", borderWidth: 1, borderStyle: "dashed", borderColor: "#ccc", borderRadius: 8, backgroundColor: "#fff", overflow: "hidden" },
   chooseFileBtn: { backgroundColor: "#5b5f97", paddingHorizontal: 16, paddingVertical: 12, justifyContent: "center", alignItems: "center", borderRightWidth: 1, borderRightColor: '#ccc' },
   chooseFileText: { color: "#fff", fontSize: 13, fontWeight: "700" },
@@ -757,28 +814,28 @@ const styles = StyleSheet.create({
   fileNameText: { color: "#888", fontSize: 13 },
   errorInput: { borderColor: "#dc2626", borderWidth: 2 },
   errorText: { color: "#dc2626", fontSize: 12, marginTop: 4, fontWeight: "500" },
-  
+
   errorBanner: { backgroundColor: "#fff1f2", borderColor: "#fecaca", borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 16 },
   errorBannerText: { color: "#b91c1c", fontSize: 14 },
   emptyCard: { backgroundColor: "#fff", borderColor: "#f0f0f0", borderWidth: 1, borderRadius: 12, padding: 24, alignItems: "center" },
   emptyCardText: { color: "#666", fontSize: 14, textAlign: "center", lineHeight: 20 },
-  
+
   loadingText: { color: "#666", fontSize: 16 },
-  
+
   footerActionRow: { flexDirection: 'row', paddingHorizontal: 20, paddingBottom: 30, gap: 12 },
   cancelBtn: { flex: 1, backgroundColor: "#fff", borderWidth: 1, borderColor: "#ccc", borderRadius: 10, paddingVertical: 14, alignItems: "center", justifyContent: 'center' },
   cancelBtnText: { color: "#333", fontSize: 14, fontWeight: "600", textAlign: "center" },
   nextBtn: { flex: 1, backgroundColor: "#5b5f97", borderRadius: 10, paddingVertical: 14, alignItems: "center", justifyContent: 'center', shadowColor: "#2d3a7c", shadowOpacity: 0.2, shadowOffset: { width: 0, height: 4 }, shadowRadius: 6, elevation: 4 },
   nextBtnText: { color: "#fff", fontSize: 14, fontWeight: "700", textAlign: "center" },
-  
+
   centered: { alignItems: "center", justifyContent: "center", marginTop: 40, paddingHorizontal: 20 },
   completeText: { fontSize: 22, fontWeight: "800", color: "#3f4ca8", marginTop: 16, marginBottom: 8 },
   submitBtnOk: { borderRadius: 12, backgroundColor: "#4f5fc5", paddingVertical: 14, paddingHorizontal: 30, marginTop: 20, width: '100%', alignItems: 'center' },
   submitBtnOkText: { color: "#fff", fontWeight: "800", fontSize: 16 },
-  
+
   infoBanner: { backgroundColor: "#eff6ff", borderColor: "#bfdbfe", borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 16 },
   infoBannerText: { color: "#1e3a8a", fontSize: 13, lineHeight: 18 },
-  
+
   input: { borderWidth: 1, borderColor: "#e0e0e0", borderRadius: 10, paddingHorizontal: 16, height: 50, backgroundColor: "#fff", color: "#333", fontSize: 14 },
   dateInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dateText: { fontSize: 14, color: "#333" },
