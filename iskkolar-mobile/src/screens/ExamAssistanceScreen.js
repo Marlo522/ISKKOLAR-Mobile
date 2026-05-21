@@ -489,7 +489,7 @@ export default function ExamAssistanceScreen({ navigation }) {
                 "Requires submission of Official Receipts for all expenses.",
                 "Best for those needing fund before the exam."
               ].map((text, idx, arr) => (
-                <View style={[styles.optionItem, idx === arr.length - 1 && { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]} key={"opt1"+idx}>
+                <View style={[styles.optionItem, idx === arr.length - 1 && { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]} key={"opt1" + idx}>
                   <Ionicons name="checkmark-circle" size={18} color="#2cae57" />
                   <Text style={styles.optionItemText}>{text}</Text>
                 </View>
@@ -504,7 +504,7 @@ export default function ExamAssistanceScreen({ navigation }) {
                 "Requires submission of board rating and proof of passing.",
                 "No liquidation of receipts needed."
               ].map((text, idx, arr) => (
-                <View style={[styles.optionItem, idx === arr.length - 1 && { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]} key={"opt2"+idx}>
+                <View style={[styles.optionItem, idx === arr.length - 1 && { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]} key={"opt2" + idx}>
                   <Ionicons name="checkmark-circle" size={18} color="#2cae57" />
                   <Text style={styles.optionItemText}>{text}</Text>
                 </View>
@@ -560,8 +560,8 @@ export default function ExamAssistanceScreen({ navigation }) {
 
       {!submitting && completeStage === "none" && step > -1 && (
         <View style={styles.footerRow}>
-          <TouchableOpacity 
-            style={styles.backButtonFooter} 
+          <TouchableOpacity
+            style={styles.backButtonFooter}
             onPress={() => step > 0 ? setStep(step - 1) : navigation.goBack()}
           >
             <Text style={styles.backButtonFooterText}>{step > 0 ? "Previous" : "Back to Home"}</Text>

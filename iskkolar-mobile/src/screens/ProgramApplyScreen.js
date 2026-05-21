@@ -87,7 +87,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
     // Tertiary → "Manila Scholars", vocational → "TESDA", everything else → blank
     scholarshipType:
       selectedProgram === "tertiary" ? "Manila Scholars" :
-      selectedProgram === "vocational" ? "TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY (TESDA)" : "",
+        selectedProgram === "vocational" ? "TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY (TESDA)" : "",
   });
   const [familyMembers, setFamilyMembers] = useState([]);
   const [uploadText, setUploadText] = useState({
@@ -153,28 +153,28 @@ export default function ProgramApplyScreen({ navigation, route }) {
   // Pick the active set of state based on the current program
   const apiSubmitting =
     selectedProgram === "tertiary" ? tertiarySubmitting :
-    isVocationalFlow ? vocationalSubmitting :
-    isEmployeeChildFlow ? staffSubmitting : false;
+      isVocationalFlow ? vocationalSubmitting :
+        isEmployeeChildFlow ? staffSubmitting : false;
 
   const apiError =
     selectedProgram === "tertiary" ? tertiaryError :
-    isVocationalFlow ? vocationalError :
-    isEmployeeChildFlow ? staffError : null;
+      isVocationalFlow ? vocationalError :
+        isEmployeeChildFlow ? staffError : null;
 
   const fieldErrors =
     selectedProgram === "tertiary" ? tertiaryFieldErrors :
-    isVocationalFlow ? vocationalFieldErrors :
-    isEmployeeChildFlow ? staffFieldErrors : {};
+      isVocationalFlow ? vocationalFieldErrors :
+        isEmployeeChildFlow ? staffFieldErrors : {};
 
   const clearFieldError =
     selectedProgram === "tertiary" ? clearTertiaryFieldError :
-    isVocationalFlow ? clearVocationalFieldError :
-    clearStaffFieldError;
+      isVocationalFlow ? clearVocationalFieldError :
+        clearStaffFieldError;
 
   const qualificationOutcome =
     selectedProgram === "tertiary" ? tertiaryQualificationOutcome :
-    isVocationalFlow ? vocationalQualificationOutcome :
-    isEmployeeChildFlow ? staffQualificationOutcome : null;
+      isVocationalFlow ? vocationalQualificationOutcome :
+        isEmployeeChildFlow ? staffQualificationOutcome : null;
 
   const isSubmittingNow = localSubmitting || apiSubmitting;
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -781,7 +781,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderDatePicker("Term Start Date", "termStartDate")}
           {renderDatePicker("Term End Date", "termEndDate")}
           {renderYearInput("Expected Year of Graduation", "expectedGradYear")}
-          
+
           {values.incomingFreshman === "No" && (
             <>
               {renderInput("Current Tertiary GWA", "tertiaryGwa", "e.g. 1.75 or 88.00", { keyboardType: "numeric" })}
@@ -802,8 +802,8 @@ export default function ProgramApplyScreen({ navigation, route }) {
         <View>
           <Text style={styles.sectionHeader}>Family Information</Text>
 
-          <TouchableOpacity 
-            style={[styles.declRow, { backgroundColor: "#f8f9fc", padding: 12, borderRadius: 8, borderWidth: 1, borderColor: "#dce3f1", marginBottom: 20 }]} 
+          <TouchableOpacity
+            style={[styles.declRow, { backgroundColor: "#f8f9fc", padding: 12, borderRadius: 8, borderWidth: 1, borderColor: "#dce3f1", marginBottom: 20 }]}
             onPress={() => updateValue("hasGuardian", !values.hasGuardian)}
           >
             <View style={[styles.checkbox, values.hasGuardian && styles.checkboxChecked]}>
@@ -966,8 +966,8 @@ export default function ProgramApplyScreen({ navigation, route }) {
         <View>
           <Text style={styles.sectionHeader}>Family Information</Text>
 
-          <TouchableOpacity 
-            style={[styles.declRow, { backgroundColor: "#f8f9fc", padding: 12, borderRadius: 8, borderWidth: 1, borderColor: "#dce3f1", marginBottom: 20 }]} 
+          <TouchableOpacity
+            style={[styles.declRow, { backgroundColor: "#f8f9fc", padding: 12, borderRadius: 8, borderWidth: 1, borderColor: "#dce3f1", marginBottom: 20 }]}
             onPress={() => updateValue("hasGuardian", !values.hasGuardian)}
           >
             <View style={[styles.checkbox, values.hasGuardian && styles.checkboxChecked]}>
@@ -1139,7 +1139,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderDatePicker("Term Start Date", "termStartDate")}
           {renderDatePicker("Term End Date", "termEndDate")}
           {renderYearInput("Expected Year of Graduation", "expectedGradYear")}
-          
+
           {values.incomingFreshman === "No" && (
             <>
               {renderInput("Current Tertiary GWA", "tertiaryGwa", "e.g. 1.75 or 88.00", { keyboardType: "numeric" })}
@@ -1437,7 +1437,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const renderQualification = () => {
     const reportData = qualificationOutcome?.qualification_report;
     const detailedAiSummary = reportData?.extracted_data?.ai_detailed_summary;
-    
+
     // Filter out internal/fraud rules
     const qualificationRuleEntries = Object.entries(reportData?.rule_results || {}).filter(
       ([ruleCode]) => !['fraud_score', 'confidence_score', 'income_doc_match', 'income_documents_valid'].some(exclude => ruleCode.toLowerCase().includes(exclude))
@@ -1537,7 +1537,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
                 {qualificationRuleEntries.map(([ruleCode, result], idx) => {
                   const passed = Boolean(result?.passed);
                   const state = result?.status || (passed ? 'passed' : 'failed');
-                  
+
                   let badgeBg = "#fff0f0";
                   let badgeText = "#e03a3a";
                   if (state === 'for_review') {
@@ -1699,7 +1699,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
                 <Ionicons name="close" size={24} color="#4f5fc5" />
               </TouchableOpacity>
             </View>
-            <ScrollView 
+            <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 20 }}
             >
@@ -1712,7 +1712,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
                   <TouchableOpacity
                     key={idx}
                     style={[
-                      styles.modalOption, 
+                      styles.modalOption,
                       isSelected && styles.modalOptionActive
                     ]}
                     onPress={() => applySelect(opt)}

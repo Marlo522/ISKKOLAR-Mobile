@@ -66,6 +66,27 @@ export const useFinancialAssistance = () => {
         nextErrors[`receipt_date_${idx}`] = "Purchase Date is missing.";
       } else if (!isValidDateString(item.purchaseDate)) {
         nextErrors[`receipt_date_${idx}`] = "Use dd/mm/yyyy format.";
+      } else {
+        const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(item.purchaseDate).trim());
+        if (match) {
+          const d = Number(match[1]);
+          const m = Number(match[2]);
+          const y = Number(match[3]);
+          const purchaseDateObj = new Date(y, m - 1, d);
+          
+          const academicYearStart = parseInt(String(values?.academicYear || "").split("-")[0]);
+          const limitYear = isNaN(academicYearStart) ? new Date().getFullYear() : academicYearStart;
+          
+          const today = new Date();
+          today.setDate(today.getDate() + 1);
+          today.setHours(23, 59, 59, 999);
+          
+          if (purchaseDateObj.getFullYear() < limitYear) {
+            nextErrors[`receipt_date_${idx}`] = `Purchase Date cannot be in a past year (must be ${limitYear} or later).`;
+          } else if (purchaseDateObj > today) {
+            nextErrors[`receipt_date_${idx}`] = "Purchase Date cannot be in the future.";
+          }
+        }
       }
       
       const amountValue = Number(String(item.amount || "").replace(/,/g, ""));
@@ -76,7 +97,10 @@ export const useFinancialAssistance = () => {
 
     setFieldErrors(nextErrors);
     setError("");
-    return Object.keys(nextErrors).length === 0;
+    return {
+      isValid: Object.keys(nextErrors).length === 0,
+      errors: nextErrors,
+    };
   }, []);
 
   const submitApplication = useCallback(async (values, receiptItems, supportingDocument) => {

@@ -16,13 +16,20 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true, // Crucial for HTTPOnly cookies
-  timeout: 15000,
+  timeout: 90000, // 90 seconds timeout to allow for large file uploads and synchronous AI/OCR verification on the backend
 });
 
 // Request Interceptor
 api.interceptors.request.use(
   (config) => {
-    // Note: No manual token handling here. Cookies are handled by the OS.
+    // If the payload is FormData, delete Content-Type to let Axios / mobile runtime
+    // automatically append correct multi-part boundary parameters.
+    if (config.data instanceof FormData) {
+      if (config.headers) {
+        delete config.headers['Content-Type'];
+        delete config.headers['content-type'];
+      }
+    }
     return config;
   },
   (error) => Promise.reject(error)
