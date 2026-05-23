@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
+import GraduationCelebration from '../components/GraduationCelebration';
 
 // Import our new services that match the web backend calls
 import {
@@ -49,6 +50,8 @@ export default function ScholarshipRenewalScreen({ navigation }) {
   const insets = useSafeAreaInsets();
 
   const [academicStatus, setAcademicStatus] = useState(null);
+
+  const resolvedIsGraduate = user?.is_graduate || user?.isGraduate || academicStatus?.isGraduate || academicStatus?.is_graduate || false;
 
   // Auto-fill values from fetched academic status or user context
   const autoSchool = academicStatus?.school_name || user?.school || '';
@@ -317,7 +320,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
       </View>
 
       {/* Progress Bar */}
-      {!success && (
+      {!success && !resolvedIsGraduate && (
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
             {steps.map((step, idx) => (
@@ -335,8 +338,15 @@ export default function ScholarshipRenewalScreen({ navigation }) {
       )}
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 60, paddingHorizontal: 20 }}>
-        {/* Success Screen */}
-        {success && (
+        {resolvedIsGraduate ? (
+          <GraduationCelebration
+            firstName={user?.firstName || user?.first_name}
+            onBack={() => navigation.goBack()}
+          />
+        ) : (
+          <>
+            {/* Success Screen */}
+            {success && (
           <View style={styles.successContainer}>
             <View style={styles.centered}>
               <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
@@ -699,10 +709,12 @@ export default function ScholarshipRenewalScreen({ navigation }) {
             {errors.agree && <Text style={styles.errorText}>{errors.agree}</Text>}
           </Animated.View>
         )}
+          </>
+        )}
       </ScrollView>
 
       {/* Footer Navigation Buttons */}
-      {!success && !submitting && (
+      {!success && !submitting && !resolvedIsGraduate && (
         <View style={styles.footer}>
           {currentStep > 1 && (
             <TouchableOpacity style={styles.secondaryBtn} onPress={goBack}>
