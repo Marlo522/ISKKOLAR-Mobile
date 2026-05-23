@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import FormDatePicker from "../components/FormDatePicker";
+import GraduationCelebration from "../components/GraduationCelebration";
 import { getGradeComplianceTerms, submitGradeCompliance } from "../services/gradeComplianceService";
 import { AuthContext } from "../context/AuthContext";
 
@@ -283,45 +284,6 @@ export default function GradeComplianceScreen({ navigation }) {
     }
   };
 
-  const renderGraduationCard = () => {
-    return (
-      <View style={styles.gradCard}>
-        {/* Ambient top decoration */}
-        <View style={styles.gradOuterCircle} />
-
-        <View style={styles.gradHeaderContainer}>
-          <View style={styles.gradCapCircle}>
-            <Text style={styles.gradCapEmoji}>🎓</Text>
-          </View>
-
-          <Text style={styles.gradTitle}>Congratulations, Scholar!</Text>
-
-          <Text style={styles.gradText}>
-            You have successfully completed all your academic grade compliance terms and officially graduated! We are incredibly proud of your journey, dedication, and outstanding achievements as an Iskkolar.
-          </Text>
-
-          <View style={styles.gradBadgeRow}>
-            <View style={styles.gradBadge}>
-              <Text style={styles.gradBadgeText}>✨ Academic Excellence</Text>
-            </View>
-            <View style={styles.gradBadge}>
-              <Text style={styles.gradBadgeText}>🚀 Compliance Completed</Text>
-            </View>
-            <View style={styles.gradBadge}>
-              <Text style={styles.gradBadgeText}>🌟 Official Graduate</Text>
-            </View>
-          </View>
-
-          <View style={styles.gradNextStepsCard}>
-            <Text style={styles.gradNextStepsTitle}>NEXT STEPS</Text>
-            <Text style={styles.gradNextStepsText}>
-              Your portal has been transitioned to graduate status. Submissions are now officially locked. For further details on your graduation incentives or alumni status, please coordinate with the KKFI scholarship committee.
-            </Text>
-          </View>
-        </View>
-      </View>
-    );
-  };
 
   const renderTodoCard = (termItem) => {
     const statusColor = statusColors[termItem.status] || statusColors.default;
@@ -502,7 +464,10 @@ export default function GradeComplianceScreen({ navigation }) {
           ) : null}
 
           {resolvedIsGraduate ? (
-            renderGraduationCard()
+            <GraduationCelebration
+              firstName={user?.firstName || user?.first_name}
+              onBack={() => navigation.goBack()}
+            />
           ) : termRequirements.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyCardText}>No grade compliance terms available yet. Complete a scholarship application first.</Text>
