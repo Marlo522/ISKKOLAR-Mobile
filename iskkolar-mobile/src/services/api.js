@@ -16,20 +16,13 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true, // Crucial for HTTPOnly cookies
-  timeout: 90000, // 90 seconds timeout to allow for large file uploads and synchronous AI/OCR verification on the backend
+  timeout: 15000,
 });
 
 // Request Interceptor
 api.interceptors.request.use(
   (config) => {
-    // If the payload is FormData, delete Content-Type to let Axios / mobile runtime
-    // automatically append correct multi-part boundary parameters.
-    if (config.data instanceof FormData) {
-      if (config.headers) {
-        delete config.headers['Content-Type'];
-        delete config.headers['content-type'];
-      }
-    }
+    // Note: No manual token handling here. Cookies are handled by the OS.
     return config;
   },
   (error) => Promise.reject(error)
@@ -41,9 +34,9 @@ api.interceptors.response.use(
   async (error) => {
     const status = error.response?.status;
     const requestUrl = error.config?.url || '';
-    
+
     // Define auth-related requests that shouldn't trigger global logout on 401
-    const isAuthRequest = 
+    const isAuthRequest =
       requestUrl.includes('/auth/login') ||
       requestUrl.includes('/auth/signup') ||
       requestUrl.includes('/auth/forgot-password') ||
@@ -52,13 +45,13 @@ api.interceptors.response.use(
     if (status === 401 && !isAuthRequest) {
       // Clear local user data
       await AsyncStorage.removeItem('user');
-      
+
       // In React Native, we can't use window.location.href.
       // We rely on the AuthContext or a navigation event to handle the UI shift.
       // For now, we can throw a specific error that the UI can catch, 
       // or use a custom event emitter if one is available.
     }
-    
+
     // Map axios error to the expected format for the rest of the app
     const structuredError = {
       status: error.response?.status || 0,
@@ -73,4 +66,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-
