@@ -48,24 +48,59 @@ export const useFinancialAssistance = () => {
     const nextErrors = {};
     const activeReceiptItems = (receiptItems || []).filter(hasReceiptContent);
 
-    Object.entries(REQUIRED_FIELDS).forEach(([key, message]) => {
-      if (!values?.[key]) {
-        nextErrors[key] = message;
-      }
-    });
+    // 1. itemDescription
+    if (!values?.itemDescription || !values.itemDescription.trim()) {
+      nextErrors.itemDescription = "Item / Description is required.";
+    } else if (values.itemDescription.trim().length < 5) {
+      nextErrors.itemDescription = "Item description must be at least 5 characters to be descriptive.";
+    }
 
+    // 2. subject
+    if (!values?.subject || !values.subject.trim()) {
+      nextErrors.subject = "Subject / Course is required.";
+    } else if (values.subject.trim().length < 3) {
+      nextErrors.subject = "Subject / Course must be at least 3 characters.";
+    }
+
+    // 3. purchasePlace
+    if (!values?.purchasePlace || !values.purchasePlace.trim()) {
+      nextErrors.purchasePlace = "Where to purchase is required.";
+    } else if (values.purchasePlace.trim().length < 4) {
+      nextErrors.purchasePlace = "Purchase location must be at least 4 characters.";
+    }
+
+    // 4. academicYear
+    if (!values?.academicYear || !values.academicYear.trim()) {
+      nextErrors.academicYear = "Academic year is required.";
+    } else if (!/^\d{4}-\d{4}$/.test(values.academicYear.trim())) {
+      nextErrors.academicYear = "Use YYYY-YYYY format (e.g. 2025-2026).";
+    }
+
+    // 5. term
+    if (!values?.term || !values.term.trim()) {
+      nextErrors.term = "Term is required.";
+    }
+
+    // 6. purpose
+    if (!values?.purpose || !values.purpose.trim()) {
+      nextErrors.purpose = "Purpose / Justification is required.";
+    } else if (values.purpose.trim().length < 15) {
+      nextErrors.purpose = "Please provide a detailed purpose / justification (at least 15 characters).";
+    }
+
+    // 7. Receipts validation
     if (activeReceiptItems.length === 0) {
       nextErrors.receiptItems = "Add at least one receipt.";
     }
 
     activeReceiptItems.forEach((item, idx) => {
       if (!item.file) {
-        nextErrors[`receipt_file_${idx}`] = "Receipt file is missing.";
+        nextErrors[`receipt_file_${idx}`] = `Receipt #${idx + 1} file upload is missing.`;
       }
       if (!item.purchaseDate) {
-        nextErrors[`receipt_date_${idx}`] = "Purchase Date is missing.";
+        nextErrors[`receipt_date_${idx}`] = `Receipt #${idx + 1} purchase date is missing.`;
       } else if (!isValidDateString(item.purchaseDate)) {
-        nextErrors[`receipt_date_${idx}`] = "Use dd/mm/yyyy format.";
+        nextErrors[`receipt_date_${idx}`] = `Receipt #${idx + 1} purchase date must use dd/mm/yyyy format.`;
       } else {
         const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(item.purchaseDate).trim());
         if (match) {
@@ -82,16 +117,22 @@ export const useFinancialAssistance = () => {
           today.setHours(23, 59, 59, 999);
           
           if (purchaseDateObj.getFullYear() < limitYear) {
-            nextErrors[`receipt_date_${idx}`] = `Purchase Date cannot be in a past year (must be ${limitYear} or later).`;
+            nextErrors[`receipt_date_${idx}`] = `Receipt #${idx + 1} date cannot be in a past year (must be ${limitYear} or later).`;
           } else if (purchaseDateObj > today) {
-            nextErrors[`receipt_date_${idx}`] = "Purchase Date cannot be in the future.";
+            nextErrors[`receipt_date_${idx}`] = `Receipt #${idx + 1} date cannot be in the future.`;
           }
         }
       }
       
       const amountValue = Number(String(item.amount || "").replace(/,/g, ""));
-      if (!item.amount || isNaN(amountValue) || amountValue <= 0) {
-        nextErrors[`receipt_amount_${idx}`] = "Valid amount is required.";
+      if (!item.amount) {
+        nextErrors[`receipt_amount_${idx}`] = `Receipt #${idx + 1} amount is required.`;
+      } else if (isNaN(amountValue) || amountValue <= 0) {
+        nextErrors[`receipt_amount_${idx}`] = `Receipt #${idx + 1} amount must be a positive number greater than 0.`;
+      }
+
+      if (item.additionalNotes && item.additionalNotes.trim().length > 0 && item.additionalNotes.trim().length < 5) {
+        nextErrors[`receipt_notes_${idx}`] = `Receipt #${idx + 1} notes must be at least 5 characters if provided.`;
       }
     });
 

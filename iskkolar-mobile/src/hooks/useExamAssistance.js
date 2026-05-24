@@ -6,7 +6,6 @@ const REQUIRED_FIELDS = {
   examType: "Exam/certification type is required.",
   examDate: "Exam date is required.",
   testingCenter: "Testing center/location is required.",
-  takenBefore: "Please select if you already took the exam.",
 };
 
 const isValidDateString = (value) => /^\d{2}\/\d{2}\/\d{4}$/.test(String(value || ""));
@@ -16,11 +15,9 @@ const FIELD_MAP = {
   examtype: "examType",
   examdate: "examDate",
   testingcenter: "testingCenter",
-  takenbefore: "takenBefore",
   additionalnotes: "additionalNotes",
   exam_registration: "examRegistration",
   review_enrollment: "reviewCourse",
-  firstattempt: "takenBefore",
   location: "testingCenter",
   notes: "additionalNotes",
 };
@@ -69,15 +66,7 @@ const normalizeAssistanceType = (value) => {
   return value;
 };
 
-const normalizeTakenBefore = (value) => {
-  const raw = String(value || "").trim().toLowerCase();
-  if (!raw) return "";
-  if (raw.includes("first attempt")) return "Yes, this is my first attempt";
-  if (raw.includes("taken it before")) return "No, I have taken it before";
-  if (raw.startsWith("yes")) return "Yes, this is my first attempt";
-  if (raw.startsWith("no")) return "No, I have taken it before";
-  return value;
-};
+
 
 const toIsoDate = (value) => {
   const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(value || "").trim());
@@ -133,7 +122,6 @@ export const useExamAssistance = () => {
 
     // Keep submit payload aligned with the web form contract.
     const normalizedAssistanceType = normalizeAssistanceType(values.assistanceType);
-    const normalizedTakenBefore = normalizeTakenBefore(values.takenBefore);
     const normalizedExamDate = toIsoDate(values.examDate);
 
     const payload = {
@@ -141,7 +129,6 @@ export const useExamAssistance = () => {
       examType: values.examType,
       examDate: normalizedExamDate,
       location: values.testingCenter,
-      firstAttempt: normalizedTakenBefore,
       notes: values.additionalNotes,
     };
 
@@ -150,7 +137,10 @@ export const useExamAssistance = () => {
         exam_registration: uploads.examRegistration,
         review_enrollment: uploads.reviewCourse,
       });
-      return response;
+      return {
+        ...response,
+        aiSummary: response?.application?.aiSummary || null,
+      };
     } catch (err) {
       // Map backend validation details to per-field UI errors.
       const detailItems = toDetailsArray(err?.details);

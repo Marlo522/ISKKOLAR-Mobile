@@ -15,7 +15,6 @@ export default function ExamAssistanceScreen({ navigation }) {
     examType: "",
     examDate: "",
     testingCenter: "",
-    takenBefore: "",
     additionalNotes: "",
   });
 
@@ -30,6 +29,7 @@ export default function ExamAssistanceScreen({ navigation }) {
   });
 
   const [completeStage, setCompleteStage] = useState("none");
+  const [aiSummary, setAiSummary] = useState(null);
   const [confirmed, setConfirmed] = useState(false);
 
   const [selectorVisible, setSelectorVisible] = useState(false);
@@ -111,7 +111,10 @@ export default function ExamAssistanceScreen({ navigation }) {
     }
 
     try {
-      await submitExamAssistanceApplication(values, uploadFiles);
+      const result = await submitExamAssistanceApplication(values, uploadFiles);
+      if (result?.aiSummary) {
+        setAiSummary(result.aiSummary);
+      }
       setCompleteStage("preAssessment");
     } catch (error) {
       const message = error?.message || "Failed to submit exam assistance application.";
@@ -278,18 +281,58 @@ export default function ExamAssistanceScreen({ navigation }) {
   const renderStep = () => {
     if (completeStage === "preAssessment") {
       return (
-        <View style={styles.centered}>
-          <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-            <Ionicons name="checkmark-circle" size={120} color="#29d0a5" />
-          </Animated.View>
-          <Text style={[styles.completeText, { marginTop: 8 }]}>Application submitted.</Text>
-          <Text style={{ textAlign: "center", color: "#6b72aa", paddingHorizontal: 30, marginBottom: 30, fontSize: 16, lineHeight: 22 }}>
-            We will review your documents and notify you via email.
-          </Text>
-          <TouchableOpacity style={styles.submitBtn} onPress={() => navigation.navigate("ScholarDashboardMain")}>
-            <Text style={styles.submitBtnText}>Return Home</Text>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 60, paddingTop: 24 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Success Banner */}
+          <View style={styles.successBanner}>
+            <Animated.View style={[styles.successIconWrap, { transform: [{ scale: scaleAnim }] }]}>
+              <Ionicons name="checkmark-circle" size={36} color="#2cae57" />
+            </Animated.View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.successTitle}>Application Submitted</Text>
+              <Text style={styles.successSubtitle}>
+                Your documents will be reviewed and you'll be notified via email.
+              </Text>
+            </View>
+          </View>
+
+          {/* AI Feedback Panel */}
+          {aiSummary ? (
+            <View style={styles.aiPanel}>
+              <View style={styles.aiPanelHeader}>
+                <Text style={styles.aiPanelEmoji}>🤖</Text>
+                <Text style={styles.aiPanelTitle}>AI Qualification Report</Text>
+              </View>
+              <View style={styles.aiSummaryCard}>
+                <Text style={styles.aiSummaryLabel}>AI EVALUATION SUMMARY</Text>
+                <Text style={styles.aiSummaryText}>"{aiSummary}"</Text>
+                <View style={styles.aiSummaryFooter}>
+                  <Text style={styles.aiSummaryMeta}>Automated Analysis</Text>
+                  <Text style={styles.aiSummaryMeta}>
+                    Evaluated at {new Date().toLocaleTimeString()}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.aiPanelPending}>
+              <Ionicons name="time-outline" size={24} color="#848baf" />
+              <Text style={styles.aiPanelPendingText}>
+                AI evaluation is being processed. Check back shortly.
+              </Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={styles.returnHomeBtn}
+            onPress={() => navigation.navigate("ScholarDashboardMain")}
+          >
+            <Text style={styles.returnHomeBtnText}>Return Home</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       );
     }
 
@@ -337,8 +380,6 @@ export default function ExamAssistanceScreen({ navigation }) {
                   {renderInput("Testing Center / Location", "testingCenter", "City / Testing center")}
                 </View>
               </View>
-
-              {renderSelect("Have you taken this exam/certification before?", "takenBefore", ["Yes, this is my first attempt", "No, I have taken it before"])}
             </View>
           </View>
         );
@@ -399,7 +440,6 @@ export default function ExamAssistanceScreen({ navigation }) {
                 { label: "Board Exam Type", value: values.examType },
                 { label: "Exam Date", value: values.examDate || "Not provided" },
                 { label: "Testing Center/Location", value: values.testingCenter },
-                { label: "Taken Before", value: values.takenBefore },
               ])}
 
               {renderReviewCard("| Supporting Documents", [
@@ -707,6 +747,28 @@ const styles = StyleSheet.create({
   submitBtn: { borderRadius: 12, backgroundColor: "#4f5fc5", paddingVertical: 14, paddingHorizontal: 30, marginTop: 10 },
   submitBtnText: { color: "#fff", fontWeight: "800", fontSize: 16 },
 
+  // Success + AI Report styles
+  successBanner: { flexDirection: "row", alignItems: "flex-start", gap: 14, backgroundColor: "#f0fdf4", borderWidth: 1, borderColor: "#bbf7d0", borderRadius: 16, padding: 16, marginBottom: 20 },
+  successIconWrap: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#dcfce7", alignItems: "center", justifyContent: "center" },
+  successTitle: { fontSize: 16, fontWeight: "800", color: "#166534", marginBottom: 4 },
+  successSubtitle: { fontSize: 13, color: "#15803d", lineHeight: 19, opacity: 0.9 },
+
+  aiPanel: { backgroundColor: "#f7f8ff", borderWidth: 1, borderColor: "rgba(91,95,151,0.2)", borderRadius: 16, padding: 16, marginBottom: 20 },
+  aiPanelHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 },
+  aiPanelEmoji: { fontSize: 22 },
+  aiPanelTitle: { fontSize: 16, fontWeight: "800", color: "#3d4076" },
+
+  aiSummaryCard: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#e4e8f6", borderRadius: 12, padding: 14, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
+  aiSummaryLabel: { fontSize: 10, fontWeight: "800", color: "#3d4076", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 10 },
+  aiSummaryText: { fontSize: 13, color: "#374151", lineHeight: 21, fontStyle: "italic" },
+  aiSummaryFooter: { flexDirection: "row", justifyContent: "space-between", marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#f3f4f6" },
+  aiSummaryMeta: { fontSize: 10, color: "#9ca3af" },
+
+  aiPanelPending: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#f8f9fc", borderWidth: 1, borderColor: "#e4e8f6", borderRadius: 12, padding: 16, marginBottom: 20 },
+  aiPanelPendingText: { flex: 1, fontSize: 13, color: "#848baf", fontWeight: "500" },
+
+  returnHomeBtn: { backgroundColor: "#2cae57", borderRadius: 14, paddingVertical: 16, alignItems: "center", shadowColor: "#166534", shadowOpacity: 0.2, shadowOffset: { width: 0, height: 4 }, shadowRadius: 8, elevation: 4, marginTop: 4 },
+  returnHomeBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
 
   subtextAboveHeader: { fontSize: 11, fontWeight: "700", color: "#5b61a7", textTransform: "uppercase", marginBottom: 6 },
   sectionHeaderRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },

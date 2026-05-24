@@ -21,7 +21,6 @@ const ALLOWED_FORM_FIELDS = new Set([
   'examType',
   'examDate',
   'location',
-  'firstAttempt',
   'notes',
 ]);
 
