@@ -90,6 +90,11 @@ export default function VocationalCompletionScreen({ navigation, route }) {
     loadCompletionDate();
   }, [route.params?.completionDate]);
 
+  // 3. Clear error on component mount
+  useEffect(() => {
+    setError("");
+  }, []);
+
   // Handle document picking safely
   const pickDocument = async (key) => {
     try {
