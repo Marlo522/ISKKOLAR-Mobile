@@ -1,8 +1,11 @@
 import React, { useContext, useEffect, useRef, useState, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, ImageBackground, RefreshControl } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, ImageBackground, RefreshControl, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
+import { useIsFocused } from "@react-navigation/native";
+import { getApplicationSettings } from "../services/settingsService";
+import ApplicationsClosedGuard from "../components/ApplicationsClosedGuard";
 
 const programs = [
   {
@@ -33,10 +36,29 @@ export default function HomeScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const [refreshing, setRefreshing] = useState(false);
 
+  const isFocused = useIsFocused();
+  const [loading, setLoading] = useState(true);
+  const [isOpen, setIsOpen] = useState(true);
+
   const headerAnim = useRef(new Animated.Value(0)).current;
   const cardsAnim = useRef(programs.map(() => new Animated.Value(0))).current;
 
+  useEffect(() => {
+    if (!isFocused) return;
+
+    const checkSettings = async () => {
+      setLoading(true);
+      const settings = await getApplicationSettings();
+      const open = settings.is_open && !settings.is_limit_reached;
+      setIsOpen(open);
+      setLoading(false);
+    };
+    checkSettings();
+  }, [isFocused]);
+
   const runEntryAnimations = useCallback(() => {
+    if (loading || !isOpen) return;
+
     headerAnim.setValue(0);
     cardsAnim.forEach(anim => anim.setValue(0));
 
@@ -55,7 +77,29 @@ export default function HomeScreen({ navigation }) {
       })
     );
     Animated.stagger(150, animations).start();
-  }, [headerAnim, cardsAnim]);
+  }, [headerAnim, cardsAnim, loading, isOpen]);
+
+  const handleRefresh = async () => {
+    setLoading(true);
+    const settings = await getApplicationSettings();
+    const open = settings.is_open && !settings.is_limit_reached;
+    setIsOpen(open);
+    setLoading(false);
+  };
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f6f8fb" }}>
+        <ActivityIndicator size="large" color="#5b5f97" />
+      </View>
+    );
+  }
+
+  if (!isOpen) {
+    return (
+      <ApplicationsClosedGuard onBack={handleRefresh} />
+    );
+  }
 
   useEffect(() => {
     runEntryAnimations();

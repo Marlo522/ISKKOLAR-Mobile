@@ -1,7 +1,10 @@
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useIsFocused } from "@react-navigation/native";
+import { getApplicationSettings } from "../services/settingsService";
+import ApplicationsClosedGuard from "../components/ApplicationsClosedGuard";
 
 const eligibility = [
   "Filipino Citizen",
@@ -20,6 +23,38 @@ const forms = [
 export default function ProgramDetailScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const program = route.params?.program || "tertiary";
+
+  const isFocused = useIsFocused();
+  const [loading, setLoading] = useState(true);
+  const [isOpen, setIsOpen] = useState(true);
+
+  useEffect(() => {
+    if (!isFocused) return;
+    
+    const checkSettings = async () => {
+      setLoading(true);
+      const settings = await getApplicationSettings();
+      // Application settings is open & applicant limit has not been met
+      const open = settings.is_open && !settings.is_limit_reached;
+      setIsOpen(open);
+      setLoading(false);
+    };
+    checkSettings();
+  }, [isFocused]);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#5b5f97" />
+      </View>
+    );
+  }
+
+  if (!isOpen) {
+    return (
+      <ApplicationsClosedGuard onBack={() => navigation.navigate("Home")} />
+    );
+  }
 
   const employeeChildOptions = [
     {
@@ -170,7 +205,7 @@ export default function ProgramDetailScreen({ navigation, route }) {
         <Ionicons name="document" size={20} color="#fff" style={{ marginRight: 12 }} />
         <View style={{ flex: 1 }}>
           <Text style={styles.applyBtnText}>Apply Now!</Text>
-          <Text style={styles.applySub}>Make sure you've downloaded the forms first</Text>
+          <Text style={styles.applySub}>Make sure you&apos;ve downloaded the forms first</Text>
         </View>
       </TouchableOpacity>
     </>
@@ -242,7 +277,7 @@ export default function ProgramDetailScreen({ navigation, route }) {
         <Ionicons name="document" size={20} color="#fff" style={{ marginRight: 12 }} />
         <View style={{ flex: 1 }}>
           <Text style={styles.applyBtnText}>Apply Now!</Text>
-          <Text style={styles.applySub}>Make sure you've downloaded the forms first</Text>
+          <Text style={styles.applySub}>Make sure you&apos;ve downloaded the forms first</Text>
         </View>
       </TouchableOpacity>
     </>
