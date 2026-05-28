@@ -108,13 +108,6 @@ export default function ApplicationsClosedScreen({
           </Text>
         </TouchableOpacity>
       </View>
-
-      <View style={{ flex: 1 }} />
-
-      {/* Sleek Primary Navigation Button at the Bottom */}
-      <TouchableOpacity activeOpacity={0.8} onPress={onBack} style={styles.actionButton}>
-        <Text style={styles.actionButtonText}>Return to Dashboard</Text>
-      </TouchableOpacity>
     </View>
   );
 }

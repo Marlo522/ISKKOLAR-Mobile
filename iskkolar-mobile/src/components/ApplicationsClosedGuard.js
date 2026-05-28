@@ -64,11 +64,6 @@ export default function ApplicationsClosedGuard({ onBack, year = new Date().getF
           </Text>
         </View>
       </View>
-      <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={onBack}>
-        <Text style={styles.backBtnText}>Return to Dashboard</Text>
-      </TouchableOpacity>
-
-      <View style={{ flex: 0.15 }} />
     </View>
   );
 }
