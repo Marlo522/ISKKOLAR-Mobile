@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useContext, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import React, { useEffect, useRef, useContext, useState, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
@@ -24,6 +24,7 @@ export default function ScholarDashboardScreen({ navigation }) {
   const [dashboardSummary, setDashboardSummary] = useState(null);
   const [applicationHistory, setApplicationHistory] = useState([]);
   const [gradeComplianceSummary, setGradeComplianceSummary] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const currentYearLevel = dashboardSummary?.academicStatus?.yearLevel || user?.yearLevel || 'Not set';
   const currentProgram = dashboardSummary?.academicStatus?.program || user?.program || user?.scholarshipType || '--';
@@ -109,35 +110,33 @@ export default function ScholarDashboardScreen({ navigation }) {
     ]).start();
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
+  const loadDashboardMeta = useCallback(async () => {
+    try {
+      const [summary, history, gradeCompliance] = await Promise.all([
+        getScholarDashboardSummary(),
+        getScholarApplicationHistory(),
+        getGradeComplianceTerms(),
+      ]);
 
-    const loadDashboardMeta = async () => {
-      try {
-        const [summary, history, gradeCompliance] = await Promise.all([
-          getScholarDashboardSummary(),
-          getScholarApplicationHistory(),
-          getGradeComplianceTerms(),
-        ]);
-
-        if (!isMounted) return;
-
-        setDashboardSummary(summary?.data || summary || null);
-        setApplicationHistory(history?.data?.applicationItems || history?.applicationItems || []);
-        setGradeComplianceSummary(gradeCompliance?.data || gradeCompliance || null);
-      } catch (error) {
-        if (__DEV__) {
-          console.warn('Failed to load scholar dashboard data', error?.message || error);
-        }
+      setDashboardSummary(summary?.data || summary || null);
+      setApplicationHistory(history?.data?.applicationItems || history?.applicationItems || []);
+      setGradeComplianceSummary(gradeCompliance?.data || gradeCompliance || null);
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('Failed to load scholar dashboard data', error?.message || error);
       }
-    };
-
-    void loadDashboardMeta();
-
-    return () => {
-      isMounted = false;
-    };
+    }
   }, []);
+
+  useEffect(() => {
+    void loadDashboardMeta();
+  }, [loadDashboardMeta]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadDashboardMeta();
+    setRefreshing(false);
+  }, [loadDashboardMeta]);
 
   const fullName = [
     user?.firstName || user?.first_name,
@@ -154,6 +153,7 @@ export default function ScholarDashboardScreen({ navigation }) {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
         showsVerticalScrollIndicator={false}
         style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#727ab6']} tintColor="#727ab6" />}
       >
         {/* Header Banner */}
         <View style={styles.heroBanner}>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert, Modal, Animated } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Alert, Modal, Animated } from "react-native";
+import SafeTextInput from "../components/SafeTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
@@ -316,7 +317,7 @@ export default function TransferSchoolScreen({ navigation }) {
   const renderInput = (label, key, placeholder, keyboardType = "default") => (
     <View style={[styles.row, fieldErrors[key] && styles.rowWithError]}>
       <Text style={styles.label}>{label} <Text style={{ color: "red" }}>*</Text></Text>
-      <TextInput
+      <SafeTextInput
         style={[styles.input, fieldErrors[key] && { borderColor: "red" }]}
         placeholder={placeholder}
         placeholderTextColor="#888"
@@ -334,7 +335,7 @@ export default function TransferSchoolScreen({ navigation }) {
   const renderTextArea = (label, key, placeholder) => (
     <View style={[styles.row, fieldErrors[key] && styles.rowWithError]}>
       <Text style={styles.label}>{label} <Text style={{ color: "red" }}>*</Text></Text>
-      <TextInput
+      <SafeTextInput
         style={[styles.input, styles.textArea, fieldErrors[key] && { borderColor: "red" }]}
         placeholder={placeholder}
         placeholderTextColor="#888"

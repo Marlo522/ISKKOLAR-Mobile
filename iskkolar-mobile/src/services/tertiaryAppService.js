@@ -1,6 +1,19 @@
 import api from "./api";
 
 // ─── HELPERS ──────────────────────────────────────────────────
+const mapRelationshipToBackendRole = (rel) => {
+  if (!rel) return "Other";
+  const trimmed = rel.trim();
+  if (trimmed === "Siblings" || trimmed === "Sibling" || trimmed === "Brother" || trimmed === "Sister") {
+    return "Brother";
+  }
+  const standardBackend = ["Brother", "Sister", "Guardian", "Spouse", "Child", "Other"];
+  if (standardBackend.includes(trimmed)) {
+    return trimmed;
+  }
+  return "Other";
+};
+
 const buildFamilyMembers = (values, dynamicFamilyMembers) => {
   const cleanMember = (member) => {
     if (member.employment_status === "Unemployed" || member.employment_status === "Deceased") {
@@ -50,7 +63,7 @@ const buildFamilyMembers = (values, dynamicFamilyMembers) => {
 
   (dynamicFamilyMembers || []).forEach((member) => {
     family.push(cleanMember({
-      role: member.relationship || "",
+      role: mapRelationshipToBackendRole(member.relationship),
       full_name: member.name || "",
       birthday: member.birthday || "",
       employment_status: member.status || "",

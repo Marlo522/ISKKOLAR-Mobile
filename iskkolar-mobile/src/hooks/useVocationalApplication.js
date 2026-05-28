@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
 import {
   getMyVocationalApplications as fetchMyApplications,
   validateVocationalStep,
@@ -139,6 +140,51 @@ const mapApiFieldToUiKey = (field, rolesArray) => {
   return FIELD_MAP[normalized] || normalized;
 };
 
+const parseDateString = (dateValue) => {
+  if (!dateValue) return null;
+  if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) {
+    return dateValue;
+  }
+  
+  const text = String(dateValue).trim();
+  
+  // 1. Check for ISO or YYYY-MM-DD format (optionally with time/timezone)
+  const isoMatch = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})([ T]|$)/.exec(text);
+  if (isoMatch) {
+    const year = Number(isoMatch[1]);
+    const month = Number(isoMatch[2]) - 1;
+    const day = Number(isoMatch[3]);
+    return new Date(year, month, day);
+  }
+  
+  // 2. Check for DD/MM/YYYY or MM/DD/YYYY format
+  const slashMatch = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/.exec(text);
+  if (slashMatch) {
+    const p1 = Number(slashMatch[1]);
+    const p2 = Number(slashMatch[2]);
+    const year = Number(slashMatch[3]);
+    
+    let month = p1 - 1;
+    let day = p2;
+    
+    // Auto-detect DD/MM vs MM/DD if one of them is greater than 12
+    if (p1 > 12 && p2 <= 12) {
+      month = p2 - 1;
+      day = p1;
+    }
+    
+    return new Date(year, month, day);
+  }
+  
+  // 3. Fallback to native JS Date parsing if it yields a valid date
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed;
+  }
+  
+  return null;
+};
+
 // Normalizes raw API error objects to a consistent {status, message, errors} shape.
 const normalizeApiErrorShape = (err) => ({
   status: err?.status,
@@ -149,6 +195,7 @@ const normalizeApiErrorShape = (err) => ({
 // ─── HOOK ────────────────────────────────────────────────────
 
 export const useVocationalApplication = () => {
+  const { user } = useContext(AuthContext);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);          // General banner error
   const [fieldErrors, setFieldErrors] = useState({}); // Per-field inline errors
@@ -269,6 +316,29 @@ export const useVocationalApplication = () => {
     }
 
     if (uiStep === 1) {
+      // Validate that parents and guardians are older than the applicant/scholar
+      const scholarBirth = parseDateString(user?.birthday || user?.birthDate || user?.birthdate);
+      if (scholarBirth && scholarBirth.getFullYear() >= 1990) {
+        if (values.fatherBirthday && values.fatherStatus !== "Deceased") {
+          const fatherBirth = parseDateString(values.fatherBirthday);
+          if (fatherBirth && fatherBirth >= scholarBirth) {
+            preFlightErrors.fatherBirthday = "Father should be older than the applicant.";
+          }
+        }
+        if (values.motherBirthday && values.motherStatus !== "Deceased") {
+          const motherBirth = parseDateString(values.motherBirthday);
+          if (motherBirth && motherBirth >= scholarBirth) {
+            preFlightErrors.motherBirthday = "Mother should be older than the applicant.";
+          }
+        }
+        if (values.hasGuardian && values.guardianBirthday && values.guardianStatus !== "Deceased") {
+          const guardianBirth = parseDateString(values.guardianBirthday);
+          if (guardianBirth && guardianBirth >= scholarBirth) {
+            preFlightErrors.guardianBirthday = "Guardian should be older than the applicant.";
+          }
+        }
+      }
+
       // Income proof is only required for employed / self-employed members
       const requiresProof = (status) =>
         ["Employed", "Self-Employed"].includes(status);
@@ -284,10 +354,24 @@ export const useVocationalApplication = () => {
         }
       };
 
+      if (values.fatherStatus === "Deceased" && values.motherStatus === "Deceased") {
+        if (!values.hasGuardian) {
+          preFlightErrors.hasGuardian = "Guardian is required because both parents are deceased.";
+        }
+      }
+
       if (values.hasGuardian) {
         if (values.guardianStatus !== "Deceased") {
           checkMember(values.guardianName, values.guardianStatus, values.guardianOccupation, values.guardianIncome, "guardian", "Guardian's");
           if (!values.guardianContact || values.guardianContact.length < 11) preFlightErrors.guardianContact = "Contact Number must be 11 digits.";
+        }
+
+        // Only allow either Father or Mother information, not both
+        const hasFather = values.fatherName && values.fatherName.trim() !== "";
+        const hasMother = values.motherName && values.motherName.trim() !== "";
+        if (hasFather && hasMother) {
+          preFlightErrors.fatherName = "If you have a guardian, you can only provide either Father's or Mother's information, not both.";
+          preFlightErrors.motherName = "If you have a guardian, you can only provide either Father's or Mother's information, not both.";
         }
       }
 

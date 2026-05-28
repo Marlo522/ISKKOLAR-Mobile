@@ -5,10 +5,11 @@ import {
   StyleSheet, 
   ScrollView, 
   TouchableOpacity, 
-  TextInput, 
+  
   Alert, 
   ActivityIndicator 
 } from 'react-native';
+import SafeTextInput from "../components/SafeTextInput";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -341,7 +342,7 @@ export default function VocationalCompletionScreen({ navigation, route }) {
           {/* Completion Date */}
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>Completion Date <Text style={styles.requiredAsterisk}>*</Text></Text>
-            <TextInput
+            <SafeTextInput
               style={styles.inputReadOnly}
               value={form.completionDate ? formatDisplayDate(form.completionDate) : 'Fetching date...'}
               editable={false}
@@ -354,7 +355,7 @@ export default function VocationalCompletionScreen({ navigation, route }) {
           {/* Certificate Number */}
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>Certificate Number <Text style={styles.optionalText}>(Optional)</Text></Text>
-            <TextInput
+            <SafeTextInput
               style={styles.input}
               value={form.certificateNumber}
               onChangeText={(val) => setForm(p => ({ ...p, certificateNumber: val }))}

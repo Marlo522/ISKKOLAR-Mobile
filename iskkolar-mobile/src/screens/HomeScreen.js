@@ -1,5 +1,5 @@
-import React, { useContext, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, ImageBackground } from "react-native";
+import React, { useContext, useEffect, useRef, useState, useCallback } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, ImageBackground, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
@@ -31,11 +31,15 @@ const programs = [
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { user } = useContext(AuthContext);
+  const [refreshing, setRefreshing] = useState(false);
 
   const headerAnim = useRef(new Animated.Value(0)).current;
   const cardsAnim = useRef(programs.map(() => new Animated.Value(0))).current;
 
-  useEffect(() => {
+  const runEntryAnimations = useCallback(() => {
+    headerAnim.setValue(0);
+    cardsAnim.forEach(anim => anim.setValue(0));
+
     Animated.timing(headerAnim, {
       toValue: 1,
       duration: 600,
@@ -53,6 +57,19 @@ export default function HomeScreen({ navigation }) {
     Animated.stagger(150, animations).start();
   }, [headerAnim, cardsAnim]);
 
+  useEffect(() => {
+    runEntryAnimations();
+  }, [runEntryAnimations]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    // Re-trigger entry animations for visual feedback
+    runEntryAnimations();
+    // Brief delay so the spinner is visible
+    await new Promise(resolve => setTimeout(resolve, 600));
+    setRefreshing(false);
+  }, [runEntryAnimations]);
+
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.headerRow, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }], paddingTop: insets.top + 8 }]}>
@@ -67,7 +84,7 @@ export default function HomeScreen({ navigation }) {
       </Animated.View>
 
       <Text style={styles.sectionTitle}>Programs</Text>
-      <ScrollView contentContainerStyle={[styles.cardsContainer, { paddingBottom: 120 }]}>
+      <ScrollView contentContainerStyle={[styles.cardsContainer, { paddingBottom: 120 }]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#5b5f97']} tintColor="#5b5f97" />}>
         {programs.map((program, index) => (
           <Animated.View key={index} style={[styles.card, { opacity: cardsAnim[index], transform: [{ translateY: cardsAnim[index].interpolate({ inputRange: [0, 1], outputRange: [50, 0] }) }] }]}>
             <TouchableOpacity

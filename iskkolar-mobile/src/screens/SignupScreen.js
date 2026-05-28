@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
@@ -14,6 +13,7 @@ import {
   Animated,
   Easing,
 } from "react-native";
+import SafeTextInput from "../components/SafeTextInput";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -291,7 +291,7 @@ export default function SignupScreen({ navigation }) {
         <Text style={styles.label}>Email</Text>
         <View style={[styles.inputWrapper, errors.email && styles.inputError]}>
           <Ionicons name="mail-outline" size={18} color="#999" style={styles.icon} />
-          <TextInput placeholderTextColor="#888"
+          <SafeTextInput placeholderTextColor="#888"
             value={form.email}
             onChangeText={(v) => updateField("email", v)}
             placeholder="Email"
@@ -307,7 +307,7 @@ export default function SignupScreen({ navigation }) {
         <Text style={styles.label}>Password</Text>
         <View style={[styles.inputWrapper, errors.password && styles.inputError]}>
           <Ionicons name="lock-closed-outline" size={18} color="#999" style={styles.icon} />
-          <TextInput placeholderTextColor="#888"
+          <SafeTextInput placeholderTextColor="#888"
             value={form.password}
             onChangeText={(v) => updateField("password", v)}
             placeholder="Password"
@@ -329,7 +329,7 @@ export default function SignupScreen({ navigation }) {
         <Text style={styles.label}>Confirm Password</Text>
         <View style={[styles.inputWrapper, errors.confirmPassword && styles.inputError]}>
           <Ionicons name="lock-closed-outline" size={18} color="#999" style={styles.icon} />
-          <TextInput placeholderTextColor="#888"
+          <SafeTextInput placeholderTextColor="#888"
             value={form.confirmPassword}
             onChangeText={(v) => updateField("confirmPassword", v)}
             placeholder="Confirm Password"
@@ -397,7 +397,7 @@ export default function SignupScreen({ navigation }) {
 
       <View style={styles.field}>
         <Text style={styles.label}>First Name</Text>
-        <TextInput placeholderTextColor="#888"
+        <SafeTextInput placeholderTextColor="#888"
           value={form.firstName}
           onChangeText={(v) => updateField("firstName", v)}
           placeholder="Enter first name"
@@ -408,7 +408,7 @@ export default function SignupScreen({ navigation }) {
 
       <View style={styles.field}>
         <Text style={styles.label}>Middle Name (Optional)</Text>
-        <TextInput placeholderTextColor="#888"
+        <SafeTextInput placeholderTextColor="#888"
           value={form.middleName}
           onChangeText={(v) => updateField("middleName", v)}
           placeholder="Enter middle name"
@@ -419,7 +419,7 @@ export default function SignupScreen({ navigation }) {
       <View style={styles.rowFields}>
         <View style={[styles.field, styles.flex1]}>
           <Text style={styles.label}>Last Name</Text>
-          <TextInput placeholderTextColor="#888"
+          <SafeTextInput placeholderTextColor="#888"
             value={form.lastName}
             onChangeText={(v) => updateField("lastName", v)}
             placeholder="Last name"
@@ -429,7 +429,7 @@ export default function SignupScreen({ navigation }) {
         </View>
         <View style={[styles.field, styles.flex1, styles.ml12]}>
           <Text style={styles.label}>Suffix (Optional)</Text>
-          <TextInput placeholderTextColor="#888"
+          <SafeTextInput placeholderTextColor="#888"
             value={form.suffix}
             onChangeText={(v) => updateField("suffix", v)}
             placeholder="--"
@@ -521,7 +521,7 @@ export default function SignupScreen({ navigation }) {
 
       <View style={styles.field}>
         <Text style={styles.label}>Mobile Number</Text>
-        <TextInput placeholderTextColor="#888"
+        <SafeTextInput placeholderTextColor="#888"
           value={form.mobile}
           onFocus={() => {
             if (!form.mobile) updateField("mobile", "09");
@@ -543,7 +543,7 @@ export default function SignupScreen({ navigation }) {
 
       <View style={styles.field}>
         <Text style={styles.label}>Facebook</Text>
-        <TextInput placeholderTextColor="#888"
+        <SafeTextInput placeholderTextColor="#888"
           value={form.facebook}
           onChangeText={(v) => updateField("facebook", v)}
           placeholder="https://facebook.com/yourprofile"
@@ -558,7 +558,7 @@ export default function SignupScreen({ navigation }) {
 
       <View style={styles.field}>
         <Text style={styles.label}>Street / Unit</Text>
-        <TextInput placeholderTextColor="#888"
+        <SafeTextInput placeholderTextColor="#888"
           value={form.street}
           onChangeText={(v) => updateField("street", v)}
           placeholder="Street / Unit"
@@ -614,7 +614,7 @@ export default function SignupScreen({ navigation }) {
       <View style={styles.rowFields}>
         <View style={[styles.field, styles.flex1]}>
           <Text style={styles.label}>Country</Text>
-          <TextInput placeholderTextColor="#888"
+          <SafeTextInput placeholderTextColor="#888"
             value="Philippines"
             editable={false}
             style={[styles.input, styles.standaloneInput, { backgroundColor: '#f0f0f0', color: '#666' }]}
@@ -624,7 +624,7 @@ export default function SignupScreen({ navigation }) {
 
       <View style={styles.field}>
         <Text style={styles.label}>Zip Code</Text>
-        <TextInput placeholderTextColor="#888"
+        <SafeTextInput placeholderTextColor="#888"
           value={form.zip}
           onChangeText={(v) => updateField("zip", v)}
           placeholder="Zip Code"

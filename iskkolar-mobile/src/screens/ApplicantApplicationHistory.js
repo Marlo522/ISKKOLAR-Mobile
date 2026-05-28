@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground, Animated, ActivityIndicator, Linking } from "react-native";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground, Animated, ActivityIndicator, Linking, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { getApplicantHistory } from "../services/applicationGuardService";
@@ -314,6 +314,7 @@ export default function ApplicantApplicationHistory({ navigation }) {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadApplications = async () => {
     try {
@@ -331,6 +332,12 @@ export default function ApplicantApplicationHistory({ navigation }) {
 
   useEffect(() => {
     loadApplications();
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadApplications();
+    setRefreshing(false);
   }, []);
 
   const mappedApplications = useMemo(() => {
@@ -378,7 +385,7 @@ export default function ApplicantApplicationHistory({ navigation }) {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#5b5f97']} tintColor="#5b5f97" />}>
         {error ? (
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle-outline" size={60} color="#ef4444" />

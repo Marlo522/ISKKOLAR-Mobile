@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef, useContext } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useRef, useContext, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, ActivityIndicator, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
@@ -24,6 +24,7 @@ export default function ActivitiesScreen({ navigation }) {
   const [scholarActivities, setScholarActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Fetch activities from the API
   const fetchActivities = async () => {
@@ -58,6 +59,19 @@ export default function ActivitiesScreen({ navigation }) {
         useNativeDriver: true,
       })
     ]).start();
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const data = await getScholarActivities();
+      setScholarActivities(data);
+      setError(null);
+    } catch (err) {
+      setError(typeof err === 'string' ? err : 'Failed to load activities');
+    } finally {
+      setRefreshing(false);
+    }
   }, []);
 
   // Process data similarly to the web implementation
@@ -102,6 +116,7 @@ export default function ActivitiesScreen({ navigation }) {
       <Animated.ScrollView 
         style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]} 
         contentContainerStyle={{ paddingBottom: 60 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1a1a2e']} tintColor="#1a1a2e" />}
       >
         {/* Header equivalent to web */}
         <View style={styles.pageHeaderBox}>

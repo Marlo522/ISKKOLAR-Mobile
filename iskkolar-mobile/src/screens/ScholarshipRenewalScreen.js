@@ -3,11 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
+  
   TouchableOpacity,
   ScrollView,
   Animated,
 } from 'react-native';
+import SafeTextInput from "../components/SafeTextInput";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
@@ -613,7 +614,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
 
                 <View style={styles.readOnlyField}>
                   <Text style={styles.label}>Academic Year</Text>
-                  <TextInput
+                  <SafeTextInput
                     style={styles.inputReadOnly}
                     value={form.academicYear}
                     editable={false}
@@ -624,7 +625,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
 
                 <View style={styles.readOnlyField}>
                   <Text style={styles.label}>Term</Text>
-                  <TextInput
+                  <SafeTextInput
                     style={styles.inputReadOnly}
                     value={form.term}
                     editable={false}
@@ -635,7 +636,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
 
                 <View style={styles.readOnlyField}>
                   <Text style={styles.label}>School</Text>
-                  <TextInput
+                  <SafeTextInput
                     style={styles.inputReadOnly}
                     value={form.school}
                     editable={false}
@@ -646,7 +647,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
 
                 <View style={styles.readOnlyField}>
                   <Text style={styles.label}>Program / Course</Text>
-                  <TextInput
+                  <SafeTextInput
                     style={styles.inputReadOnly}
                     value={form.program}
                     editable={false}
@@ -657,7 +658,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
 
                 <View style={styles.readOnlyField}>
                   <Text style={styles.label}>Current GWA</Text>
-                  <TextInput
+                  <SafeTextInput
                     style={styles.inputReadOnly}
                     value={form.gwa}
                     editable={false}

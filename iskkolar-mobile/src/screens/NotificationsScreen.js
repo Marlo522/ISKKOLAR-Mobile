@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, ActivityIndicator,
+  ScrollView, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -257,6 +257,7 @@ export default function NotificationsScreen({ navigation }) {
   const [error, setError]                   = useState(null);
   const [readIds, setReadIds]               = useState([]);
   const [selected, setSelected]             = useState(null); // detail view
+  const [refreshing, setRefreshing]         = useState(false);
 
   // Fetch announcements on mount
   const fetchAnnouncements = async () => {
@@ -273,6 +274,12 @@ export default function NotificationsScreen({ navigation }) {
   };
 
   useEffect(() => { fetchAnnouncements(); }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchAnnouncements();
+    setRefreshing(false);
+  }, []);
 
   // Open detail and mark as read
   const handlePress = (item) => {
@@ -330,7 +337,7 @@ export default function NotificationsScreen({ navigation }) {
           <Text style={styles.emptyText}>Check back later for updates</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4f5ec4']} tintColor="#4f5ec4" />}>
           {sorted.map((item) => {
             const isActivity = item.type === 'activity';
             const isRead     = readIds.includes(item.id);

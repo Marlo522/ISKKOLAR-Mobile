@@ -1,5 +1,6 @@
 import React, { useState, useContext, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Animated, Platform, Image, Switch, NativeModules } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Platform, Image, Switch, NativeModules, RefreshControl } from "react-native";
+import SafeTextInput from "../components/SafeTextInput";
 import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,6 +24,7 @@ export default function ProfileScreen({ navigation }) {
   });
   const [passwords, setPasswords] = useState({ current: "", newPassword: "", confirm: "" });
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [editingMobile, setEditingMobile] = useState(false);
   const [editingEmail, setEditingEmail] = useState(false);
   const [showCurrentPw, setShowCurrentPw] = useState(false);
@@ -64,26 +66,33 @@ export default function ProfileScreen({ navigation }) {
     loadPushPreference();
 
     // Fetch latest profile
-    const fetchProfile = async () => {
-      try {
-        const p = await profileService.getProfile();
-        setForm(prev => ({
-          ...prev,
-          firstName: p.firstName || prev.firstName,
-          middleName: p.middleName || prev.middleName,
-          lastName: p.lastName || prev.lastName,
-          suffix: p.suffix || prev.suffix,
-          email: p.email || prev.email,
-          mobileNumber: p.mobileNumber || p.mobile_number || prev.mobileNumber,
-          profilePhoto: p.profilePictureUrl ? { uri: p.profilePictureUrl } : prev.profilePhoto,
-        }));
-        loginUser({ ...user, ...p }); // Update context if possible
-      } catch (err) {
-        console.error(err);
-      }
-    };
     fetchProfile();
   }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const p = await profileService.getProfile();
+      setForm(prev => ({
+        ...prev,
+        firstName: p.firstName || prev.firstName,
+        middleName: p.middleName || prev.middleName,
+        lastName: p.lastName || prev.lastName,
+        suffix: p.suffix || prev.suffix,
+        email: p.email || prev.email,
+        mobileNumber: p.mobileNumber || p.mobile_number || prev.mobileNumber,
+        profilePhoto: p.profilePictureUrl ? { uri: p.profilePictureUrl } : prev.profilePhoto,
+      }));
+      loginUser({ ...user, ...p }); // Update context if possible
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchProfile();
+    setRefreshing(false);
+  };
 
   const onLogout = async () => {
     await logoutUser();
@@ -259,6 +268,7 @@ export default function ProfileScreen({ navigation }) {
         contentContainerStyle={{ paddingBottom: 80 }}
         showsVerticalScrollIndicator={false}
         style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#5b61a7']} tintColor="#5b61a7" />}
       >
         <View style={styles.tabContainer}>
           <View style={styles.tabRow}>
@@ -306,19 +316,19 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.formContainer}>
               <View style={styles.formRow}>
                 <Text style={styles.formLabel}>First Name</Text>
-                <TextInput placeholderTextColor="#888" value={form.firstName} editable={false} style={[styles.formInput, { backgroundColor: '#f5f7fc', color: '#888' }]} />
+                <SafeTextInput placeholderTextColor="#888" value={form.firstName} editable={false} style={[styles.formInput, { backgroundColor: '#f5f7fc', color: '#888' }]} />
               </View>
               <View style={styles.formRow}>
                 <Text style={styles.formLabel}>Middle Name</Text>
-                <TextInput placeholderTextColor="#888" value={form.middleName} editable={false} style={[styles.formInput, { backgroundColor: '#f5f7fc', color: '#888' }]} />
+                <SafeTextInput placeholderTextColor="#888" value={form.middleName} editable={false} style={[styles.formInput, { backgroundColor: '#f5f7fc', color: '#888' }]} />
               </View>
               <View style={styles.formRow}>
                 <Text style={styles.formLabel}>Last Name</Text>
-                <TextInput placeholderTextColor="#888" value={form.lastName} editable={false} style={[styles.formInput, { backgroundColor: '#f5f7fc', color: '#888' }]} />
+                <SafeTextInput placeholderTextColor="#888" value={form.lastName} editable={false} style={[styles.formInput, { backgroundColor: '#f5f7fc', color: '#888' }]} />
               </View>
               <View style={styles.formRow}>
                 <Text style={styles.formLabel}>Suffix</Text>
-                <TextInput placeholderTextColor="#888" value={form.suffix} editable={false} style={[styles.formInput, { backgroundColor: '#f5f7fc', color: '#888' }]} />
+                <SafeTextInput placeholderTextColor="#888" value={form.suffix} editable={false} style={[styles.formInput, { backgroundColor: '#f5f7fc', color: '#888' }]} />
               </View>
 
               <View style={styles.formRow}>
@@ -330,7 +340,7 @@ export default function ProfileScreen({ navigation }) {
                     </TouchableOpacity>
                   )}
                 </View>
-                <TextInput placeholderTextColor="#888"
+                <SafeTextInput placeholderTextColor="#888"
                   value={form.mobileNumber}
                   onChangeText={(val) => setForm({ ...form, mobileNumber: val.replace(/[^0-9]/g, "").slice(0, 11) })}
                   editable={editingMobile}
@@ -358,7 +368,7 @@ export default function ProfileScreen({ navigation }) {
                     </TouchableOpacity>
                   )}
                 </View>
-                <TextInput placeholderTextColor="#888"
+                <SafeTextInput placeholderTextColor="#888"
                   value={form.email}
                   onChangeText={(val) => setForm({ ...form, email: val })}
                   editable={editingEmail}
@@ -407,7 +417,7 @@ export default function ProfileScreen({ navigation }) {
               <View style={styles.formRow}>
                 <Text style={styles.formLabel}>Current Password</Text>
                 <View style={styles.passwordInputWrapper}>
-                  <TextInput placeholderTextColor="#888"
+                  <SafeTextInput placeholderTextColor="#888"
                     value={passwords.current}
                     secureTextEntry={!showCurrentPw}
                     onChangeText={(value) => setPasswords({ ...passwords, current: value })}
@@ -426,7 +436,7 @@ export default function ProfileScreen({ navigation }) {
               <View style={styles.formRow}>
                 <Text style={styles.formLabel}>New Password</Text>
                 <View style={styles.passwordInputWrapper}>
-                  <TextInput placeholderTextColor="#888"
+                  <SafeTextInput placeholderTextColor="#888"
                     value={passwords.newPassword}
                     secureTextEntry={!showNewPw}
                     onChangeText={(value) => setPasswords({ ...passwords, newPassword: value })}
@@ -445,7 +455,7 @@ export default function ProfileScreen({ navigation }) {
               <View style={styles.formRow}>
                 <Text style={styles.formLabel}>Confirm New Password</Text>
                 <View style={styles.passwordInputWrapper}>
-                  <TextInput placeholderTextColor="#888"
+                  <SafeTextInput placeholderTextColor="#888"
                     value={passwords.confirm}
                     secureTextEntry={!showConfirmPw}
                     onChangeText={(value) => setPasswords({ ...passwords, confirm: value })}
