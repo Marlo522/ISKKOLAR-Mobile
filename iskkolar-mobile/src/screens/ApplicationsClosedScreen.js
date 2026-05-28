@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useContext } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AuthContext } from "../context/AuthContext";
+import { useNavigation } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
 
@@ -12,9 +14,33 @@ export default function ApplicationsClosedScreen({
   onNavigateToAccount,
 }) {
   const insets = useSafeAreaInsets();
+  const { user } = useContext(AuthContext);
+  const navigation = useNavigation();
+
+  const handleNotificationsPress = () => {
+    if (onNavigateToNotifications) {
+      onNavigateToNotifications();
+    } else {
+      navigation.navigate("Notifications");
+    }
+  };
+
+  const name = user?.firstName || user?.first_name || (user?.name ? user.name.split(' ')[0] : "User");
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + 20 }]}>
+    <View style={[styles.container, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 20 }]}>
+      {/* Upper Profile Header Section */}
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={styles.userSubtitle}>Hello,</Text>
+          <Text style={styles.userTitle}>{name}</Text>
+        </View>
+        <TouchableOpacity style={styles.iconBubble} activeOpacity={0.8} onPress={handleNotificationsPress}>
+          <Ionicons name="notifications-outline" size={24} color="#1d2e57" />
+          <View style={styles.notifyDot} />
+        </TouchableOpacity>
+      </View>
+
       {/* Decorative Top Space & Circles */}
       <View style={styles.headerSpacer} />
 
@@ -100,8 +126,52 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 28,
   },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+    paddingHorizontal: 4,
+    marginBottom: 12,
+  },
+  userSubtitle: {
+    fontSize: 16,
+    color: "#7a82a0",
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+  userTitle: {
+    fontSize: 32,
+    fontWeight: "900",
+    color: "#131b3e",
+    letterSpacing: -0.5,
+  },
+  iconBubble: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#f6f8fb",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  notifyDot: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    width: 10,
+    height: 10,
+    backgroundColor: "#e94e4e",
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
   headerSpacer: {
-    height: 40,
+    height: 15,
   },
   iconContainer: {
     position: "relative",

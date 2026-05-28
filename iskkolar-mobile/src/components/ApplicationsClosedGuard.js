@@ -1,10 +1,33 @@
-import React from "react";
+import React, { useContext } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AuthContext } from "../context/AuthContext";
+import { useNavigation } from "@react-navigation/native";
 
 export default function ApplicationsClosedGuard({ onBack, year = new Date().getFullYear() }) {
+  const insets = useSafeAreaInsets();
+  const { user } = useContext(AuthContext);
+  const navigation = useNavigation();
+
+  const name = user?.firstName || user?.first_name || (user?.name ? user.name.split(' ')[0] : "User");
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
+      {/* Upper Profile Header Section */}
+      <View style={styles.headerRow}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.userSubtitle}>Hello,</Text>
+          <Text style={styles.userTitle}>{name}</Text>
+        </View>
+        <TouchableOpacity style={styles.iconBubble} activeOpacity={0.8} onPress={() => navigation.navigate("Notifications")}>
+          <Ionicons name="notifications-outline" size={24} color="#1d2e57" />
+          <View style={styles.notifyDot} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={{ flex: 0.1 }} />
+
       <View style={styles.illustrationWrapper}>
         <View style={styles.outerCircle}>
           <View style={styles.innerCircle}>
@@ -44,6 +67,8 @@ export default function ApplicationsClosedGuard({ onBack, year = new Date().getF
       <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={onBack}>
         <Text style={styles.backBtnText}>Return to Dashboard</Text>
       </TouchableOpacity>
+
+      <View style={{ flex: 0.15 }} />
     </View>
   );
 }
@@ -53,8 +78,54 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f6f8fb",
     paddingHorizontal: 24,
+    alignItems: "center",
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+    paddingHorizontal: 4,
+    marginBottom: 20,
+  },
+  headerLeft: {
+    alignItems: "flex-start",
+  },
+  userSubtitle: {
+    fontSize: 16,
+    color: "#7a82a0",
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+  userTitle: {
+    fontSize: 32,
+    fontWeight: "900",
+    color: "#131b3e",
+    letterSpacing: -0.5,
+  },
+  iconBubble: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  notifyDot: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    width: 10,
+    height: 10,
+    backgroundColor: "#e94e4e",
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: "#fff",
   },
   illustrationWrapper: {
     position: "relative",
