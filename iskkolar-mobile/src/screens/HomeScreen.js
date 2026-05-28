@@ -87,6 +87,19 @@ export default function HomeScreen({ navigation }) {
     setLoading(false);
   };
 
+  useEffect(() => {
+    runEntryAnimations();
+  }, [runEntryAnimations]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    // Re-trigger entry animations for visual feedback
+    runEntryAnimations();
+    // Brief delay so the spinner is visible
+    await new Promise(resolve => setTimeout(resolve, 600));
+    setRefreshing(false);
+  }, [runEntryAnimations]);
+
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f6f8fb" }}>
@@ -100,19 +113,6 @@ export default function HomeScreen({ navigation }) {
       <ApplicationsClosedGuard onBack={handleRefresh} />
     );
   }
-
-  useEffect(() => {
-    runEntryAnimations();
-  }, [runEntryAnimations]);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    // Re-trigger entry animations for visual feedback
-    runEntryAnimations();
-    // Brief delay so the spinner is visible
-    await new Promise(resolve => setTimeout(resolve, 600));
-    setRefreshing(false);
-  }, [runEntryAnimations]);
 
   return (
     <View style={styles.container}>
