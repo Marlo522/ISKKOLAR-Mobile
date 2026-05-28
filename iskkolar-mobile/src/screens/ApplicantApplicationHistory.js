@@ -3,6 +3,9 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground, 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { getApplicantHistory } from "../services/applicationGuardService";
+import { useIsFocused } from "@react-navigation/native";
+import { getApplicationSettings } from "../services/settingsService";
+import ApplicationsClosedGuard from "../components/ApplicationsClosedGuard";
 
 const APPLICATION_STEPS = [
   { key: "under_review", label: "Under Review" },
@@ -311,6 +314,27 @@ const ApplicationCard = ({ application }) => {
 
 export default function ApplicantApplicationHistory({ navigation }) {
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
+
+  // Application closed gating — mirrors web's Application tab gate
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [isOpen, setIsOpen] = useState(true);
+
+  useEffect(() => {
+    if (!isFocused) return;
+    let cancelled = false;
+    const checkSettings = async () => {
+      setSettingsLoading(true);
+      const settings = await getApplicationSettings();
+      if (!cancelled) {
+        setIsOpen(settings.is_open && !settings.is_limit_reached);
+        setSettingsLoading(false);
+      }
+    };
+    checkSettings();
+    return () => { cancelled = true; };
+  }, [isFocused]);
+
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -358,6 +382,20 @@ export default function ApplicantApplicationHistory({ navigation }) {
       };
     });
   }, [applications]);
+
+  if (settingsLoading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#5b5f97" />
+      </View>
+    );
+  }
+
+  if (!isOpen) {
+    return (
+      <ApplicationsClosedGuard onBack={() => navigation.navigate("Home")} />
+    );
+  }
 
   if (loading) {
     return (
