@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
+  
   TouchableOpacity,
   ScrollView,
   Platform,
@@ -11,6 +11,7 @@ import {
   Modal,
   Animated,
 } from "react-native";
+import SafeTextInput from "../components/SafeTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
@@ -21,6 +22,8 @@ import useStaffApplication from "../hooks/useStaffApplication";
 import useVocationalApplication from "../hooks/useVocationalApplication";
 import ApplicationSubmissionGuard from "../components/ApplicationSubmissionGuard";
 import { checkAnyOngoingApplication } from "../services/applicationGuardService";
+import api from "../services/api";
+import ApplicationsClosedScreen from "./ApplicationsClosedScreen";
 
 const infoFields = {
   educPath: "Tertiary",
@@ -82,6 +85,13 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const isChildDesignation = selectedProgram === "employeeChild" && option === "Option 2";
 
   const [step, setStep] = useState(0);
+  const scrollViewRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: 0, animated: true });
+    }
+  }, [step, completeStage]);
   const [values, setValues] = useState({
     ...infoFields,
     // Tertiary → "Manila Scholars", vocational → "TESDA", everything else → blank
@@ -113,6 +123,8 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const [verifiedStaffId, setVerifiedStaffId] = useState("");
   const [isCheckingApplication, setIsCheckingApplication] = useState(true);
   const [ongoingApplication, setOngoingApplication] = useState(null);
+  const [isApplicationsClosed, setIsApplicationsClosed] = useState(false);
+  const [closedYear, setClosedYear] = useState(new Date().getFullYear());
 
   const {
     submitting: tertiarySubmitting,
@@ -205,6 +217,49 @@ export default function ProgramApplyScreen({ navigation, route }) {
         const ongoing = await checkAnyOngoingApplication();
         if (!mounted) return;
         setOngoingApplication(ongoing);
+
+        // Fetch application settings from Supabase (via the backend API)
+        let settingsData = null;
+        let fetchedFromUrl = null;
+        const urlsToTry = [
+          "/applications/settings",
+          "/applications/status",
+          "/scholarships/application-settings",
+          "/application-settings",
+          "/scholarships/application_settings",
+          "/application_settings",
+          "/scholarships/status",
+          "/status"
+        ];
+
+        for (const url of urlsToTry) {
+          try {
+            console.log(`[Supabase Check] Probing: ${url}...`);
+            const res = await api.get(url);
+            const data = res.data?.data || res.data;
+            if (data && (data.is_open !== undefined || data.isOpen !== undefined)) {
+              settingsData = data;
+              fetchedFromUrl = url;
+              console.log(`[Supabase Check] SUCCESS from ${url}:`, data);
+              break;
+            }
+          } catch (e) {
+            console.log(`[Supabase Check] FAILED from ${url}:`, e?.message || e);
+          }
+        }
+
+        if (settingsData) {
+          const isOpen = settingsData.is_open !== undefined ? settingsData.is_open : settingsData.isOpen;
+          if (isOpen === false) {
+            setIsApplicationsClosed(true);
+            setClosedYear(settingsData.year || settingsData.current_year || new Date().getFullYear());
+          } else {
+            setIsApplicationsClosed(false);
+          }
+        } else {
+          console.warn("[Supabase Check] Could not verify application settings status from any standard endpoint. Defaulting to OPEN.");
+          setIsApplicationsClosed(false);
+        }
       } catch (err) {
         if (!mounted) return;
         setOngoingApplication(null);
@@ -493,7 +548,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const renderInput = (label, key, placeholder = null, inputProps = {}) => (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput placeholderTextColor="#888"
+      <SafeTextInput placeholderTextColor="#888"
         value={values[key]}
         placeholder={placeholder || "Enter " + label}
         onChangeText={(text) => updateValue(key, text)}
@@ -516,7 +571,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const renderContactInput = (label, key, placeholder = "09XXXXXXXXX") => (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput placeholderTextColor="#888"
+      <SafeTextInput placeholderTextColor="#888"
         value={values[key]}
         placeholder={placeholder}
         keyboardType="phone-pad"
@@ -532,7 +587,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const renderNumericInput = (label, key, placeholder = null) => (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput placeholderTextColor="#888"
+      <SafeTextInput placeholderTextColor="#888"
         value={values[key]}
         placeholder={placeholder || "Enter " + label}
         keyboardType="number-pad"
@@ -546,7 +601,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const renderYearInput = (label, key, placeholder = "YYYY") => (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput placeholderTextColor="#888"
+      <SafeTextInput placeholderTextColor="#888"
         value={values[key]}
         placeholder={placeholder}
         keyboardType="number-pad"
@@ -638,7 +693,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
           <View style={styles.row}>
             <Text style={styles.label}>Name</Text>
-            <TextInput placeholderTextColor="#888"
+            <SafeTextInput placeholderTextColor="#888"
               style={[styles.input, fieldErrors["dynFamily_" + idx + "_name"] && styles.errorInput]}
               value={member.name}
               placeholder="Enter Name"
@@ -660,12 +715,132 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
           <View style={styles.row}>
             <Text style={styles.label}>Relationship</Text>
-            <TextInput placeholderTextColor="#888"
-              style={[styles.input, fieldErrors["dynFamily_" + idx + "_relationship"] && styles.errorInput]}
-              value={member.relationship}
-              placeholder="e.g. Brother, Sister, Guardian"
-              onChangeText={(text) => updateFamilyMember(idx, "relationship", text)}
-            />
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6, marginBottom: 6 }}>
+              {(() => {
+                const standardOptions = ["Siblings", "Aunt/Uncle", "Grandparents", "Cousin"];
+                const isStandard = standardOptions.includes(member.relationship);
+                const isOthersActive = !isStandard && member.relationship !== "";
+
+                return (
+                  <>
+                    {standardOptions.map((rel) => {
+                      const isSelected = member.relationship === rel;
+                      return (
+                        <TouchableOpacity
+                          key={rel}
+                          activeOpacity={0.7}
+                          onPress={() => updateFamilyMember(idx, "relationship", rel)}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            paddingHorizontal: 12,
+                            paddingVertical: 8,
+                            borderRadius: 8,
+                            borderWidth: 1.5,
+                            borderColor: isSelected ? "#4f5fc5" : "#d7def8",
+                            backgroundColor: isSelected ? "rgba(79, 95, 197, 0.08)" : "#fff",
+                            marginBottom: 4,
+                          }}
+                        >
+                          <View
+                            style={{
+                              width: 16,
+                              height: 16,
+                              borderRadius: 8,
+                              borderWidth: 2,
+                              borderColor: isSelected ? "#4f5fc5" : "#848baf",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              marginRight: 8,
+                            }}
+                          >
+                            {isSelected && (
+                              <View
+                                style={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: 4,
+                                  backgroundColor: "#4f5fc5",
+                                }}
+                              />
+                            )}
+                          </View>
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              fontWeight: "600",
+                              color: isSelected ? "#4f5fc5" : "#5b6095",
+                            }}
+                          >
+                            {rel}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => updateFamilyMember(idx, "relationship", "Others")}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 8,
+                        borderWidth: 1.5,
+                        borderColor: isOthersActive ? "#4f5fc5" : "#d7def8",
+                        backgroundColor: isOthersActive ? "rgba(79, 95, 197, 0.08)" : "#fff",
+                        marginBottom: 4,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: 8,
+                          borderWidth: 2,
+                          borderColor: isOthersActive ? "#4f5fc5" : "#848baf",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          marginRight: 8,
+                        }}
+                      >
+                        {isOthersActive && (
+                          <View
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 4,
+                              backgroundColor: "#4f5fc5",
+                            }}
+                          />
+                        )}
+                      </View>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: "600",
+                          color: isOthersActive ? "#4f5fc5" : "#5b6095",
+                        }}
+                      >
+                        Others
+                      </Text>
+                    </TouchableOpacity>
+
+                    {isOthersActive && (
+                      <View style={{ width: "100%", marginTop: 8 }}>
+                        <SafeTextInput placeholderTextColor="#888"
+                          style={[styles.input, fieldErrors["dynFamily_" + idx + "_relationship"] && styles.errorInput]}
+                          value={member.relationship === "Others" ? "" : member.relationship}
+                          placeholder="Specify Relationship (e.g. Nephew)"
+                          onChangeText={(text) => updateFamilyMember(idx, "relationship", text)}
+                        />
+                      </View>
+                    )}
+                  </>
+                );
+              })()}
+            </View>
             {fieldErrors["dynFamily_" + idx + "_relationship"] && (
               <Text style={styles.errorText}>{fieldErrors["dynFamily_" + idx + "_relationship"]}</Text>
             )}
@@ -674,7 +849,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {member.status !== "Deceased" && (
             <View style={styles.row}>
               <Text style={styles.label}>Contact No.</Text>
-              <TextInput placeholderTextColor="#888"
+              <SafeTextInput placeholderTextColor="#888"
                 style={[styles.input, fieldErrors["dynFamily_" + idx + "_contactNo"] && styles.errorInput]}
                 value={member.contactNo}
                 placeholder="09XXXXXXXXX"
@@ -703,7 +878,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             <>
               <View style={styles.row}>
                 <Text style={styles.label}>Occupation</Text>
-                <TextInput placeholderTextColor="#888"
+                <SafeTextInput placeholderTextColor="#888"
                   style={[styles.input, fieldErrors["dynFamily_" + idx + "_occupation"] && styles.errorInput]}
                   value={member.occupation}
                   placeholder="Enter Occupation"
@@ -716,7 +891,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
               <View style={styles.row}>
                 <Text style={styles.label}>Monthly Income</Text>
-                <TextInput placeholderTextColor="#888"
+                <SafeTextInput placeholderTextColor="#888"
                   style={[styles.input, fieldErrors["dynFamily_" + idx + "_income"] && styles.errorInput]}
                   value={member.income}
                   placeholder="Enter Monthly Income"
@@ -815,13 +990,19 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </View>
           </TouchableOpacity>
 
+          {fieldErrors.hasGuardian ? (
+            <Text style={{ color: "#ef4444", fontSize: 13, fontWeight: "600", marginBottom: 15, marginTop: -10 }}>
+              {fieldErrors.hasGuardian}
+            </Text>
+          ) : null}
+
           {values.hasGuardian && (
             <View>
               <Text style={styles.sectionHeader}>| Guardian's Information</Text>
               {renderInput("Guardian's Name", "guardianName", "Enter Guardian's Name")}
               {renderDatePicker("Birthday", "guardianBirthday")}
-              {renderSelect("Employment Status", "guardianStatus", ["Employed", "Unemployed", "Self-Employed", "Deceased"])}
-              {values.guardianStatus !== "Deceased" && renderContactInput("Contact Number", "guardianContact")}
+              {renderSelect("Employment Status", "guardianStatus", ["Employed", "Unemployed", "Self-Employed"])}
+              {renderContactInput("Contact Number", "guardianContact")}
               {requiresIncomeProof(values.guardianStatus) && (
                 <>
                   {renderInput("Occupation", "guardianOccupation", "Enter Occupation")}
@@ -979,13 +1160,19 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </View>
           </TouchableOpacity>
 
+          {fieldErrors.hasGuardian ? (
+            <Text style={{ color: "#ef4444", fontSize: 13, fontWeight: "600", marginBottom: 15, marginTop: -10 }}>
+              {fieldErrors.hasGuardian}
+            </Text>
+          ) : null}
+
           {values.hasGuardian && (
             <View>
               <Text style={styles.sectionHeader}>| Guardian's Information</Text>
               {renderInput("Guardian's Name", "guardianName", "Enter Guardian's Name")}
               {renderDatePicker("Birthday", "guardianBirthday")}
-              {renderSelect("Employment Status", "guardianStatus", ["Employed", "Unemployed", "Self-Employed", "Deceased"])}
-              {values.guardianStatus !== "Deceased" && renderContactInput("Contact Number", "guardianContact")}
+              {renderSelect("Employment Status", "guardianStatus", ["Employed", "Unemployed", "Self-Employed"])}
+              {renderContactInput("Contact Number", "guardianContact")}
               {requiresIncomeProof(values.guardianStatus) && (
                 <>
                   {renderInput("Occupation", "guardianOccupation", "Enter Occupation")}
@@ -1617,10 +1804,36 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
   const allDeclared = declarations.agree1 && declarations.agree2 && declarations.agree3;
 
-  if (isCheckingApplication || ongoingApplication) {
+  if (isCheckingApplication) {
     return (
       <ApplicationSubmissionGuard
-        isChecking={isCheckingApplication}
+        isChecking={true}
+        ongoingApplication={null}
+        onBack={() => navigation?.goBack?.()}
+        onViewApplications={() => navigation?.navigate?.("Application")}
+      />
+    );
+  }
+
+  if (isApplicationsClosed) {
+    return (
+      <ApplicationsClosedScreen
+        year={closedYear}
+        onBack={() => navigation?.goBack?.()}
+        onNavigateToNotifications={() => {
+          navigation?.navigate?.("Notifications");
+        }}
+        onNavigateToAccount={() => {
+          navigation?.navigate?.("Profile");
+        }}
+      />
+    );
+  }
+
+  if (ongoingApplication) {
+    return (
+      <ApplicationSubmissionGuard
+        isChecking={false}
         ongoingApplication={ongoingApplication}
         onBack={() => navigation?.goBack?.()}
         onViewApplications={() => navigation?.navigate?.("Application")}
@@ -1661,7 +1874,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
         ))}
       </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={{ paddingBottom: 120 }}>
         <Animated.View
           style={{
             opacity: stepAnim,

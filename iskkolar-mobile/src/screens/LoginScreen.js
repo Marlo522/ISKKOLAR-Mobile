@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
@@ -10,6 +9,7 @@ import {
   ScrollView,
   Image,
 } from "react-native";
+import SafeTextInput from "../components/SafeTextInput";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLogin } from "../hooks/useLogin";
@@ -48,7 +48,7 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.label}>Email</Text>
           <View style={[styles.inputWrapper, errors.email && styles.inputError]}>
             <Ionicons name="mail-outline" size={18} color="#999" style={styles.icon} />
-            <TextInput placeholderTextColor="#888"
+            <SafeTextInput placeholderTextColor="#888"
               value={form.email}
               onChangeText={(v) => updateField("email", v)}
               placeholder="Enter your email"
@@ -66,7 +66,7 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.label}>Password</Text>
           <View style={[styles.inputWrapper, errors.password && styles.inputError]}>
             <Ionicons name="lock-closed-outline" size={18} color="#999" style={styles.icon} />
-            <TextInput placeholderTextColor="#888"
+            <SafeTextInput placeholderTextColor="#888"
               value={form.password}
               onChangeText={(v) => updateField("password", v)}
               placeholder="Enter your password"

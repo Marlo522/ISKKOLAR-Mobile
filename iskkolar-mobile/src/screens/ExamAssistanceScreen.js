@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert, Modal, Animated } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Alert, Modal, Animated } from "react-native";
+import SafeTextInput from "../components/SafeTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
@@ -10,6 +11,13 @@ import { useExamAssistance } from "../hooks/useExamAssistance";
 export default function ExamAssistanceScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(-1); // -1 is the initial landing page
+  const scrollViewRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: 0, animated: true });
+    }
+  }, [step, completeStage]);
   const [values, setValues] = useState({
     assistanceType: "",
     examType: "",
@@ -125,7 +133,7 @@ export default function ExamAssistanceScreen({ navigation }) {
   const renderInput = (label, key, placeholder = null) => (
     <View style={[styles.inputGroup, fieldErrors[key] && styles.rowWithError]}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput placeholderTextColor="#888"
+      <SafeTextInput placeholderTextColor="#888"
         value={values[key]}
         placeholder={placeholder || `Enter ${label}`}
         onChangeText={(text) => {
@@ -404,7 +412,7 @@ export default function ExamAssistanceScreen({ navigation }) {
 
               <View style={styles.row}>
                 <Text style={styles.label}>Notes (optional)</Text>
-                <TextInput placeholderTextColor="#888"
+                <SafeTextInput placeholderTextColor="#888"
                   style={[styles.input, { height: 80, textAlignVertical: 'top', paddingTop: 10 }]}
                   multiline
                   placeholder="Add context about your exam, timelines, or special circumstances."
@@ -592,7 +600,7 @@ export default function ExamAssistanceScreen({ navigation }) {
         </View>
       )}
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 60 }}>
+      <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={{ paddingBottom: 60 }}>
         <Animated.View style={{ opacity: stepAnim, transform: [{ translateY: stepAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
           {renderStep()}
         </Animated.View>

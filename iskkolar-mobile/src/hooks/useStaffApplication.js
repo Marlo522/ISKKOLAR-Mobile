@@ -47,6 +47,51 @@ const mapApiFieldToUiKey = (field) => {
   return FIELD_MAP[normalized] || normalized;
 };
 
+const parseDateString = (dateValue) => {
+  if (!dateValue) return null;
+  if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) {
+    return dateValue;
+  }
+  
+  const text = String(dateValue).trim();
+  
+  // 1. Check for ISO or YYYY-MM-DD format (optionally with time/timezone)
+  const isoMatch = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})([ T]|$)/.exec(text);
+  if (isoMatch) {
+    const year = Number(isoMatch[1]);
+    const month = Number(isoMatch[2]) - 1;
+    const day = Number(isoMatch[3]);
+    return new Date(year, month, day);
+  }
+  
+  // 2. Check for DD/MM/YYYY or MM/DD/YYYY format
+  const slashMatch = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/.exec(text);
+  if (slashMatch) {
+    const p1 = Number(slashMatch[1]);
+    const p2 = Number(slashMatch[2]);
+    const year = Number(slashMatch[3]);
+    
+    let month = p1 - 1;
+    let day = p2;
+    
+    // Auto-detect DD/MM vs MM/DD if one of them is greater than 12
+    if (p1 > 12 && p2 <= 12) {
+      month = p2 - 1;
+      day = p1;
+    }
+    
+    return new Date(year, month, day);
+  }
+  
+  // 3. Fallback to native JS Date parsing if it yields a valid date
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed;
+  }
+  
+  return null;
+};
+
 const normalizeApiErrorShape = (err) => ({
   status: err?.status,
   message: err?.message || "An unexpected error occurred.",
@@ -210,10 +255,27 @@ export const useStaffApplication = (isChildDesignation) => {
             preflightErrors.tertiaryGwa = "Tertiary GWA is required.";
         }
 
-        if (!values.termStartDate || values.termStartDate.trim() === "")
+        if (!values.termStartDate || values.termStartDate.trim() === "") {
           preflightErrors.termStartDate = "Term Start Date is required.";
-        if (!values.termEndDate || values.termEndDate.trim() === "")
+        } else {
+          const start = parseDateString(values.termStartDate);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          if (start && start < today) {
+            preflightErrors.termStartDate = "Term Start Date cannot be in the past.";
+          }
+        }
+        if (!values.termEndDate || values.termEndDate.trim() === "") {
           preflightErrors.termEndDate = "Term End Date is required.";
+        }
+
+        if (values.termStartDate && values.termEndDate) {
+          const start = parseDateString(values.termStartDate);
+          const end = parseDateString(values.termEndDate);
+          if (start && end && end <= start) {
+            preflightErrors.termEndDate = "Term End Date must be later than Term Start Date.";
+          }
+        }
 
         const checkYear = (val, key, label) => {
           if (!val) return;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useContext } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Animated, Alert, TextInput } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Animated, Alert } from "react-native";
+import SafeTextInput from "../components/SafeTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
@@ -29,6 +30,13 @@ export default function GradeComplianceScreen({ navigation }) {
   const [successMessage, setSuccessMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState({ gradeReport: "", cor: "", term: "" });
   const [step, setStep] = useState(1);
+  const scrollViewRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: 0, animated: true });
+    }
+  }, [step, completeStage, selectedTermId]);
   const [isGraduate, setIsGraduate] = useState(false);
 
   const resolvedIsGraduate = isGraduate || user?.is_graduate || user?.isGraduate || false;
@@ -207,13 +215,38 @@ export default function GradeComplianceScreen({ navigation }) {
 
   const parseStringToDate = (str) => {
     if (!str) return null;
-    const parts = str.split('/');
-    if (parts.length !== 3) return null;
-    const m = parseInt(parts[0], 10);
-    const d = parseInt(parts[1], 10);
-    const y = parseInt(parts[2], 10);
-    if (isNaN(m) || isNaN(d) || isNaN(y)) return null;
-    return new Date(y, m - 1, d);
+    const cleaned = String(str).trim();
+    if (!cleaned) return null;
+
+    // 1. ISO format (e.g. "YYYY-MM-DD" or with time)
+    if (cleaned.includes("-")) {
+      const parts = cleaned.split("T")[0].split("-");
+      if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10);
+        const d = parseInt(parts[2], 10);
+        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+          return new Date(y, m - 1, d);
+        }
+      }
+    }
+
+    // 2. Slash format (e.g. "MM/DD/YYYY" or "M/D/YYYY")
+    if (cleaned.includes("/")) {
+      const parts = cleaned.split("/");
+      if (parts.length === 3) {
+        const m = parseInt(parts[0], 10);
+        const d = parseInt(parts[1], 10);
+        const y = parseInt(parts[2], 10);
+        if (!isNaN(m) && !isNaN(d) && !isNaN(y)) {
+          return new Date(y, m - 1, d);
+        }
+      }
+    }
+
+    // 3. Fallback to standard JS parsing
+    const fallback = new Date(cleaned);
+    return isNaN(fallback.getTime()) ? null : fallback;
   };
 
   const handleSubmit = async () => {
@@ -227,9 +260,9 @@ export default function GradeComplianceScreen({ navigation }) {
       gwa: gwa ? "" : "GWA is required.",
     };
 
-    if (!isGraduating && nextTermStartDate && nextTermEndDate) {
-      const startD = parseStringToDate(nextTermStartDate);
-      const endD = parseStringToDate(nextTermEndDate);
+    if (!isGraduating) {
+      const startD = nextTermStartDate ? parseStringToDate(nextTermStartDate) : null;
+      const endD = nextTermEndDate ? parseStringToDate(nextTermEndDate) : null;
       
       const today = new Date();
       today.setDate(today.getDate() - 1); // 1-day lag buffer
@@ -240,6 +273,27 @@ export default function GradeComplianceScreen({ navigation }) {
       }
       if (startD && endD && endD <= startD) {
         nextFieldErrors.nextTermEndDate = "End date must be after start date.";
+      }
+
+      // Validate dates against the Academic Year
+      const acadYearStr = academicYear || "2025-2026";
+      const years = acadYearStr.match(/\d{4}/g);
+      if (years && years.length >= 1) {
+        const startYear = parseInt(years[0], 10);
+        const endYear = years.length >= 2 ? parseInt(years[1], 10) : startYear;
+
+        if (startD && !nextFieldErrors.nextTermStartDate) {
+          const sYear = startD.getFullYear();
+          if (sYear < startYear || sYear > endYear) {
+            nextFieldErrors.nextTermStartDate = `Start date must be between ${startYear} and ${endYear} (${acadYearStr} academic year).`;
+          }
+        }
+        if (endD && !nextFieldErrors.nextTermEndDate) {
+          const eYear = endD.getFullYear();
+          if (eYear < startYear || eYear > endYear) {
+            nextFieldErrors.nextTermEndDate = `End date must be between ${startYear} and ${endYear} (${acadYearStr} academic year).`;
+          }
+        }
       }
     }
 
@@ -595,7 +649,7 @@ export default function GradeComplianceScreen({ navigation }) {
             {renderUpload("Grade Report", gradeReportFile, "gradeReport", fieldErrors.gradeReport)}
             <View style={styles.row}>
               <Text style={styles.label}>General Weighted Average (GWA)</Text>
-              <TextInput
+              <SafeTextInput
                 style={[styles.input, fieldErrors.gwa && styles.errorInput]}
                 placeholder="e.g., 1.75 or 88.50"
                 keyboardType="numeric"
@@ -671,7 +725,7 @@ export default function GradeComplianceScreen({ navigation }) {
         </View>
       )}
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 60, paddingTop: (!selectedTermId || step === 1) ? 20 : 0 }}>
+      <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={{ paddingBottom: 60, paddingTop: (!selectedTermId || step === 1) ? 20 : 0 }}>
         <Animated.View style={{ opacity: stepAnim, transform: [{ translateY: stepAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
           {renderContent()}
         </Animated.View>

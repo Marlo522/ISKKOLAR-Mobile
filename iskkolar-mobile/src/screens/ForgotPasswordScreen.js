@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import {
   View,
   Text,
-  TextInput,
+  
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
+import SafeTextInput from "../components/SafeTextInput";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AuthContext } from "../context/AuthContext";
@@ -88,7 +89,7 @@ export default function ForgotPasswordScreen({ navigation }) {
       <View style={styles.field}>
         <Text style={styles.label}>Email Address</Text>
         <View style={[styles.inputWrapper, error && styles.inputError]}>
-          <TextInput placeholderTextColor="#888"
+          <SafeTextInput placeholderTextColor="#888"
             value={email}
             onChangeText={(value) => {
               setEmail(value);

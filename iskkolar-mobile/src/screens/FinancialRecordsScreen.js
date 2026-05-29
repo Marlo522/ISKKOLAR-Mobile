@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useContext, useCallback } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Platform, Alert, Animated, Modal } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Alert, Animated, Modal } from "react-native";
+import SafeTextInput from "../components/SafeTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
@@ -16,7 +17,15 @@ export default function FinancialRecordsScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(-1); // -1: Landing, 10: Other Study Needs, 20: Upload Receipt
+  const scrollViewRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: 0, animated: true });
+    }
+  }, [step, completeStage, activeTab]);
   const [activeTab, setActiveTab] = useState("disbursements"); // "disbursements" or "proofs"
+  const [showAllTransactions, setShowAllTransactions] = useState(false);
   const [values, setValues] = useState({
     itemDescription: "",
     subject: "",
@@ -469,7 +478,7 @@ export default function FinancialRecordsScreen({ navigation }) {
   const renderInput = (label, key, placeholder = null, keyboardType = "default") => (
     <View style={[styles.row, fieldErrors[key] && styles.rowWithError]}>
       <Text style={styles.label}>{label} <Text style={{color: 'red'}}>*</Text></Text>
-      <TextInput placeholderTextColor="#888"
+      <SafeTextInput placeholderTextColor="#888"
         value={values[key]}
         placeholder={placeholder || `Enter ${label}`}
         keyboardType={keyboardType}
@@ -502,7 +511,7 @@ export default function FinancialRecordsScreen({ navigation }) {
     return (
       <View style={[styles.row, isValueState && fieldErrors[key] && styles.rowWithError]}>
         <Text style={styles.label}>{label} {isValueState && <Text style={{color: 'red'}}>*</Text>}</Text>
-        <TextInput placeholderTextColor="#888"
+        <SafeTextInput placeholderTextColor="#888"
           value={val}
           placeholder={isValueState ? placeholder : key}
           multiline
@@ -642,6 +651,15 @@ export default function FinancialRecordsScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
+            <TouchableOpacity style={[styles.actionBlock, { backgroundColor: '#29d0a5', marginTop: 0, marginBottom: 20 }]} onPress={() => setStep(20)}>
+              <Ionicons name="receipt-outline" size={30} color="#fff" />
+              <View style={styles.actionBlockTextCol}>
+                <Text style={styles.actionBlockTitle}>Submit Proof of Expense</Text>
+                <Text style={styles.actionBlockSub}>Upload receipts and details</Text>
+              </View>
+              <Ionicons name="arrow-forward" size={24} color="#fff" />
+            </TouchableOpacity>
+
             {activeTab === 'disbursements' ? (
               <>
                 <View style={styles.sectionTitleBlock}>
@@ -662,42 +680,57 @@ export default function FinancialRecordsScreen({ navigation }) {
                     <Text style={{ color: '#888', fontWeight: '600' }}>No financial records found.</Text>
                   </View>
                 ) : (
-                  transactions.map((tx) => {
-                    const statusStyle = getStatusStyle(tx.status);
-                    return (
-                      <View key={tx.id} style={styles.txCard}>
-                        <View style={styles.txHeaderRow}>
-                          <View style={[styles.txIconBox, { backgroundColor: statusStyle.bg }]}>
-                            <Ionicons name="cash" size={24} color={statusStyle.text} />
+                  <>
+                    {(showAllTransactions ? transactions : transactions.slice(0, 3)).map((tx) => {
+                      const statusStyle = getStatusStyle(tx.status);
+                      return (
+                        <View key={tx.id} style={styles.txCard}>
+                          <View style={styles.txHeaderRow}>
+                            <View style={[styles.txIconBox, { backgroundColor: statusStyle.bg }]}>
+                              <Ionicons name="cash" size={24} color={statusStyle.text} />
+                            </View>
+                            <View style={styles.txHeaderTextCol}>
+                              <Text style={styles.txHeaderTitle}>{tx.title}</Text>
+                              <Text style={styles.txHeaderSub}>{tx.period}</Text>
+                            </View>
+                            <View style={[styles.statusPill, { backgroundColor: statusStyle.bg, height: 26 }]}>
+                              <Text style={[styles.statusPillText, { color: statusStyle.text, fontSize: 11 }]}>{tx.status}</Text>
+                            </View>
                           </View>
-                          <View style={styles.txHeaderTextCol}>
-                            <Text style={styles.txHeaderTitle}>{tx.title}</Text>
-                            <Text style={styles.txHeaderSub}>{tx.period}</Text>
-                          </View>
-                          <View style={[styles.statusPill, { backgroundColor: statusStyle.bg, height: 26 }]}>
-                            <Text style={[styles.statusPillText, { color: statusStyle.text, fontSize: 11 }]}>{tx.status}</Text>
+                          
+                          <View style={styles.lineDivider} />
+                          
+                          <View style={styles.txFooterRow}>
+                            <View style={styles.txFooterCol}>
+                              <Text style={styles.txFooterLabel}>Date</Text>
+                              <Text style={styles.txFooterValue}>{formatDate(tx.date)}</Text>
+                            </View>
+                            <View style={styles.txFooterCol}>
+                              <Text style={styles.txFooterLabel}>Amount</Text>
+                              <Text style={[styles.txFooterValue, { color: '#0d7c47', fontWeight: '800' }]}>{formatCurrency(tx.amount)}</Text>
+                            </View>
+                            <View style={styles.txFooterColRight}>
+                              <Text style={styles.txFooterLabel}>Type</Text>
+                              <Text style={styles.txFooterValue}>{tx.type || "Disbursement"}</Text>
+                            </View>
                           </View>
                         </View>
-                        
-                        <View style={styles.lineDivider} />
-                        
-                        <View style={styles.txFooterRow}>
-                          <View style={styles.txFooterCol}>
-                            <Text style={styles.txFooterLabel}>Date</Text>
-                            <Text style={styles.txFooterValue}>{formatDate(tx.date)}</Text>
-                          </View>
-                          <View style={styles.txFooterCol}>
-                            <Text style={styles.txFooterLabel}>Amount</Text>
-                            <Text style={[styles.txFooterValue, { color: '#0d7c47', fontWeight: '800' }]}>{formatCurrency(tx.amount)}</Text>
-                          </View>
-                          <View style={styles.txFooterColRight}>
-                            <Text style={styles.txFooterLabel}>Type</Text>
-                            <Text style={styles.txFooterValue}>{tx.type || "Disbursement"}</Text>
-                          </View>
-                        </View>
-                      </View>
-                    );
-                  })
+                      );
+                    })}
+
+                    {transactions.length > 3 && (
+                      <TouchableOpacity
+                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, marginBottom: 8, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e4e8f8' }}
+                        onPress={() => setShowAllTransactions(!showAllTransactions)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#5b5f97', marginRight: 6 }}>
+                          {showAllTransactions ? 'Show Less' : `Show All (${transactions.length})`}
+                        </Text>
+                        <Ionicons name={showAllTransactions ? 'chevron-up' : 'chevron-down'} size={18} color="#5b5f97" />
+                      </TouchableOpacity>
+                    )}
+                  </>
                 )}
               </>
             ) : (
@@ -822,20 +855,6 @@ export default function FinancialRecordsScreen({ navigation }) {
                 )}
               </>
             )}
-
-            <View style={styles.sectionTitleBlock}>
-              <Text style={styles.sectionTitle}>Action Center</Text>
-              <Text style={styles.sectionSubtitle}>For study-related needs</Text>
-            </View>
-
-            <TouchableOpacity style={[styles.actionBlock, { backgroundColor: '#29d0a5', marginTop: 0 }]} onPress={() => setStep(20)}>
-              <Ionicons name="receipt-outline" size={30} color="#fff" />
-              <View style={styles.actionBlockTextCol}>
-                <Text style={styles.actionBlockTitle}>Submit Proof of Expense</Text>
-                <Text style={styles.actionBlockSub}>Upload receipts and details</Text>
-              </View>
-              <Ionicons name="arrow-forward" size={24} color="#fff" />
-            </TouchableOpacity>
           </View>
         );
 
@@ -927,7 +946,7 @@ export default function FinancialRecordsScreen({ navigation }) {
 
                 <Text style={styles.label}>Amount (Php) <Text style={{color: 'red'}}>*</Text></Text>
                 <View style={[styles.row, fieldErrors[`receipt_amount_${idx}`] && styles.rowWithError]}>
-                  <TextInput
+                  <SafeTextInput
                     placeholderTextColor="#888"
                     value={item.amount}
                     placeholder="e.g. 500"
@@ -943,7 +962,7 @@ export default function FinancialRecordsScreen({ navigation }) {
                 
                 <Text style={styles.label}>Additional Notes (Optional)</Text>
                 <View style={styles.row}>
-                  <TextInput placeholderTextColor="#888"
+                  <SafeTextInput placeholderTextColor="#888"
                     value={item.additionalNotes}
                     placeholder="e.g. Bought at National Bookstore..."
                     multiline
@@ -1018,7 +1037,7 @@ export default function FinancialRecordsScreen({ navigation }) {
         </View>
       )}
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 60 }}>
+      <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={{ paddingBottom: 60 }}>
         <Animated.View style={{ opacity: stepAnim, transform: [{ translateY: stepAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
           {renderStep()}
         </Animated.View>

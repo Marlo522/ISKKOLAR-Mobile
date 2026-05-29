@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useMemo } from "react";
 import {
   View,
   Text,
-  TextInput,
+  
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
+import SafeTextInput from "../components/SafeTextInput";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AuthContext } from "../context/AuthContext";
@@ -150,7 +151,7 @@ export default function ResetPasswordScreen({ route, navigation }) {
               <View style={styles.field}>
                 <Text style={styles.label}>New Password</Text>
                 <View style={[styles.inputWrapper, error && styles.inputError]}>
-                  <TextInput placeholderTextColor="#888"
+                  <SafeTextInput placeholderTextColor="#888"
                     value={form.password}
                     onChangeText={(val) => setForm(p => ({ ...p, password: val }))}
                     placeholder="Enter new password"
@@ -168,7 +169,7 @@ export default function ResetPasswordScreen({ route, navigation }) {
               <View style={styles.field}>
                 <Text style={styles.label}>Confirm New Password</Text>
                 <View style={[styles.inputWrapper, error && styles.inputError]}>
-                  <TextInput placeholderTextColor="#888"
+                  <SafeTextInput placeholderTextColor="#888"
                     value={form.confirmPassword}
                     onChangeText={(val) => setForm(p => ({ ...p, confirmPassword: val }))}
                     placeholder="Confirm new password"
