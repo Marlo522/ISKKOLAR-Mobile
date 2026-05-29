@@ -12,6 +12,7 @@ import { financialRecordsService } from "../services/financialRecordsService";
 import { getFinancialAssistanceApplications } from "../services/financialAssistanceService";
 import { getScholarDashboardSummary } from "../services/scholarDashboardService";
 import { getGradeComplianceTerms } from "../services/gradeComplianceService";
+import ApplicationResultState from "../components/ApplicationResultState";
 
 export default function FinancialRecordsScreen({ navigation }) {
   const { user } = useContext(AuthContext);
@@ -40,6 +41,7 @@ export default function FinancialRecordsScreen({ navigation }) {
   ]);
   
   const [submissionResult, setSubmissionResult] = useState(null);
+  const [aiCheckingEnabled, setAiCheckingEnabled] = useState(true);
   const [expandedApp, setExpandedApp] = useState(null); // Track which application has AI summary expanded
   
   const [supportingDocument, setSupportingDocument] = useState(null);
@@ -455,6 +457,7 @@ export default function FinancialRecordsScreen({ navigation }) {
     
     try {
       const res = await submitApplication(values, receiptItems, supportingDocument);
+      setAiCheckingEnabled(res?.ai_checking_enabled ?? res?.data?.ai_checking_enabled ?? true);
       setSubmissionResult(res);
       setCompleteStage("success");
     } catch (err) {
@@ -545,35 +548,20 @@ export default function FinancialRecordsScreen({ navigation }) {
     if (completeStage === "success") {
       const aiSummary = submissionResult?.data?.aiSummary || submissionResult?.aiSummary;
       return (
-        <View style={styles.centered}>
-          <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-            <Ionicons name="checkmark-circle" size={120} color="#29d0a5" />
-          </Animated.View>
-          <Text style={[styles.completeText, { marginTop: 8 }]}>Receipt Uploaded!</Text>
-          <Text style={{ textAlign: "center", color: "#6b72aa", paddingHorizontal: 30, marginBottom: aiSummary ? 20 : 30, fontSize: 16, lineHeight: 22 }}>
-            Your receipt has been successfully submitted for processing.
-          </Text>
-
-          {aiSummary && (
-            <View style={styles.aiSummaryCard}>
-              <View style={styles.aiHeader}>
-                <Ionicons name="sparkles" size={18} color="#5b5f97" />
-                <Text style={styles.aiTitle}>AI Analysis & Advice</Text>
-              </View>
-              <Text style={styles.aiText}>{aiSummary}</Text>
-            </View>
-          )}
-
-          <TouchableOpacity style={styles.submitBtnOk} onPress={() => {
+        <ApplicationResultState
+          aiCheckingEnabled={aiCheckingEnabled}
+          successTitle="Receipt Uploaded!"
+          successMessage="Your receipt has been successfully submitted for processing."
+          aiSummary={aiSummary}
+          onViewApplications={() => {
              setStep(-1);
              setCompleteStage("none");
              setSubmissionResult(null);
              fetchApplications(); 
              navigation.navigate("ScholarDashboardMain");
-          }}>
-            <Text style={styles.submitBtnOkText}>Go to Dashboard</Text>
-          </TouchableOpacity>
-        </View>
+          }}
+          viewApplicationsText="Go to Dashboard"
+        />
       );
     }
 

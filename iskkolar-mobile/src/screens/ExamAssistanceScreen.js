@@ -7,6 +7,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import FormDatePicker from "../components/FormDatePicker";
 import { useExamAssistance } from "../hooks/useExamAssistance";
+import ApplicationResultState from "../components/ApplicationResultState";
 
 export default function ExamAssistanceScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -38,6 +39,7 @@ export default function ExamAssistanceScreen({ navigation }) {
 
   const [completeStage, setCompleteStage] = useState("none");
   const [aiSummary, setAiSummary] = useState(null);
+  const [aiCheckingEnabled, setAiCheckingEnabled] = useState(true);
   const [confirmed, setConfirmed] = useState(false);
 
   const [selectorVisible, setSelectorVisible] = useState(false);
@@ -120,6 +122,7 @@ export default function ExamAssistanceScreen({ navigation }) {
 
     try {
       const result = await submitExamAssistanceApplication(values, uploadFiles);
+      setAiCheckingEnabled(result?.ai_checking_enabled ?? result?.data?.ai_checking_enabled ?? true);
       if (result?.aiSummary) {
         setAiSummary(result.aiSummary);
       }
@@ -289,58 +292,14 @@ export default function ExamAssistanceScreen({ navigation }) {
   const renderStep = () => {
     if (completeStage === "preAssessment") {
       return (
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 60, paddingTop: 24 }}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Success Banner */}
-          <View style={styles.successBanner}>
-            <Animated.View style={[styles.successIconWrap, { transform: [{ scale: scaleAnim }] }]}>
-              <Ionicons name="checkmark-circle" size={36} color="#2cae57" />
-            </Animated.View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.successTitle}>Application Submitted</Text>
-              <Text style={styles.successSubtitle}>
-                Your documents will be reviewed and you'll be notified via email.
-              </Text>
-            </View>
-          </View>
-
-          {/* AI Feedback Panel */}
-          {aiSummary ? (
-            <View style={styles.aiPanel}>
-              <View style={styles.aiPanelHeader}>
-                <Text style={styles.aiPanelEmoji}>🤖</Text>
-                <Text style={styles.aiPanelTitle}>AI Qualification Report</Text>
-              </View>
-              <View style={styles.aiSummaryCard}>
-                <Text style={styles.aiSummaryLabel}>AI EVALUATION SUMMARY</Text>
-                <Text style={styles.aiSummaryText}>"{aiSummary}"</Text>
-                <View style={styles.aiSummaryFooter}>
-                  <Text style={styles.aiSummaryMeta}>Automated Analysis</Text>
-                  <Text style={styles.aiSummaryMeta}>
-                    Evaluated at {new Date().toLocaleTimeString()}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.aiPanelPending}>
-              <Ionicons name="time-outline" size={24} color="#848baf" />
-              <Text style={styles.aiPanelPendingText}>
-                AI evaluation is being processed. Check back shortly.
-              </Text>
-            </View>
-          )}
-
-          <TouchableOpacity
-            style={styles.returnHomeBtn}
-            onPress={() => navigation.navigate("ScholarDashboardMain")}
-          >
-            <Text style={styles.returnHomeBtnText}>Return Home</Text>
-          </TouchableOpacity>
-        </ScrollView>
+        <ApplicationResultState
+          aiCheckingEnabled={aiCheckingEnabled}
+          successTitle="Application Submitted"
+          successMessage="Your documents will be reviewed and you'll be notified via email."
+          aiSummary={aiSummary}
+          onViewApplications={() => navigation.navigate("ScholarDashboardMain")}
+          viewApplicationsText="Return Home"
+        />
       );
     }
 

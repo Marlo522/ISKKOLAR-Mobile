@@ -16,6 +16,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { AuthContext } from '../context/AuthContext';
 import { submitVocationalCompletion, getMyVocationalCompletion } from '../services/vocationalDashboardService';
 import { getScholarDashboardSummary } from '../services/scholarDashboardService';
+import ApplicationResultState from '../components/ApplicationResultState';
 
 // Format display date helper matching the web implementation
 const formatDisplayDate = (value) => {
@@ -41,6 +42,7 @@ export default function VocationalCompletionScreen({ navigation, route }) {
   const [files, setFiles] = useState({ completion_certificate: null, transcript_of_records: null, other: null });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [aiCheckingEnabled, setAiCheckingEnabled] = useState(true);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -149,6 +151,7 @@ export default function VocationalCompletionScreen({ navigation, route }) {
       };
 
       const res = await submitVocationalCompletion(payload, files);
+      setAiCheckingEnabled(res?.ai_checking_enabled ?? res?.data?.ai_checking_enabled ?? true);
       setExistingSubmission(res?.data || res);
       setSubmitted(true);
     } catch (err) {
@@ -300,18 +303,13 @@ export default function VocationalCompletionScreen({ navigation, route }) {
           <View style={{ width: 40 }} />
         </View>
 
-        <View style={styles.successCentered}>
-          <View style={styles.successIconOuter}>
-            <Ionicons name="checkmark-circle" size={80} color="#16a34a" />
-          </View>
-          <Text style={styles.successTitle}>Submitted Successfully</Text>
-          <Text style={styles.successSubtitle}>
-            Your certification of completion has been submitted for staff review.
-          </Text>
-          <TouchableOpacity style={styles.returnBtnLarge} onPress={() => navigation.goBack()}>
-            <Text style={styles.returnBtnText}>Return to Dashboard</Text>
-          </TouchableOpacity>
-        </View>
+        <ApplicationResultState
+          aiCheckingEnabled={aiCheckingEnabled}
+          successTitle="Submitted Successfully"
+          successMessage="Your certification of completion has been submitted for staff review."
+          onViewApplications={() => navigation.goBack()}
+          viewApplicationsText="Return to Dashboard"
+        />
       </View>
     );
   }

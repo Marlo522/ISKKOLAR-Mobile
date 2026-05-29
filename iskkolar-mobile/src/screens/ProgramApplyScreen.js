@@ -24,6 +24,7 @@ import ApplicationSubmissionGuard from "../components/ApplicationSubmissionGuard
 import { checkAnyOngoingApplication } from "../services/applicationGuardService";
 import api from "../services/api";
 import ApplicationsClosedScreen from "./ApplicationsClosedScreen";
+import ApplicationResultState from "../components/ApplicationResultState";
 
 const infoFields = {
   educPath: "Tertiary",
@@ -1622,161 +1623,21 @@ export default function ProgramApplyScreen({ navigation, route }) {
   );
 
   const renderQualification = () => {
-    const reportData = qualificationOutcome?.qualification_report;
-    const detailedAiSummary = reportData?.extracted_data?.ai_detailed_summary;
-
-    // Filter out internal/fraud rules
-    const qualificationRuleEntries = Object.entries(reportData?.rule_results || {}).filter(
-      ([ruleCode]) => !['fraud_score', 'confidence_score', 'income_doc_match', 'income_documents_valid'].some(exclude => ruleCode.toLowerCase().includes(exclude))
-    );
-
-    const isQualified = reportData?.final_result === "qualified";
-    const isReview = reportData?.final_result !== "qualified" && reportData?.final_result !== "not_qualified";
-
-    const finalStatusText =
-      isQualified ? "Qualified" :
-        reportData?.final_result === "not_qualified" ? "Not Qualified" :
-          "For Review of Staff";
-
-    const statusColor = isQualified ? "#1a9e6a" : (isReview ? "#e8a030" : "#e03a3a");
-    const statusBg = isQualified ? "#e6fff5" : (isReview ? "#fff7e6" : "#fff0f0");
+    const aiCheckingEnabled = qualificationOutcome?.ai_checking_enabled ?? true;
 
     return (
-      <View style={{ paddingBottom: 40 }}>
-        {/* Success Banner */}
-        <View style={{ backgroundColor: "#eef0ff", borderRadius: 12, padding: 16, marginBottom: 20, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: "#dbe2f6" }}>
-          <View style={{ backgroundColor: "#4f5fc5", width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center", marginRight: 14 }}>
-            <Ionicons name="checkmark-done" size={20} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: "#2d3a7c", fontWeight: "900", fontSize: 16, marginBottom: 2 }}>Evaluation Complete</Text>
-            <Text style={{ color: "#5b6095", fontSize: 13, lineHeight: 18 }}>Your application has been successfully parsed and evaluated by our AI.</Text>
-          </View>
-        </View>
-
-        {/* AI Report Card */}
-        <View style={[styles.reviewCard, { padding: 0, overflow: "hidden", borderWidth: 1, borderColor: "#dbe2f6", backgroundColor: "#f7f8ff" }]}>
-          <View style={{ padding: 18, borderBottomWidth: 1, borderBottomColor: "#eff1f8" }}>
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-              <Ionicons name="sparkles" size={20} color="#4f5ec4" style={{ marginRight: 8 }} />
-              <Text style={{ fontSize: 18, fontWeight: "900", color: "#3d4fa0" }}>AI Qualification Report</Text>
-            </View>
-            <Text style={{ fontSize: 14, color: "#6b7280", lineHeight: 20 }}>
-              {reportData?.summary || 'No qualification report summary available.'}
-            </Text>
-          </View>
-
-          <View style={{ padding: 18 }}>
-            {detailedAiSummary && (
-              <View style={{ marginBottom: 20, borderRadius: 12, borderWidth: 1, borderColor: "#e5e7eb", backgroundColor: "#fff", padding: 16 }}>
-                <Text style={{ fontSize: 16, fontWeight: "800", color: "#3d4076", marginBottom: 12 }}>AI Smart Evaluation</Text>
-
-                <View style={{ marginBottom: 16 }}>
-                  <Text style={{ fontSize: 14, fontWeight: "700", color: "#047857", marginBottom: 8 }}>Strengths</Text>
-                  {(detailedAiSummary?.strengths || []).map((item, index) => (
-                    <View key={`strength-${index}`} style={{ flexDirection: 'row', marginBottom: 6 }}>
-                      <Text style={{ color: "#047857", marginRight: 6 }}>•</Text>
-                      <Text style={{ fontSize: 14, color: "#374151", flex: 1 }}>{item}</Text>
-                    </View>
-                  ))}
-                </View>
-
-                <View style={{ marginBottom: 16 }}>
-                  <Text style={{ fontSize: 14, fontWeight: "700", color: "#be123c", marginBottom: 8 }}>Red Flags</Text>
-                  {(detailedAiSummary?.red_flags || []).map((item, index) => (
-                    <View key={`red-flag-${index}`} style={{ flexDirection: 'row', marginBottom: 6 }}>
-                      <Text style={{ color: "#be123c", marginRight: 6 }}>•</Text>
-                      <Text style={{ fontSize: 14, color: "#374151", flex: 1 }}>{item}</Text>
-                    </View>
-                  ))}
-                </View>
-
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                  <View style={{ width: '48%', backgroundColor: "#f9fafb", borderRadius: 8, padding: 12, marginBottom: 10 }}>
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: "#6b7280", textTransform: "uppercase", marginBottom: 4 }}>Summary</Text>
-                    <Text style={{ fontSize: 13, color: "#374151" }}>{detailedAiSummary?.summary || 'No summary available.'}</Text>
-                  </View>
-                  <View style={{ width: '48%', backgroundColor: "#f9fafb", borderRadius: 8, padding: 12, marginBottom: 10 }}>
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: "#6b7280", textTransform: "uppercase", marginBottom: 4 }}>Recommendation</Text>
-                    <Text style={{ fontSize: 13, color: "#374151" }}>{detailedAiSummary?.recommendation || 'No recommendation available.'}</Text>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {qualificationRuleEntries.length === 0 && !detailedAiSummary && (
-              <View style={{ alignItems: "center", paddingVertical: 20 }}>
-                <Ionicons name="document-text-outline" size={48} color="#e4e8f6" />
-                <Text style={{ color: "#8a94b5", marginTop: 10, fontWeight: "600" }}>Application submitted successfully.</Text>
-              </View>
-            )}
-
-            {qualificationRuleEntries.length > 0 && (
-              <View style={{ borderRadius: 12, borderWidth: 1, borderColor: "#e5e7eb", backgroundColor: "#fff", overflow: "hidden" }}>
-                {/* Table Header */}
-                <View style={{ flexDirection: "row", backgroundColor: "#f9fafb", borderBottomWidth: 1, borderBottomColor: "#e5e7eb", paddingVertical: 10, paddingHorizontal: 12 }}>
-                  <Text style={{ flex: 1.5, fontSize: 13, fontWeight: "700", color: "#4b5563" }}>Rule</Text>
-                  <Text style={{ flex: 1, fontSize: 13, fontWeight: "700", color: "#4b5563" }}>Status</Text>
-                  <Text style={{ flex: 2, fontSize: 13, fontWeight: "700", color: "#4b5563" }}>Feedback</Text>
-                </View>
-
-                {/* Table Body */}
-                {qualificationRuleEntries.map(([ruleCode, result], idx) => {
-                  const passed = Boolean(result?.passed);
-                  const state = result?.status || (passed ? 'passed' : 'failed');
-
-                  let badgeBg = "#fff0f0";
-                  let badgeText = "#e03a3a";
-                  if (state === 'for_review') {
-                    badgeBg = "#fffbeb";
-                    badgeText = "#b45309";
-                  } else if (passed) {
-                    badgeBg = "#ecfdf5";
-                    badgeText = "#047857";
-                  }
-
-                  const formattedRuleCode = ruleCode
-                    .split('_')
-                    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-                    .join(' ');
-
-                  return (
-                    <View key={ruleCode} style={{ flexDirection: "row", borderBottomWidth: idx === qualificationRuleEntries.length - 1 ? 0 : 1, borderBottomColor: "#f3f4f6", paddingVertical: 12, paddingHorizontal: 12 }}>
-                      <View style={{ flex: 1.5, paddingRight: 8 }}>
-                        <Text style={{ color: "#1f2937", fontWeight: "600", fontSize: 13 }}>{formattedRuleCode}</Text>
-                      </View>
-                      <View style={{ flex: 1, justifyContent: "flex-start", alignItems: "flex-start", paddingRight: 8 }}>
-                        <View style={{ backgroundColor: badgeBg, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-                          <Text style={{ color: badgeText, fontWeight: "700", fontSize: 11, textTransform: "uppercase" }}>{state}</Text>
-                        </View>
-                      </View>
-                      <View style={{ flex: 2 }}>
-                        <Text style={{ color: "#4b5563", fontSize: 13 }}>{result?.message || 'No feedback available'}</Text>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-          </View>
-
-          {/* Final Status Footer */}
-          <View style={{ backgroundColor: statusBg, padding: 18, borderTopWidth: 1, borderTopColor: "#eff1f8", flexDirection: "row", alignItems: "center" }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: "#6b7280", fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }}>Final Status</Text>
-              <Text style={{ color: statusColor, fontSize: 18, fontWeight: "900" }}>{finalStatusText}</Text>
-            </View>
-            <Ionicons name={isQualified ? "ribbon" : (isReview ? "time" : "close-circle")} size={36} color={statusColor} style={{ opacity: 0.8 }} />
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.nextBtn, { backgroundColor: "#4f5fc5", marginTop: 10 }]}
-          onPress={() => navigation?.navigate?.("Application")}
-        >
-          <Text style={styles.nextBtnText}>View My Applications</Text>
-        </TouchableOpacity>
-      </View>
+      <ApplicationResultState
+        aiCheckingEnabled={aiCheckingEnabled}
+        successTitle={aiCheckingEnabled ? "Evaluation Complete" : "Submission Successful!"}
+        successMessage={
+          aiCheckingEnabled
+            ? "Your application has been successfully parsed and evaluated by our AI."
+            : "Your documents have been submitted securely."
+        }
+        qualificationReport={qualificationOutcome}
+        onViewApplications={() => navigation?.navigate?.("Application")}
+        viewApplicationsText="View My Applications"
+      />
     );
   };
 
@@ -2045,7 +1906,6 @@ const styles = StyleSheet.create({
   lookupStatusOk: { color: "#1a9e6a" },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: "#4f5fc5", alignItems: "center", justifyContent: "center", marginRight: 10, marginTop: 1, backgroundColor: "#fff", flexShrink: 0 },
   checkboxChecked: { backgroundColor: "#4f5fc5", borderColor: "#4f5fc5" },
-  declarationText: { flex: 1, color: "#5b6095", fontSize: 13, lineHeight: 20 },
   newUploadContainer: {
     flexDirection: "row",
     borderWidth: 1,
