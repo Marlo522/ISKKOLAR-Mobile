@@ -1,8 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
+import { documentDirectory, downloadAsync } from "expo-file-system";
+import { isAvailableAsync, shareAsync } from "expo-sharing";
+import { openURL } from "expo-linking";
+import api from "../services/api";
+import { getPublicFormTemplates } from "../services/formTemplateService";
 import { getApplicationSettings } from "../services/settingsService";
 import ApplicationsClosedGuard from "../components/ApplicationsClosedGuard";
 
@@ -14,12 +19,6 @@ const eligibility = [
   "Family income should not exceed Thirty Thousand Pesos (₱30,000) monthly",
 ];
 
-const forms = [
-  { label: "Certificate of Indigency Form", button: "Download Form" },
-  { label: "Recommendation Letter Form", button: "Download Form" },
-  { label: "Essay Template", button: "Download Template" },
-];
-
 export default function ProgramDetailScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const program = route.params?.program || "tertiary";
@@ -28,9 +27,120 @@ export default function ProgramDetailScreen({ navigation, route }) {
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(true);
 
+  const [templates, setTemplates] = useState([]);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
+  const [templatesError, setTemplatesError] = useState(null);
+  const [downloadingIds, setDownloadingIds] = useState({});
+
+  useEffect(() => {
+    let active = true;
+    const loadTemplates = async () => {
+      try {
+        setTemplatesLoading(true);
+        setTemplatesError(null);
+        const data = await getPublicFormTemplates();
+        if (!active) return;
+        
+        const targetCategory = program === 'vocational' ? 'vocational' : 'tertiary';
+        const filtered = data.filter(
+          (item) => String(item.category || '').toLowerCase() === targetCategory
+        );
+        setTemplates(filtered);
+      } catch (err) {
+        if (active) {
+          setTemplatesError(err || 'Failed to load form templates.');
+        }
+      } finally {
+        if (active) {
+          setTemplatesLoading(false);
+        }
+      }
+    };
+    void loadTemplates();
+    
+    return () => {
+      active = false;
+    };
+  }, [program]);
+
+  const formatFileSize = (size) => {
+    if (!size) return 'Unknown size';
+    if (typeof size === 'string') {
+      if (size.toLowerCase().includes('kb') || size.toLowerCase().includes('mb')) return size;
+      const parsed = parseFloat(size);
+      if (isNaN(parsed)) return size;
+      size = parsed;
+    }
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const getFullFileUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const base = api.defaults.baseURL || '';
+    const domain = base.replace(/\/api\/?$/, '');
+    const cleanedUrl = url.startsWith('/') ? url : `/${url}`;
+    return `${domain}${cleanedUrl}`;
+  };
+
+  const handleDownload = async (item) => {
+    const rawUrl = item.file_url || item.fileUrl;
+    if (!rawUrl) {
+      Alert.alert('Error', 'This form does not have a valid download link.');
+      return;
+    }
+
+    const fullUrl = getFullFileUrl(rawUrl);
+    const fileName = item.file_name || item.fileName || `form_${item.id || Date.now()}.pdf`;
+    
+    if (!documentDirectory) {
+      try {
+        await openURL(fullUrl);
+      } catch {
+        Alert.alert('Error', 'Unable to open form link.');
+      }
+      return;
+    }
+
+    const localUri = `${documentDirectory}${fileName}`;
+    setDownloadingIds((prev) => ({ ...prev, [item.id]: true }));
+
+    try {
+      const downloadResult = await downloadAsync(fullUrl, localUri);
+      if (downloadResult.status !== 200) {
+        throw new Error(`Server returned status code ${downloadResult.status}`);
+      }
+
+      const canShare = await isAvailableAsync();
+      if (canShare) {
+        await shareAsync(downloadResult.uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Open ${item.name || 'Scholarship Form'}`,
+        });
+      } else {
+        await openURL(fullUrl);
+      }
+    } catch (err) {
+      console.warn('Local download failed, falling back to openURL:', err);
+      try {
+        await openURL(fullUrl);
+      } catch {
+        Alert.alert('Error', 'Unable to download or open the scholarship form.');
+      }
+    } finally {
+      setDownloadingIds((prev) => {
+        const next = { ...prev };
+        delete next[item.id];
+        return next;
+      });
+    }
+  };
+
   useEffect(() => {
     if (!isFocused) return;
-    
+
     const checkSettings = async () => {
       setLoading(true);
       const settings = await getApplicationSettings();
@@ -188,17 +298,47 @@ export default function ProgramDetailScreen({ navigation, route }) {
 
       <View style={styles.card}>
         <Text style={styles.subTitle}>DOWNLOAD FORMS</Text>
-        {[
-          { label: "Certificate of Indigency Form", button: "Download Form" },
-          { label: "Income Certificate Form", button: "Download Form" },
-        ].map((item, index) => (
-          <View key={index} style={styles.formRow}>
-            <Text style={styles.formLabel}>{item.label}</Text>
-            <TouchableOpacity style={styles.downloadBtn}>
-              <Text style={styles.downloadBtnText}>{item.button}</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+        {templatesLoading ? (
+          <ActivityIndicator size="small" color="#4d61d8" style={{ marginVertical: 12 }} />
+        ) : templatesError ? (
+          <Text style={{ color: '#e94e4e', fontSize: 13, fontWeight: '600', marginVertical: 8 }}>
+            {templatesError}
+          </Text>
+        ) : templates.length === 0 ? (
+          <Text style={{ color: '#6873a6', fontSize: 13, fontWeight: '500', marginVertical: 8 }}>
+            No scholarship forms uploaded for this program.
+          </Text>
+        ) : (
+          templates.map((item, index) => {
+            const isDownloading = !!downloadingIds[item.id];
+            return (
+              <View key={item.id || index} style={styles.formRow}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={styles.formLabel} numberOfLines={1}>
+                    {item.name || item.file_name}
+                  </Text>
+                  {!!item.file_size && (
+                    <Text style={{ color: '#848baf', fontSize: 11, fontWeight: '600' }}>
+                      {formatFileSize(item.file_size)}
+                    </Text>
+                  )}
+                </View>
+                <TouchableOpacity 
+                  style={[styles.downloadBtn, isDownloading && { backgroundColor: '#e2e6f4' }]}
+                  onPress={() => handleDownload(item)}
+                  disabled={isDownloading}
+                  activeOpacity={0.8}
+                >
+                  {isDownloading ? (
+                    <ActivityIndicator size="small" color="#4d61d8" />
+                  ) : (
+                    <Text style={styles.downloadBtnText}>Download Form</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            );
+          })
+        )}
       </View>
 
       <TouchableOpacity style={[styles.applyBtn, { flexDirection: "row", paddingHorizontal: 16, justifyContent: "center" }]} onPress={() => navigation.navigate("ProgramApply", { program: "vocational" })}>
@@ -263,14 +403,47 @@ export default function ProgramDetailScreen({ navigation, route }) {
 
       <View style={styles.card}>
         <Text style={styles.subTitle}>DOWNLOAD FORMS</Text>
-        {forms.map((item, index) => (
-          <View key={index} style={styles.formRow}>
-            <Text style={styles.formLabel}>{item.label}</Text>
-            <TouchableOpacity style={styles.downloadBtn}>
-              <Text style={styles.downloadBtnText}>{item.button}</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+        {templatesLoading ? (
+          <ActivityIndicator size="small" color="#4d61d8" style={{ marginVertical: 12 }} />
+        ) : templatesError ? (
+          <Text style={{ color: '#e94e4e', fontSize: 13, fontWeight: '600', marginVertical: 8 }}>
+            {templatesError}
+          </Text>
+        ) : templates.length === 0 ? (
+          <Text style={{ color: '#6873a6', fontSize: 13, fontWeight: '500', marginVertical: 8 }}>
+            No scholarship forms uploaded for this program.
+          </Text>
+        ) : (
+          templates.map((item, index) => {
+            const isDownloading = !!downloadingIds[item.id];
+            return (
+              <View key={item.id || index} style={styles.formRow}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={styles.formLabel} numberOfLines={1}>
+                    {item.name || item.file_name}
+                  </Text>
+                  {!!item.file_size && (
+                    <Text style={{ color: '#848baf', fontSize: 11, fontWeight: '600' }}>
+                      {formatFileSize(item.file_size)}
+                    </Text>
+                  )}
+                </View>
+                <TouchableOpacity 
+                  style={[styles.downloadBtn, isDownloading && { backgroundColor: '#e2e6f4' }]}
+                  onPress={() => handleDownload(item)}
+                  disabled={isDownloading}
+                  activeOpacity={0.8}
+                >
+                  {isDownloading ? (
+                    <ActivityIndicator size="small" color="#4d61d8" />
+                  ) : (
+                    <Text style={styles.downloadBtnText}>Download Form</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            );
+          })
+        )}
       </View>
 
       <TouchableOpacity style={[styles.applyBtn, { flexDirection: "row", paddingHorizontal: 16, justifyContent: "center" }]} onPress={() => navigation.navigate("ProgramApply")}>
