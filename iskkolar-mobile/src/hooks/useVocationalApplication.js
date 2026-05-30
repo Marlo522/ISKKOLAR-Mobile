@@ -479,10 +479,6 @@ export const useVocationalApplication = () => {
       if (values.hasGuardian) rolesArray.push("guardian");
       (dynamicFamilyMembers || []).forEach(m => rolesArray.push(m.relationship));
 
-      // DEBUG: Log the exact error to terminal so I can extract it!
-      console.log("VOCATIONAL_VALIDATION_ERROR", JSON.stringify(err, null, 2));
-      require("react-native").Alert.alert("Backend Validation Error", JSON.stringify(err));
-      
       // Only hard-block on 400 (field validation errors from the server).
       if (err?.status === 400 && Array.isArray(err?.errors) && err.errors.length > 0) {
         handleApiError(err, rolesArray);

@@ -33,6 +33,8 @@ export default function ApplicationSubmissionGuard({ isChecking, ongoingApplicat
 
   if (!ongoingApplication) return null;
 
+  const isExamAssistance = ongoingApplication.application_type === "exam_assistance";
+
   return (
     <View style={styles.root}>
       <View style={styles.iconWrap}>
@@ -43,11 +45,24 @@ export default function ApplicationSubmissionGuard({ isChecking, ongoingApplicat
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>You have an ongoing application</Text>
-        <Text style={styles.cardText}>
-          You already have a {formatApplicationType(ongoingApplication.application_type)} scholarship application in {" "}
-          {formatStatusLabel(ongoingApplication.status)} status.
-        </Text>
-        <Text style={styles.cardText}>You cannot submit a new application at this time.</Text>
+        {isExamAssistance ? (
+          <>
+            <Text style={styles.cardText}>
+              You have already submitted an Exam Assistance application. This is a one-time support program and only one application is allowed per user.
+            </Text>
+            <Text style={[styles.cardText, { marginTop: 8 }]}>
+              You can view the details and AI feedback of your existing application in the Application tab.
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.cardText}>
+              You already have a {formatApplicationType(ongoingApplication.application_type)} scholarship application in {" "}
+              {formatStatusLabel(ongoingApplication.status)} status.
+            </Text>
+            <Text style={styles.cardText}>You cannot submit a new application at this time.</Text>
+          </>
+        )}
       </View>
 
       <TouchableOpacity style={styles.primaryBtn} onPress={onBack}>

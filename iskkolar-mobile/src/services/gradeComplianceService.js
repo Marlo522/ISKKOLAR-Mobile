@@ -24,7 +24,7 @@ export const submitGradeCompliance = async ({ term, scholarshipName, remarks, ne
     if (remarks) data.append('remarks', remarks);
     if (nextTermStartDate) data.append('nextTermStartDate', toIsoDate(nextTermStartDate));
     if (nextTermEndDate) data.append('nextTermEndDate', toIsoDate(nextTermEndDate));
-    if (gwa) data.append('gwa', gwa);
+    if (gwa) data.append('gwa', parseFloat(gwa));
 
     if (files?.gradeReport?.uri) {
       data.append('gradeReport', {
