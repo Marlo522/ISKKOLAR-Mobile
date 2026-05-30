@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated, RefreshControl } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
+import { NotificationContext } from '../context/NotificationContext';
 import { getScholarDashboardSummary, getScholarApplicationHistory } from '../services/scholarDashboardService';
 import { getGradeComplianceTerms } from '../services/gradeComplianceService';
 
@@ -20,6 +21,7 @@ const getNextAcademicYear = (value) => {
 
 export default function ScholarDashboardScreen({ navigation }) {
   const { user } = useContext(AuthContext);
+  const { unreadCount, fetchAnnouncements } = useContext(NotificationContext);
   const insets = useSafeAreaInsets();
   const [dashboardSummary, setDashboardSummary] = useState(null);
   const [applicationHistory, setApplicationHistory] = useState([]);
@@ -134,9 +136,9 @@ export default function ScholarDashboardScreen({ navigation }) {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadDashboardMeta();
+    await Promise.all([loadDashboardMeta(), fetchAnnouncements()]);
     setRefreshing(false);
-  }, [loadDashboardMeta]);
+  }, [loadDashboardMeta, fetchAnnouncements]);
 
   const fullName = [
     user?.firstName || user?.first_name,
@@ -167,6 +169,22 @@ export default function ScholarDashboardScreen({ navigation }) {
           <View style={styles.heroIconWatermark}>
             <Ionicons name="school" size={100} color="rgba(255,255,255,0.15)" />
           </View>
+          
+          {/* Bell Notification Button */}
+          <TouchableOpacity 
+            style={styles.bellButton} 
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('Notifications')}
+          >
+            <Ionicons name="notifications" size={22} color="#fff" />
+            {unreadCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Stats Row */}
@@ -255,6 +273,40 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
     marginBottom: 20,
+  },
+  bellButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#e96e5e',
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#727ab6',
+  },
+  bellBadgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   heroTextContent: {
     flex: 1,

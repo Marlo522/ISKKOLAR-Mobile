@@ -281,6 +281,42 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const maxStep = selectedProgram === "employeeChild" ? 2 : 3;
   const requiresIncomeProof = (status) => ["Employed", "Self-Employed"].includes(status);
 
+  const parseStringToDate = (str) => {
+    if (!str) return null;
+    const cleaned = String(str).trim();
+    if (!cleaned) return null;
+
+    // 1. ISO format (e.g. "YYYY-MM-DD" or with time)
+    if (cleaned.includes("-")) {
+      const parts = cleaned.split("T")[0].split("-");
+      if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10);
+        const d = parseInt(parts[2], 10);
+        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+          return new Date(y, m - 1, d);
+        }
+      }
+    }
+
+    // 2. Slash format (e.g. "MM/DD/YYYY" or "M/D/YYYY")
+    if (cleaned.includes("/")) {
+      const parts = cleaned.split("/");
+      if (parts.length === 3) {
+        const m = parseInt(parts[0], 10);
+        const d = parseInt(parts[1], 10);
+        const y = parseInt(parts[2], 10);
+        if (!isNaN(m) && !isNaN(d) && !isNaN(y)) {
+          return new Date(y, m - 1, d);
+        }
+      }
+    }
+
+    // 3. Fallback to standard JS parsing
+    const fallback = new Date(cleaned);
+    return isNaN(fallback.getTime()) ? null : fallback;
+  };
+
   const pickFile = async (key) => {
     Alert.alert(
       "Upload Document",
@@ -664,13 +700,14 @@ export default function ProgramApplyScreen({ navigation, route }) {
     </View>
   );
 
-  const renderDatePicker = (label, key) => (
+  const renderDatePicker = (label, key, extraProps = {}) => (
     <View style={styles.row}>
       <FormDatePicker
         label={label}
         value={values[key]}
         error={fieldErrors[key]}
         onDateChange={(date) => updateValue(key, date)}
+        {...extraProps}
       />
     </View>
   );
@@ -955,7 +992,19 @@ export default function ProgramApplyScreen({ navigation, route }) {
               values.termType === "Trimester" ? ["1st", "2nd", "3rd"] : ["1st", "2nd"]
           )}
           {renderDatePicker("Term Start Date", "termStartDate")}
-          {renderDatePicker("Term End Date", "termEndDate")}
+          {renderDatePicker("Term End Date", "termEndDate", {
+            minimumDate: (() => {
+              if (values.termStartDate) {
+                const startD = parseStringToDate(values.termStartDate);
+                if (startD) {
+                  const minEnd = new Date(startD);
+                  minEnd.setMonth(minEnd.getMonth() + 1);
+                  return minEnd;
+                }
+              }
+              return undefined;
+            })()
+          })}
           {renderYearInput("Expected Year of Graduation", "expectedGradYear")}
 
           {values.incomingFreshman === "No" && (
@@ -1325,7 +1374,19 @@ export default function ProgramApplyScreen({ navigation, route }) {
               values.termType === "Trimester" ? ["1st", "2nd", "3rd"] : ["1st", "2nd"]
           )}
           {renderDatePicker("Term Start Date", "termStartDate")}
-          {renderDatePicker("Term End Date", "termEndDate")}
+          {renderDatePicker("Term End Date", "termEndDate", {
+            minimumDate: (() => {
+              if (values.termStartDate) {
+                const startD = parseStringToDate(values.termStartDate);
+                if (startD) {
+                  const minEnd = new Date(startD);
+                  minEnd.setMonth(minEnd.getMonth() + 1);
+                  return minEnd;
+                }
+              }
+              return undefined;
+            })()
+          })}
           {renderYearInput("Expected Year of Graduation", "expectedGradYear")}
 
           {values.incomingFreshman === "No" && (

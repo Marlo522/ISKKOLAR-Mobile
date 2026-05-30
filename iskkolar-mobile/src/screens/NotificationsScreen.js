@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useContext } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { getScholarAnnouncements } from '../services/announcementService';
+import { NotificationContext } from '../context/NotificationContext';
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -169,7 +169,7 @@ const renderParsedContent = (content, baseStyle) => {
 
 // ─── DETAIL VIEW ──────────────────────────────────────────────────────────────
 
-const AnnouncementDetail = ({ item, onBack }) => {
+const AnnouncementDetail = ({ item, onBack, isArchived, onArchive, onUnarchive }) => {
   const insets = useSafeAreaInsets();
   const isActivity = item.type === 'activity';
   const accentColor = isActivity ? '#3b82f6' : '#8b5cf6';
@@ -178,13 +178,31 @@ const AnnouncementDetail = ({ item, onBack }) => {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 16, paddingBottom: 16 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 16, paddingBottom: 16, flexDirection: 'row', alignItems: 'center' }]}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={20} color="#1a1d2d" />
         </TouchableOpacity>
-        <Text style={[styles.title, { flex: 1 }]} numberOfLines={1}>
+        <Text style={[styles.title, { flex: 1, marginRight: 8 }]} numberOfLines={1}>
           {item.title?.replace(/<[^>]+>/g, '').replace(/[\*_~]{1,2}/g, '')}
         </Text>
+        <TouchableOpacity 
+          style={[styles.backBtn, { backgroundColor: isArchived ? '#ebedfa' : '#fef2f2' }]} 
+          onPress={() => {
+            if (isArchived) {
+              void onUnarchive(item.id);
+            } else {
+              void onArchive(item.id);
+            }
+            onBack();
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons 
+            name={isArchived ? "arrow-undo-outline" : "archive-outline"} 
+            size={20} 
+            color={isArchived ? "#4f5ec4" : "#ef4444"} 
+          />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.detailContent} showsVerticalScrollIndicator={false}>
@@ -252,68 +270,121 @@ const AnnouncementDetail = ({ item, onBack }) => {
 export default function NotificationsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
 
-  const [announcements, setAnnouncements]   = useState([]);
-  const [loading, setLoading]               = useState(true);
-  const [error, setError]                   = useState(null);
-  const [readIds, setReadIds]               = useState([]);
+  const {
+    announcements,
+    readIds,
+    archivedIds,
+    loading,
+    error,
+    fetchAnnouncements,
+    markAsRead,
+    archiveAnnouncement,
+    unarchiveAnnouncement
+  } = useContext(NotificationContext);
+
   const [selected, setSelected]             = useState(null); // detail view
   const [refreshing, setRefreshing]         = useState(false);
-
-  // Fetch announcements on mount
-  const fetchAnnouncements = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getScholarAnnouncements();
-      setAnnouncements(data);
-    } catch (err) {
-      setError(typeof err === 'string' ? err : 'Failed to load announcements');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchAnnouncements(); }, []);
+  const [activeTab, setActiveTab]           = useState('all'); // all, unread, read, archived
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchAnnouncements();
     setRefreshing(false);
-  }, []);
+  }, [fetchAnnouncements]);
 
   // Open detail and mark as read
   const handlePress = (item) => {
     setSelected(item);
-    if (!readIds.includes(item.id)) setReadIds(prev => [...prev, item.id]);
+    void markAsRead(item.id);
   };
 
   // Show detail view
   if (selected) {
-    return <AnnouncementDetail item={selected} onBack={() => setSelected(null)} />;
+    const isArchived = archivedIds.includes(selected.id);
+    return (
+      <AnnouncementDetail 
+        item={selected} 
+        onBack={() => setSelected(null)} 
+        isArchived={isArchived}
+        onArchive={archiveAnnouncement}
+        onUnarchive={unarchiveAnnouncement}
+      />
+    );
   }
 
   // ── List view ──────────────────────────────────────────────────────────────
-  const sorted = [...announcements].sort(
-    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-  );
+  const sorted = [...announcements].sort((a, b) => {
+    const aRead = readIds.includes(a.id);
+    const bRead = readIds.includes(b.id);
+
+    // Unread items come before read items
+    if (!aRead && bRead) return -1;
+    if (aRead && !bRead) return 1;
+
+    // Chronological within categories (newest first)
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+
+  const filtered = sorted.filter(item => {
+    const isArchived = archivedIds.includes(item.id);
+    const isRead = readIds.includes(item.id);
+
+    if (activeTab === 'archived') return isArchived;
+    if (isArchived) return false;
+
+    if (activeTab === 'unread') return !isRead;
+    if (activeTab === 'read') return isRead;
+    return true;
+  });
 
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 20, paddingBottom: 20 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 20, paddingBottom: 16, flexDirection: 'column', alignItems: 'stretch' }]}>
         <View style={styles.headerTop}>
           <View style={styles.headerTextContainer}>
             <Text style={styles.title}>Announcements</Text> 
             <Text style={styles.subtitle}>Stay updated with announcements</Text>
           </View>
-          {/* Unread badge */}
-          {announcements.filter(a => !readIds.includes(a.id)).length > 0 && (
+          {/* Unread badge (active non-archived only) */}
+          {announcements.filter(a => !readIds.includes(a.id) && !archivedIds.includes(a.id)).length > 0 && (
             <View style={styles.unreadBadge}>
               <Text style={styles.unreadBadgeText}>
-                {announcements.filter(a => !readIds.includes(a.id)).length}
+                {announcements.filter(a => !readIds.includes(a.id) && !archivedIds.includes(a.id)).length}
               </Text>
             </View>
           )}
+        </View>
+
+        {/* Filter Tabs */}
+        <View style={styles.filterTabsContainer}>
+          {[
+            { id: 'all', label: 'All', count: announcements.filter(a => !archivedIds.includes(a.id)).length },
+            { id: 'unread', label: 'Unread', count: announcements.filter(a => !readIds.includes(a.id) && !archivedIds.includes(a.id)).length },
+            { id: 'read', label: 'Read', count: announcements.filter(a => readIds.includes(a.id) && !archivedIds.includes(a.id)).length },
+            { id: 'archived', label: 'Archived', count: announcements.filter(a => archivedIds.includes(a.id)).length }
+          ].map(tab => {
+            const isActive = activeTab === tab.id;
+            return (
+              <TouchableOpacity
+                key={tab.id}
+                style={[styles.filterTab, isActive && styles.filterTabActive]}
+                activeOpacity={0.8}
+                onPress={() => setActiveTab(tab.id)}
+              >
+                <Text style={[styles.filterTabText, isActive && styles.filterTabTextActive]}>
+                  {tab.label}
+                </Text>
+                {tab.count > 0 && (
+                  <View style={[styles.tabBadge, isActive && styles.tabBadgeActive]}>
+                    <Text style={[styles.tabBadgeText, isActive && styles.tabBadgeTextActive]}>
+                      {tab.count}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
@@ -330,17 +401,26 @@ export default function NotificationsScreen({ navigation }) {
             <Text style={styles.retryBtnText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      ) : sorted.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <View style={styles.centerContainer}>
-          <Ionicons name="megaphone-outline" size={48} color="#a3a9c7" />
-          <Text style={styles.emptyTitle}>No announcements yet</Text>
-          <Text style={styles.emptyText}>Check back later for updates</Text>
+          <Ionicons 
+            name={activeTab === 'unread' ? 'checkmark-done-circle-outline' : (activeTab === 'archived' ? 'archive-outline' : 'megaphone-outline')} 
+            size={48} 
+            color="#a3a9c7" 
+          />
+          <Text style={styles.emptyTitle}>
+            {activeTab === 'unread' ? "You're all caught up!" : (activeTab === 'read' ? "No read announcements" : (activeTab === 'archived' ? "Archive is empty" : "No announcements yet"))}
+          </Text>
+          <Text style={styles.emptyText}>
+            {activeTab === 'unread' ? "No unread announcements left" : (activeTab === 'archived' ? "Clean inbox, nothing here" : "Check back later for updates")}
+          </Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4f5ec4']} tintColor="#4f5ec4" />}>
-          {sorted.map((item) => {
+          {filtered.map((item) => {
             const isActivity = item.type === 'activity';
             const isRead     = readIds.includes(item.id);
+            const isArchived = archivedIds.includes(item.id);
             const iconName   = isActivity ? 'calendar' : 'notifications';
             const iconColor  = isActivity ? '#3b82f6'  : '#4f5ec4';
             const iconBg     = isActivity ? '#eff6ff'   : '#ebedfa';
@@ -397,7 +477,27 @@ export default function NotificationsScreen({ navigation }) {
                         </View>
                       )}
                     </View>
-                    <Text style={styles.cardTimestamp}>{getRelativeTime(item.createdAt)}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <Text style={styles.cardTimestamp}>{getRelativeTime(item.createdAt)}</Text>
+                      <TouchableOpacity 
+                        style={[styles.cardArchiveBtn, isArchived && { backgroundColor: '#ebedfa' }]}
+                        activeOpacity={0.8}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          if (isArchived) {
+                            void unarchiveAnnouncement(item.id);
+                          } else {
+                            void archiveAnnouncement(item.id);
+                          }
+                        }}
+                      >
+                        <Ionicons 
+                          name={isArchived ? "arrow-undo-outline" : "archive-outline"} 
+                          size={14} 
+                          color={isArchived ? "#4f5ec4" : "#6e7798"} 
+                        />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -431,9 +531,59 @@ const styles = StyleSheet.create({
     elevation: 4,
     marginBottom: 10,
     zIndex: 10,
+  },
+  filterTabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f3f9',
+    borderRadius: 14,
+    padding: 4,
+    marginTop: 16,
+    width: '100%',
+  },
+  filterTab: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  filterTabActive: {
+    backgroundColor: '#fff',
+    shadowColor: '#4f5ec4',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  filterTabText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6e7798',
+  },
+  filterTabTextActive: {
+    color: '#4f5ec4',
+  },
+  tabBadge: {
+    backgroundColor: '#e2e7f3',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    minWidth: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBadgeActive: {
+    backgroundColor: '#ebedfa',
+  },
+  tabBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#6e7798',
+  },
+  tabBadgeTextActive: {
+    color: '#4f5ec4',
   },
   backBtn: {
     width: 36,
@@ -474,6 +624,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: '#fff',
+  },
+  cardArchiveBtn: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#f1f3f9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   // ── States ──────────────────────────────────────────────────────────────────

@@ -311,8 +311,12 @@ export const useTertiaryApplication = () => {
       if (values.termStartDate && values.termEndDate) {
         const start = parseDateString(values.termStartDate);
         const end = parseDateString(values.termEndDate);
-        if (start && end && end <= start) {
-          preFlightErrors.termEndDate = "Term End Date must be later than Term Start Date.";
+        if (start && end) {
+          const limit = new Date(start);
+          limit.setMonth(limit.getMonth() + 1);
+          if (end < limit) {
+            preFlightErrors.termEndDate = "Term End Date must be at least 1 month after Term Start Date.";
+          }
         }
       }
     }
@@ -373,20 +377,16 @@ export const useTertiaryApplication = () => {
         }
       }
 
-      const fatherIsOptional = values.hasGuardian;
-      if (values.fatherStatus !== "Deceased") {
-        if (!fatherIsOptional || values.fatherName) {
-          checkMember(values.fatherName, values.fatherStatus, values.fatherOccupation, values.fatherIncome, "father", "Father's");
-          if (!values.fatherContact || values.fatherContact.length < 11) preFlightErrors.fatherContact = "Contact Number must be 11 digits.";
-        }
+      const hasFather = values.fatherName && values.fatherName.trim() !== "";
+      if (hasFather && values.fatherStatus !== "Deceased") {
+        checkMember(values.fatherName, values.fatherStatus, values.fatherOccupation, values.fatherIncome, "father", "Father's");
+        if (!values.fatherContact || values.fatherContact.length < 11) preFlightErrors.fatherContact = "Contact Number must be 11 digits.";
       }
       
-      const motherIsOptional = values.hasGuardian;
-      if (values.motherStatus !== "Deceased") {
-        if (!motherIsOptional || values.motherName) {
-          checkMember(values.motherName, values.motherStatus, values.motherOccupation, values.motherIncome, "mother", "Mother's");
-          if (!values.motherContact || values.motherContact.length < 11) preFlightErrors.motherContact = "Contact Number must be 11 digits.";
-        }
+      const hasMother = values.motherName && values.motherName.trim() !== "";
+      if (hasMother && values.motherStatus !== "Deceased") {
+        checkMember(values.motherName, values.motherStatus, values.motherOccupation, values.motherIncome, "mother", "Mother's");
+        if (!values.motherContact || values.motherContact.length < 11) preFlightErrors.motherContact = "Contact Number must be 11 digits.";
       }
 
       // Automatically validate all dynamically injected family members
@@ -419,12 +419,14 @@ export const useTertiaryApplication = () => {
         if (requiresIndigency(values.guardianStatus) && !uploads.indigencyGuardian) preFlightErrors.indigencyGuardian = "Certificate of indigency required.";
       }
 
-      if (!fatherIsOptional || values.fatherName) {
+      const hasFatherDoc = values.fatherName && values.fatherName.trim() !== "";
+      if (hasFatherDoc) {
         if (requiresProof(values.fatherStatus) && !uploads.incomeFather) preFlightErrors.incomeFather = "Income certificate required.";
         if (requiresIndigency(values.fatherStatus) && !uploads.indigencyFather) preFlightErrors.indigencyFather = "Certificate of indigency required.";
       }
 
-      if (!motherIsOptional || values.motherName) {
+      const hasMotherDoc = values.motherName && values.motherName.trim() !== "";
+      if (hasMotherDoc) {
         if (requiresProof(values.motherStatus) && !uploads.incomeMother) preFlightErrors.incomeMother = "Income certificate required.";
         if (requiresIndigency(values.motherStatus) && !uploads.indigencyMother) preFlightErrors.indigencyMother = "Certificate of indigency required.";
       }

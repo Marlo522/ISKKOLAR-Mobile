@@ -272,12 +272,16 @@ export const useStaffApplication = (isChildDesignation) => {
         if (values.termStartDate && values.termEndDate) {
           const start = parseDateString(values.termStartDate);
           const end = parseDateString(values.termEndDate);
-          if (start && end && end <= start) {
-            preflightErrors.termEndDate = "Term End Date must be later than Term Start Date.";
+          if (start && end) {
+            const limit = new Date(start);
+            limit.setMonth(limit.getMonth() + 1);
+            if (end < limit) {
+              preflightErrors.termEndDate = "Term End Date must be at least 1 month after Term Start Date.";
+            }
           }
         }
 
-        const checkYear = (val, key, label) => {
+        const checkYear = (val, key, label, allowFuture = false) => {
           if (!val) return;
           if (!/^\d{4}$/.test(String(val))) {
             preflightErrors[key] = `${label} must be 4 digits.`;
@@ -285,14 +289,14 @@ export const useStaffApplication = (isChildDesignation) => {
           }
 
           const numericYear = Number(val);
-          if (numericYear > currentYear) {
+          if (!allowFuture && numericYear > currentYear) {
             preflightErrors[key] = `${label} cannot be in the future.`;
           }
         };
 
         checkYear(values.yearGraduated, "yearGraduated", "Year Graduated");
         checkYear(values.prevYearGraduated, "prevYearGraduated", "Previous Year Graduated");
-        checkYear(values.expectedGradYear, "expectedGradYear", "Expected Graduation Year");
+        checkYear(values.expectedGradYear, "expectedGradYear", "Expected Graduation Year", true);
 
         if (Object.keys(preflightErrors).length > 0) {
           setFieldErrors(preflightErrors);

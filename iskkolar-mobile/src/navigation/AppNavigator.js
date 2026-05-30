@@ -12,6 +12,7 @@ import RoleSelectionScreen from "../screens/RoleSelectionScreen";
 import ScholarTabs from "./ScholarTabs";
 import MainTabs from "./MainTabs";
 import { AuthProvider } from "../context/AuthContext";
+import { NotificationProvider } from "../context/NotificationContext";
 
 import { usePushNotifications } from "../hooks/usePushNotifications";
 
@@ -72,7 +73,9 @@ export default function AppNavigator() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <NavigationWrapper />
+        <NotificationProvider>
+          <NavigationWrapper />
+        </NotificationProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

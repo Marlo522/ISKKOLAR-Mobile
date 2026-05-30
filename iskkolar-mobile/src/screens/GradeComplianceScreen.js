@@ -273,8 +273,12 @@ export default function GradeComplianceScreen({ navigation }) {
       if (startD && startD < today) {
         nextFieldErrors.nextTermStartDate = "Start date cannot be in the past.";
       }
-      if (startD && endD && endD <= startD) {
-        nextFieldErrors.nextTermEndDate = "End date must be after start date.";
+      if (startD && endD) {
+        const limit = new Date(startD);
+        limit.setMonth(limit.getMonth() + 1);
+        if (endD < limit) {
+          nextFieldErrors.nextTermEndDate = "End date must be at least 1 month after start date.";
+        }
       }
 
       // Validate dates against the Academic Year
@@ -594,9 +598,9 @@ export default function GradeComplianceScreen({ navigation }) {
                   minimumDate={(() => {
                     const startD = parseStringToDate(nextTermStartDate);
                     if (startD) {
-                      const nextDay = new Date(startD);
-                      nextDay.setDate(nextDay.getDate() + 1);
-                      return nextDay;
+                      const minEnd = new Date(startD);
+                      minEnd.setMonth(minEnd.getMonth() + 1);
+                      return minEnd;
                     }
                     const today = new Date();
                     today.setDate(today.getDate() - 1);
