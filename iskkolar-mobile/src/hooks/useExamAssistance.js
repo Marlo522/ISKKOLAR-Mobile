@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
-import { submitExamAssistance } from "../services/examAssistanceService";
+import { useCallback, useState, useEffect } from "react";
+import { submitExamAssistance, getExamAssistanceApplications } from "../services/examAssistanceService";
 
 const REQUIRED_FIELDS = {
   assistanceType: "Type of assistance is required.",
@@ -77,10 +77,46 @@ const toIsoDate = (value) => {
   return `${year}-${month}-${day}`;
 };
 
+const ONGOING_STATUSES = new Set([
+  "pending",
+  "under_review",
+  "initial_passed",
+  "for_review",
+  "for_interview",
+]);
+
 export const useExamAssistance = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
+  const [isCheckingGuard, setIsCheckingGuard] = useState(true);
+  const [ongoingApplication, setOngoingApplication] = useState(null);
+
+  const checkGuard = useCallback(async () => {
+    setIsCheckingGuard(true);
+    try {
+      const apps = await getExamAssistanceApplications();
+      const ongoing = (apps || []).find((app) =>
+        ONGOING_STATUSES.has(String(app?.status || "").toLowerCase())
+      );
+      if (ongoing) {
+        setOngoingApplication({
+          ...ongoing,
+          application_type: "exam_assistance",
+        });
+      } else {
+        setOngoingApplication(null);
+      }
+    } catch {
+      setOngoingApplication(null);
+    } finally {
+      setIsCheckingGuard(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkGuard();
+  }, [checkGuard]);
 
   const clearFieldError = useCallback((key) => {
     setFieldErrors((prev) => {
@@ -139,7 +175,11 @@ export const useExamAssistance = () => {
       });
       return {
         ...response,
-        aiSummary: response?.application?.aiSummary || null,
+        ai_checking_enabled:
+          response?.ai_checking_enabled ??
+          response?.data?.ai_checking_enabled ??
+          true,
+        aiSummary: response?.application?.aiSummary || response?.data?.application?.aiSummary || null,
       };
     } catch (err) {
       // Map backend validation details to per-field UI errors.
@@ -174,5 +214,8 @@ export const useExamAssistance = () => {
     clearFieldError,
     validateStep,
     submitApplication,
+    isCheckingGuard,
+    ongoingApplication,
+    recheckGuard: checkGuard,
   };
 };

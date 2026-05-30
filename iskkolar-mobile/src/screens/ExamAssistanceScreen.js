@@ -8,6 +8,7 @@ import * as ImagePicker from "expo-image-picker";
 import FormDatePicker from "../components/FormDatePicker";
 import { useExamAssistance } from "../hooks/useExamAssistance";
 import ApplicationResultState from "../components/ApplicationResultState";
+import ApplicationSubmissionGuard from "../components/ApplicationSubmissionGuard";
 
 export default function ExamAssistanceScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -56,6 +57,8 @@ export default function ExamAssistanceScreen({ navigation }) {
     clearFieldError,
     validateStep,
     submitApplication: submitExamAssistanceApplication,
+    isCheckingGuard,
+    ongoingApplication,
   } = useExamAssistance();
 
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -94,6 +97,28 @@ export default function ExamAssistanceScreen({ navigation }) {
       }).start();
     }
   }, [completeStage, scaleAnim]);
+
+  if (isCheckingGuard) {
+    return (
+      <ApplicationSubmissionGuard
+        isChecking={true}
+        ongoingApplication={null}
+        onBack={() => navigation.goBack()}
+        onViewApplications={() => navigation.navigate("Application")}
+      />
+    );
+  }
+
+  if (ongoingApplication && completeStage !== "preAssessment") {
+    return (
+      <ApplicationSubmissionGuard
+        isChecking={false}
+        ongoingApplication={ongoingApplication}
+        onBack={() => navigation.goBack()}
+        onViewApplications={() => navigation.navigate("Application")}
+      />
+    );
+  }
 
   const spin = spinAnim.interpolate({
     inputRange: [0, 1],

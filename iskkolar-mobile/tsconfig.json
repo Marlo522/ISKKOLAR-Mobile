@@ -16,5 +16,10 @@
     "**/*.tsx",
     "**/*.js",
     "**/*.jsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "app",
+    "components"
   ]
 }
