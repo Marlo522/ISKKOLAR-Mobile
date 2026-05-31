@@ -1,6 +1,6 @@
 // src/navigation/AppNavigator.js
 import React from "react";
-import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
+import { DefaultTheme, NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import SplashScreen from "../screens/SplashScreen";
@@ -15,6 +15,8 @@ import { AuthProvider } from "../context/AuthContext";
 import { NotificationProvider } from "../context/NotificationContext";
 
 import { usePushNotifications } from "../hooks/usePushNotifications";
+
+export const navigationRef = createNavigationContainerRef();
 
 const Stack = createNativeStackNavigator();
 
@@ -54,7 +56,7 @@ function NavigationWrapper() {
   usePushNotifications();
 
   return (
-    <NavigationContainer theme={DefaultTheme} linking={linking}>
+    <NavigationContainer ref={navigationRef} theme={DefaultTheme} linking={linking}>
       <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />

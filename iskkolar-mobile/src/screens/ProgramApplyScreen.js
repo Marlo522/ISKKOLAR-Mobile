@@ -27,7 +27,7 @@ import ApplicationsClosedScreen from "./ApplicationsClosedScreen";
 import ApplicationResultState from "../components/ApplicationResultState";
 
 const infoFields = {
-  educPath: "Tertiary",
+  educPath: "Tertiary Education",
   scholarshipType: "", // set dynamically below based on the selected program
   incomingFreshman: "No",
   secondarySchool: "",
@@ -56,13 +56,13 @@ const infoFields = {
   position: "Human Resource",
   fatherName: "",
   fatherBirthday: "",
-  fatherStatus: "Employed",
+  fatherStatus: "--",
   fatherOccupation: "",
   fatherIncome: "",
   fatherContact: "",
   motherName: "",
   motherBirthday: "",
-  motherStatus: "Employed",
+  motherStatus: "--",
   motherContact: "",
   motherOccupation: "",
   motherIncome: "",
@@ -73,7 +73,7 @@ const infoFields = {
   hasGuardian: false,
   guardianName: "",
   guardianBirthday: "",
-  guardianStatus: "Employed",
+  guardianStatus: "--",
   guardianContact: "",
   guardianOccupation: "",
   guardianIncome: "",
@@ -491,7 +491,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const addFamilyMember = () => {
     setFamilyMembers((prev) => [
       ...prev,
-      { name: "", relationship: "", contactNo: "", status: "Unemployed", occupation: "", income: "", birthday: "" },
+      { name: "", relationship: "", contactNo: "", status: "--", occupation: "", income: "", birthday: "" },
     ]);
   };
 
@@ -910,7 +910,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </View>
           )}
 
-          {renderMemberSelect("Employment Status", "status", idx, ["Employed", "Unemployed", "Self-Employed", "Deceased"])}
+          {renderMemberSelect("Employment Status", "status", idx, ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
 
           {requiresIncomeProof(member.status) && (
             <>
@@ -1051,7 +1051,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
               <Text style={styles.sectionHeader}>| Guardian's Information</Text>
               {renderInput("Guardian's Name", "guardianName", "Enter Guardian's Name")}
               {renderDatePicker("Birthday", "guardianBirthday")}
-              {renderSelect("Employment Status", "guardianStatus", ["Employed", "Unemployed", "Self-Employed"])}
+              {renderSelect("Employment Status", "guardianStatus", ["--", "Employed", "Unemployed", "Self-Employed"])}
               {renderContactInput("Contact Number", "guardianContact")}
               {requiresIncomeProof(values.guardianStatus) && (
                 <>
@@ -1065,7 +1065,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           <Text style={styles.sectionHeader}>| Father's Information{values.hasGuardian ? " (Optional)" : ""}</Text>
           {renderInput("Father's Name", "fatherName", "Enter Father's Name")}
           {renderDatePicker("Birthday", "fatherBirthday")}
-          {renderSelect("Employment Status", "fatherStatus", ["Employed", "Unemployed", "Self-Employed", "Deceased"])}
+          {renderSelect("Employment Status", "fatherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
           {values.fatherStatus !== "Deceased" && renderContactInput("Contact Number", "fatherContact")}
           {requiresIncomeProof(values.fatherStatus) && (
             <>
@@ -1077,7 +1077,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           <Text style={styles.sectionHeader}>| Mother's Information{values.hasGuardian ? " (Optional)" : ""}</Text>
           {renderInput("Mother's Name", "motherName", "Enter Mother's Name")}
           {renderDatePicker("Birthday", "motherBirthday")}
-          {renderSelect("Employment Status", "motherStatus", ["Employed", "Unemployed", "Self-Employed", "Deceased"])}
+          {renderSelect("Employment Status", "motherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
           {values.motherStatus !== "Deceased" && renderContactInput("Contact Number", "motherContact")}
           {requiresIncomeProof(values.motherStatus) && (
             <>
@@ -1221,7 +1221,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
               <Text style={styles.sectionHeader}>| Guardian's Information</Text>
               {renderInput("Guardian's Name", "guardianName", "Enter Guardian's Name")}
               {renderDatePicker("Birthday", "guardianBirthday")}
-              {renderSelect("Employment Status", "guardianStatus", ["Employed", "Unemployed", "Self-Employed"])}
+              {renderSelect("Employment Status", "guardianStatus", ["--", "Employed", "Unemployed", "Self-Employed"])}
               {renderContactInput("Contact Number", "guardianContact")}
               {requiresIncomeProof(values.guardianStatus) && (
                 <>
@@ -1235,7 +1235,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           <Text style={styles.sectionHeader}>| Father's Information{values.hasGuardian ? " (Optional)" : ""}</Text>
           {renderInput("Father's Name", "fatherName", "Enter Father's Name")}
           {renderDatePicker("Birthday", "fatherBirthday")}
-          {renderSelect("Employment Status", "fatherStatus", ["Employed", "Unemployed", "Self-Employed", "Deceased"])}
+          {renderSelect("Employment Status", "fatherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
           {values.fatherStatus !== "Deceased" && renderContactInput("Contact Number", "fatherContact")}
           {requiresIncomeProof(values.fatherStatus) && (
             <>
@@ -1247,7 +1247,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           <Text style={styles.sectionHeader}>| Mother's Information{values.hasGuardian ? " (Optional)" : ""}</Text>
           {renderInput("Mother's Name", "motherName", "Enter Mother's Name")}
           {renderDatePicker("Birthday", "motherBirthday")}
-          {renderSelect("Employment Status", "motherStatus", ["Employed", "Unemployed", "Self-Employed", "Deceased"])}
+          {renderSelect("Employment Status", "motherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
           {values.motherStatus !== "Deceased" && renderContactInput("Contact Number", "motherContact")}
           {requiresIncomeProof(values.motherStatus) && (
             <>
@@ -1327,7 +1327,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
       return (
         <View>
           <Text style={styles.sectionHeader}>Academic Information</Text>
-          {!isChildDesignation && renderSelect("Education Path", "educPath", ["Tertiary", "Masters"])}
+          {!isChildDesignation && renderSelect("Education Path", "educPath", ["Tertiary Education", "Masters Education"])}
           {renderSelect("Incoming Freshman?", "incomingFreshman", ["No", "Yes"])}
 
           <Text style={styles.sectionHeader}>| Secondary Education</Text>
@@ -1342,8 +1342,12 @@ export default function ProgramApplyScreen({ navigation, route }) {
             "PRE-K-12 CURRICULUM"
           ])}
           {renderYearInput("Year Graduated", "yearGraduated")}
-          {renderInput("Secondary GWA (General Weighted Average)", "secondaryGwa", "e.g. 88.50", { keyboardType: "numeric" })}
-          <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide your final general average from your high school report card.</Text>
+          {values.incomingFreshman === "Yes" && (
+            <>
+              {renderInput("Secondary GWA (General Weighted Average)", "secondaryGwa", "e.g. 88.50", { keyboardType: "numeric" })}
+              <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide your final general average from your high school report card.</Text>
+            </>
+          )}
           {values.incomingFreshman === "Yes" && (
             <>
               {renderUpload("Grade Report", "gradeReport")}
@@ -1353,7 +1357,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </>
           )}
 
-          {!isChildDesignation && values.educPath === "Masters" && (
+          {!isChildDesignation && values.educPath === "Masters Education" && (
             <>
               <Text style={styles.sectionHeader}>| Previous Tertiary Education</Text>
               {renderInput("Previous School Name", "prevSchoolName", "Enter Previous School Name")}
@@ -1618,7 +1622,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             { label: "HS School Name", value: values.secondarySchool, icon: "business-outline" },
             { label: "Strand", value: values.strand, icon: "bookmarks-outline" },
             { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
-            { label: "Secondary GWA", value: values.secondaryGwa, icon: "analytics-outline" },
+            ...(values.incomingFreshman === "Yes" ? [{ label: "Secondary GWA", value: values.secondaryGwa, icon: "analytics-outline" }] : []),
           ])}
           {renderReviewSection("Higher Education", "medal-outline", [
             { label: "University / College", value: values.tertiarySchool, icon: "location-outline" },
@@ -1774,7 +1778,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
         </TouchableOpacity>
         <Text style={styles.title}>
           {selectedProgram === "employeeChild"
-            ? isChildDesignation ? "KKFI Employee-Child Education Grant" : "Employee Child Grant"
+            ? isChildDesignation ? "Child Designation Application" : "Staff Advancement Application"
             : selectedProgram === "vocational"
               ? "VOCATIONAL AND TECHNOLOGY SCHOLARSHIP"
               : "Tertiary Scholarship Program"}

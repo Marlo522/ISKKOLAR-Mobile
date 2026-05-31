@@ -350,6 +350,9 @@ export const useTertiaryApplication = () => {
       
       const checkMember = (name, status, occ, inc, prefix, niceName) => {
         if (!name || name.trim() === "") preFlightErrors[prefix + "Name"] = `${niceName} Name is required.`;
+        if (!status || status === "--") {
+          preFlightErrors[prefix + "Status"] = `${niceName} Employment Status is required.`;
+        }
         if (requiresProof(status)) {
           if (!occ || occ.trim() === "") preFlightErrors[prefix + "Occupation"] = `${niceName} Occupation is required.`;
           if (!inc || inc.trim() === "") preFlightErrors[prefix + "Income"] = `${niceName} Income is required.`;
@@ -393,6 +396,9 @@ export const useTertiaryApplication = () => {
       (dynamicFamilyMembers || []).forEach((mem, idx) => {
         if (!mem.name || mem.name.trim() === "") preFlightErrors[`dynFamily_${idx}_name`] = "Member Name is required.";
         if (!mem.relationship || mem.relationship.trim() === "") preFlightErrors[`dynFamily_${idx}_relationship`] = "Relationship is required.";
+        if (!mem.status || mem.status === "--") {
+          preFlightErrors[`dynFamily_${idx}_status`] = "Employment Status is required.";
+        }
         if (mem.status !== "Deceased") {
           if (!mem.contactNo || mem.contactNo.length < 11) preFlightErrors[`dynFamily_${idx}_contactNo`] = "Contact Number must be 11 digits.";
         }

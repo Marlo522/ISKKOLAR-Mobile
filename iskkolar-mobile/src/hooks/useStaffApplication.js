@@ -98,35 +98,48 @@ const normalizeApiErrorShape = (err) => ({
   errors: Array.isArray(err?.errors) ? err.errors : [],
 });
 
-const buildPayload = (values, isChildDesignation) => ({
-  applicant_category: isChildDesignation ? "child_designation" : "self_advancement",
-  educ_path: isChildDesignation ? "Tertiary" : values.educPath || "",
-  incoming_freshman: values.incomingFreshman === "Yes" ? "true" : "false",
-  secondary_school: values.secondarySchool || "",
-  strand: values.strand || "",
-  year_graduated: values.yearGraduated || "",
-  secondary_year_graduated: values.yearGraduated || "",
-  secondary_gwa: values.secondaryGwa || "",
-  tertiary_school: values.tertiarySchool || "",
-  program: values.program || "",
-  term_type: values.termType || "",
-  grade_scale: values.gradeScale || "",
-  year_level: values.yearLevel || "",
-  term: values.term || "",
-  term_start_date: values.termStartDate || "",
-  term_end_date: values.termEndDate || "",
-  tertiary_gwa: values.tertiaryGwa || "",
-  expected_graduation_year: values.expectedGradYear || "",
-  prev_school_name: values.prevSchoolName || "",
-  prev_program: values.prevProgram || "",
-  prev_year_graduated: values.prevYearGraduated || "",
-  staff_id: values.staffId || "",
-  first_name: values.firstName || "",
-  middle_name: values.middleName || "",
-  last_name: values.lastName || "",
-  suffix: values.suffix || "",
-  position: values.position || "",
-});
+const buildPayload = (values, isChildDesignation) => {
+  let mappedEducPath = "";
+  if (!isChildDesignation && values.educPath) {
+    if (values.educPath.startsWith("Tertiary")) {
+      mappedEducPath = "Tertiary";
+    } else if (values.educPath.startsWith("Masters")) {
+      mappedEducPath = "Masters";
+    } else {
+      mappedEducPath = values.educPath;
+    }
+  }
+
+  return {
+    applicant_category: isChildDesignation ? "child_designation" : "self_advancement",
+    educ_path: isChildDesignation ? "Tertiary" : mappedEducPath,
+    incoming_freshman: values.incomingFreshman === "Yes" ? "true" : "false",
+    secondary_school: values.secondarySchool || "",
+    strand: values.strand || "",
+    year_graduated: values.yearGraduated || "",
+    secondary_year_graduated: values.yearGraduated || "",
+    secondary_gwa: values.incomingFreshman === "Yes" ? values.secondaryGwa || "" : "",
+    tertiary_school: values.tertiarySchool || "",
+    program: values.program || "",
+    term_type: values.termType || "",
+    grade_scale: values.gradeScale || "",
+    year_level: values.yearLevel || "",
+    term: values.term || "",
+    term_start_date: values.termStartDate || "",
+    term_end_date: values.termEndDate || "",
+    tertiary_gwa: values.tertiaryGwa || "",
+    expected_graduation_year: values.expectedGradYear || "",
+    prev_school_name: values.prevSchoolName || "",
+    prev_program: values.prevProgram || "",
+    prev_year_graduated: values.prevYearGraduated || "",
+    staff_id: values.staffId || "",
+    first_name: values.firstName || "",
+    middle_name: values.middleName || "",
+    last_name: values.lastName || "",
+    suffix: values.suffix || "",
+    position: values.position || "",
+  };
+};
 
 const buildFiles = (uploads = {}) => {
   const files = {};
@@ -247,8 +260,10 @@ export const useStaffApplication = (isChildDesignation) => {
         if (!values.program || values.program.trim() === "")
           preflightErrors.program = "Degree Program is required.";
 
-        if (!values.secondaryGwa || values.secondaryGwa.trim() === "")
-          preflightErrors.secondaryGwa = "Secondary GWA is required.";
+        if (values.incomingFreshman === "Yes") {
+          if (!values.secondaryGwa || values.secondaryGwa.trim() === "")
+            preflightErrors.secondaryGwa = "Secondary GWA is required.";
+        }
         
         if (values.incomingFreshman === "No") {
           if (!values.tertiaryGwa || values.tertiaryGwa.trim() === "")

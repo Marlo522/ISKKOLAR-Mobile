@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import { getScholarActivities } from '../services/activityService';
+import { isVocationalScholar } from '../utils/scholarUtils';
 
 // Match the web's styling for different statuses
 const statusClasses = {
@@ -89,6 +90,8 @@ export default function ActivitiesScreen({ navigation }) {
   const presentCount = scholarActivities.filter((a) => a.status === "Present").length;
   const upcomingCount = scholarActivities.filter((a) => a.status === "Upcoming").length;
 
+  const isVocational = isVocationalScholar(user);
+
   return (
     <View style={styles.container}>
       {/* Top Profile Header */}
@@ -103,13 +106,15 @@ export default function ActivitiesScreen({ navigation }) {
             </Text>
             <Text style={styles.userRole}>Active Scholar</Text>
           </View>
-          <TouchableOpacity 
-            style={styles.bellBtnLanding} 
-            activeOpacity={0.8} 
-            onPress={() => navigation.navigate("Notifications")}
-          >
-            <Ionicons name="notifications-outline" size={22} color="#6472d9" />
-          </TouchableOpacity>
+          {!isVocational && (
+            <TouchableOpacity 
+              style={styles.bellBtnLanding} 
+              activeOpacity={0.8} 
+              onPress={() => navigation.navigate("Notifications")}
+            >
+              <Ionicons name="notifications-outline" size={22} color="#6472d9" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 

@@ -346,6 +346,9 @@ export const useVocationalApplication = () => {
       const checkMember = (name, status, occ, inc, prefix, niceName) => {
         if (!name || name.trim() === "")
           preFlightErrors[prefix + "Name"] = `${niceName} Name is required.`;
+        if (!status || status === "--") {
+          preFlightErrors[prefix + "Status"] = `${niceName} Employment Status is required.`;
+        }
         if (requiresProof(status)) {
           if (!occ || occ.trim() === "")
             preFlightErrors[prefix + "Occupation"] = `${niceName} Occupation is required.`;
@@ -403,6 +406,9 @@ export const useVocationalApplication = () => {
           preFlightErrors[`dynFamily_${idx}_name`] = "Member Name is required.";
         if (!mem.relationship || mem.relationship.trim() === "")
           preFlightErrors[`dynFamily_${idx}_relationship`] = "Relationship is required.";
+        if (!mem.status || mem.status === "--") {
+          preFlightErrors[`dynFamily_${idx}_status`] = "Employment Status is required.";
+        }
         if (mem.status !== "Deceased") {
           if (!mem.contactNo || mem.contactNo.length < 11)
             preFlightErrors[`dynFamily_${idx}_contactNo`] = "Contact Number must be 11 digits.";

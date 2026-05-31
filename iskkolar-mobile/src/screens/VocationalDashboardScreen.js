@@ -138,21 +138,6 @@ export default function VocationalDashboardScreen({ navigation }) {
       >
         {/* Banner with Circle Progress (Mirroring Web) */}
         <View style={[styles.heroBanner, { position: 'relative' }]}>
-          {/* Bell Notification Button */}
-          <TouchableOpacity 
-            style={styles.bellButton} 
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('Notifications')}
-          >
-            <Ionicons name="notifications" size={20} color="#fff" />
-            {unreadCount > 0 && (
-              <View style={styles.bellBadge}>
-                <Text style={styles.bellBadgeText}>
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
 
           <View style={styles.heroHeader}>
             <View style={{ flex: 1, marginRight: 8 }}>

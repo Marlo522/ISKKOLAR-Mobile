@@ -185,24 +185,6 @@ const AnnouncementDetail = ({ item, onBack, isArchived, onArchive, onUnarchive }
         <Text style={[styles.title, { flex: 1, marginRight: 8 }]} numberOfLines={1}>
           {item.title?.replace(/<[^>]+>/g, '').replace(/[\*_~]{1,2}/g, '')}
         </Text>
-        <TouchableOpacity 
-          style={[styles.backBtn, { backgroundColor: isArchived ? '#ebedfa' : '#fef2f2' }]} 
-          onPress={() => {
-            if (isArchived) {
-              void onUnarchive(item.id);
-            } else {
-              void onArchive(item.id);
-            }
-            onBack();
-          }}
-          activeOpacity={0.7}
-        >
-          <Ionicons 
-            name={isArchived ? "arrow-undo-outline" : "archive-outline"} 
-            size={20} 
-            color={isArchived ? "#4f5ec4" : "#ef4444"} 
-          />
-        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.detailContent} showsVerticalScrollIndicator={false}>
@@ -346,14 +328,6 @@ export default function NotificationsScreen({ navigation }) {
             <Text style={styles.title}>Announcements</Text> 
             <Text style={styles.subtitle}>Stay updated with announcements</Text>
           </View>
-          {/* Unread badge (active non-archived only) */}
-          {announcements.filter(a => !readIds.includes(a.id) && !archivedIds.includes(a.id)).length > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadBadgeText}>
-                {announcements.filter(a => !readIds.includes(a.id) && !archivedIds.includes(a.id)).length}
-              </Text>
-            </View>
-          )}
         </View>
 
         {/* Filter Tabs */}

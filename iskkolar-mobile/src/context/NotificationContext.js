@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContext } from './AuthContext';
 import { getScholarAnnouncements } from '../services/announcementService';
+import { showNativeNotification } from '../services/nativeNotificationService';
+import { navigationRef } from '../navigation/AppNavigator';
 
 export const NotificationContext = createContext();
 
@@ -15,10 +17,10 @@ export const NotificationProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Banner State
   const [activeBanner, setActiveBanner] = useState(null);
   const slideAnim = useRef(new Animated.Value(-150)).current;
   const loadedAnnouncementsRef = useRef([]);
+  const hasShownInitialBannerRef = useRef(false);
 
   // Use refs to avoid re-triggering fetchAnnouncements when read/archive lists change
   const readIdsRef = useRef([]);
@@ -106,8 +108,25 @@ export const NotificationProvider = ({ children }) => {
         item => item.type === 'announcement'
       );
 
-      // Compare to detect new arrivals while app is active
-      if (loadedAnnouncementsRef.current.length > 0) {
+      // Show banner for the latest unread announcement on initial startup load
+      if (!hasShownInitialBannerRef.current) {
+        const unreadItems = announcementsOnly.filter(
+          item => !readIdsRef.current.includes(item.id) &&
+                  !archivedIdsRef.current.includes(item.id)
+        );
+        if (unreadItems.length > 0) {
+          // Show the most recent unread announcement
+          showBannerPopup(unreadItems[0]);
+
+          // Dispatch a native system notification
+          const item = unreadItems[0];
+          const cleanTitle = item.title?.replace(/<[^>]+>/g, '').replace(/[\*_~]{1,2}/g, '') || '';
+          const cleanBody = (item.description || item.content)?.replace(/<[^>]+>/g, '').replace(/[\*_~]{1,2}/g, '').trim() || '';
+          void showNativeNotification(`New Announcement: ${cleanTitle}`, cleanBody, { announcementId: item.id });
+        }
+        hasShownInitialBannerRef.current = true;
+      } else {
+        // Compare to detect new arrivals while app is active
         const newItems = announcementsOnly.filter(
           item => !loadedAnnouncementsRef.current.includes(item.id) &&
                   !readIdsRef.current.includes(item.id) &&
@@ -115,6 +134,12 @@ export const NotificationProvider = ({ children }) => {
         );
         if (newItems.length > 0) {
           showBannerPopup(newItems[0]);
+
+          // Dispatch a native system notification for the new arrival
+          const item = newItems[0];
+          const cleanTitle = item.title?.replace(/<[^>]+>/g, '').replace(/[\*_~]{1,2}/g, '') || '';
+          const cleanBody = (item.description || item.content)?.replace(/<[^>]+>/g, '').replace(/[\*_~]{1,2}/g, '').trim() || '';
+          void showNativeNotification(`New Announcement: ${cleanTitle}`, cleanBody, { announcementId: item.id });
         }
       }
 
@@ -190,14 +215,15 @@ export const NotificationProvider = ({ children }) => {
   // Load read IDs and fetch announcements when user changes
   useEffect(() => {
     if (user) {
+      hasShownInitialBannerRef.current = false;
       loadReadIds().then(() => {
         void fetchAnnouncements();
       });
 
-      // Poll for new announcements every 30 seconds automatically
+      // Poll for new announcements every 8 seconds automatically for real-time popups
       const timer = setInterval(() => {
         void fetchAnnouncements();
-      }, 30000);
+      }, 8000);
 
       return () => clearInterval(timer);
     } else {
@@ -205,6 +231,7 @@ export const NotificationProvider = ({ children }) => {
       setReadIds([]);
       setArchivedIds([]);
       loadedAnnouncementsRef.current = [];
+      hasShownInitialBannerRef.current = false;
     }
   }, [user, loadReadIds, fetchAnnouncements]);
 
@@ -247,6 +274,11 @@ export const NotificationProvider = ({ children }) => {
               }).start(() => {
                 setActiveBanner(null);
               });
+
+              // Route to the Notifications tab screen
+              if (navigationRef.isReady()) {
+                navigationRef.navigate("Notifications");
+              }
             }}
           >
             <View style={styles.bannerIconBox}>
