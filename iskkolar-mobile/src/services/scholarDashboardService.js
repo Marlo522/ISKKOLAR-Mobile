@@ -1,5 +1,6 @@
 import api from './api';
 import { isMissingUserProfileError } from './serviceErrorHelpers';
+import { getScholarApplicationHistory as getScholarApplicationHistoryRN } from '../features/scholar/services/scholarDashboardService';
 
 const toReadableError = (error) => {
   if (error?.message) {
@@ -28,8 +29,8 @@ export const getScholarDashboardSummary = async () => {
 
 export const getScholarApplicationHistory = async () => {
   try {
-    const response = await api.get('/scholarships/dashboard/applications-history');
-    return response.data?.data || response.data || [];
+    const response = await getScholarApplicationHistoryRN();
+    return response?.data || response || [];
   } catch (error) {
     if (isMissingUserProfileError(error)) {
       return { success: true, data: { applicationItems: [] } };

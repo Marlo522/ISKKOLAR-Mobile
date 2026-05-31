@@ -111,6 +111,9 @@ const ApplicationCard = ({ application }) => {
   const activeInterview = Array.isArray(application.interviews)
     ? application.interviews.find((i) => i.status === "scheduled" || i.status === "rescheduled")
     : null;
+  const isOnlineInterview = activeInterview?.interview_type === "online";
+  const isOnsiteInterview = activeInterview?.interview_type === "onsite";
+  const interviewLocation = activeInterview?.location?.trim() || "KKFI Office";
 
   let progressFillColor = "#5b5f97";
   if (isRejected) {
@@ -132,6 +135,25 @@ const ApplicationCard = ({ application }) => {
       }
     } catch (error) {
       console.error("Failed to open meeting link:", error);
+    }
+  };
+
+  const buildMapsUrl = (location) => {
+    const query = (location || "KKFI Office").trim() || "KKFI Office";
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  };
+
+  const handleOpenMaps = async (location) => {
+    const url = buildMapsUrl(location);
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        console.warn("Don't know how to open maps URI: " + url);
+      }
+    } catch (error) {
+      console.error("Failed to open maps link:", error);
     }
   };
 
@@ -268,14 +290,14 @@ const ApplicationCard = ({ application }) => {
               
               <View style={styles.interviewDetailItem}>
                 <Ionicons 
-                  name={activeInterview.interview_type === "online" ? "videocam-outline" : "location-outline"} 
+                  name={isOnlineInterview ? "videocam-outline" : "location-outline"} 
                   size={16} 
                   color="#6b7280" 
                   style={{ marginRight: 6, marginTop: 2 }} 
                 />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.interviewDetailLabel}>Type & Venue</Text>
-                  {activeInterview.interview_type === "online" ? (
+                  {isOnlineInterview ? (
                     <Text style={styles.interviewDetailValue}>
                       {"Online ("}
                       {activeInterview.meeting_link ? (
@@ -290,9 +312,36 @@ const ApplicationCard = ({ application }) => {
                       )}
                       {")"}
                     </Text>
+                  ) : isOnsiteInterview ? (
+                    <View>
+                      <Text style={styles.interviewDetailValue}>
+                        On-site @ {interviewLocation}
+                      </Text>
+                      <View style={styles.mapsActionCard}>
+                        <View style={styles.mapsActionRow}>
+                          <View style={styles.mapsActionIconWrap}>
+                            <Ionicons name="map-outline" size={18} color="#5b5f97" />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.mapsActionTitle}>Open location in Google Maps</Text>
+                            <Text style={styles.mapsActionSubtitle}>
+                              Navigate to {interviewLocation}
+                            </Text>
+                          </View>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.mapsButton}
+                          onPress={() => handleOpenMaps(interviewLocation)}
+                          activeOpacity={0.85}
+                        >
+                          <Ionicons name="open-outline" size={16} color="#fff" style={{ marginRight: 8 }} />
+                          <Text style={styles.mapsButtonText}>Open in Maps</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
                   ) : (
                     <Text style={styles.interviewDetailValue}>
-                      On-site @ {activeInterview.location || "KKFI Office"}
+                      On-site @ {interviewLocation}
                     </Text>
                   )}
                 </View>
@@ -528,6 +577,13 @@ const styles = StyleSheet.create({
   interviewDetailLabel: { fontSize: 10, fontWeight: "700", color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 },
   interviewDetailValue: { fontSize: 13, fontWeight: "600", color: "#374151", lineHeight: 18 },
   interactiveLink: { color: "#5b5f97", fontWeight: "700", textDecorationLine: "underline" },
+  mapsActionCard: { marginTop: 10, padding: 12, backgroundColor: "#fff", borderRadius: 12, borderWidth: 1, borderColor: "rgba(91, 95, 151, 0.12)" },
+  mapsActionRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 12 },
+  mapsActionIconWrap: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#eef0fb", justifyContent: "center", alignItems: "center", marginRight: 10 },
+  mapsActionTitle: { fontSize: 13, fontWeight: "800", color: "#1f2937", marginBottom: 2 },
+  mapsActionSubtitle: { fontSize: 12, color: "#6b7280", lineHeight: 17 },
+  mapsButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#5b5f97", borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14 },
+  mapsButtonText: { color: "#fff", fontSize: 13, fontWeight: "800" },
   remarksContainer: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: "rgba(229, 231, 235, 0.5)" },
   remarksLabel: { fontSize: 10, fontWeight: "700", color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
   remarksText: { fontSize: 12, fontStyle: "italic", color: "#4b5563", lineHeight: 18, backgroundColor: "#fff", padding: 10, borderRadius: 8, borderWidth: 1, borderColor: "#e5e7eb" },
