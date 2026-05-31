@@ -49,6 +49,7 @@ const infoFields = {
   prevSchoolName: "",
   prevProgram: "",
   prevYearGraduated: "",
+  prevGradeScale: "1.0 - 5.00 Grading System",
   staffId: "",
   firstName: "",
   middleName: "",
@@ -394,19 +395,20 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
   const updateValue = (key, value) => {
     setValues((prev) => {
-      if (key !== "staffId") return { ...prev, [key]: value };
-
-      // Reset auto-filled profile when the staff ID changes.
-      if (value === prev.staffId) return prev;
-      return {
-        ...prev,
-        staffId: value,
-        firstName: "",
-        middleName: "",
-        lastName: "",
-        suffix: "",
-        position: "",
-      };
+      let next = { ...prev, [key]: value };
+      if (key === "staffId") {
+        if (value === prev.staffId) return prev;
+        return {
+          ...next,
+          staffId: value,
+          firstName: "",
+          middleName: "",
+          lastName: "",
+          suffix: "",
+          position: "",
+        };
+      }
+      return next;
     });
 
     if (key === "staffId") {
@@ -1331,6 +1333,8 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
   const renderEmployeeChildFlow = () => {
     if (step === 0) {
+      const isMasters = !isChildDesignation && values.educPath === "Masters Education";
+
       return (
         <View>
           <Text style={styles.sectionHeader}>Academic Information</Text>
@@ -1349,13 +1353,13 @@ export default function ProgramApplyScreen({ navigation, route }) {
             "PRE-K-12 CURRICULUM"
           ])}
           {renderYearInput("Year Graduated", "yearGraduated")}
-          {values.incomingFreshman === "Yes" && (
+          {values.incomingFreshman === "Yes" && !isMasters && (
             <>
               {renderInput("Secondary GWA (General Weighted Average)", "secondaryGwa", "e.g. 88.50", { keyboardType: "numeric" })}
               <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide your final general average from your high school report card.</Text>
             </>
           )}
-          {values.incomingFreshman === "Yes" && (
+          {values.incomingFreshman === "Yes" && !isMasters && (
             <>
               {renderUpload("Grade Report", "gradeReport")}
               <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
@@ -1364,16 +1368,29 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </>
           )}
 
-          {!isChildDesignation && values.educPath === "Masters Education" && (
+          {isMasters && (
             <>
               <Text style={styles.sectionHeader}>| Previous Tertiary Education</Text>
               {renderInput("Previous School Name", "prevSchoolName", "Enter Previous School Name")}
               {renderInput("Previous Program", "prevProgram", "Enter Previous Program")}
               {renderYearInput("Previous Year Graduated", "prevYearGraduated")}
+              {renderInput("Previous Tertiary GWA", "secondaryGwa", "e.g. 1.75 or 88.50", { keyboardType: "numeric" })}
+              <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide the GWA from your previous tertiary transcript.</Text>
+              {values.incomingFreshman === "Yes" && (
+                <>
+                  {renderSelect("Grade Scale", "prevGradeScale", ["1.0 - 5.00 Grading System", "4.00 GPA System", "Percentage System", "Letter Grade System"])}
+                  {renderUpload("Grade Report", "gradeReport")}
+                  <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
+                    Guide: Please upload your final grade report for the previous tertiary program.
+                  </Text>
+                </>
+              )}
             </>
           )}
 
-          <Text style={styles.sectionHeader}>| Current Tertiary Education</Text>
+          <Text style={styles.sectionHeader}>
+            {isMasters ? "| Current Masters Education" : "| Current Tertiary Education"}
+          </Text>
           {renderInput("University / College Name", "tertiarySchool", "Enter School Name")}
           {renderInput("Program", "program", "Enter Program")}
           {renderSelect("Term Type", "termType", ["Semester", "Trimester", "Quarter System"])}
@@ -1402,9 +1419,11 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
           {values.incomingFreshman === "No" && (
             <>
-              {renderInput("Current Tertiary GWA", "tertiaryGwa", "e.g. 1.75 or 88.00", { keyboardType: "numeric" })}
-              <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide your GWA from your most recent semester/term.</Text>
-              {renderUpload("Current Term Report Card", "currentTermGradeReport")}
+              {renderInput(isMasters ? "Current Masters GWA" : "Current Tertiary GWA", "tertiaryGwa", "e.g. 1.75 or 88.00", { keyboardType: "numeric" })}
+              <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>
+                {isMasters ? "Provide your GWA from your most recent masters semester/term." : "Provide your GWA from your most recent semester/term."}
+              </Text>
+              {renderUpload(isMasters ? "Current Masters Term Report Card" : "Current Term Report Card", "currentTermGradeReport")}
               <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
                 Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
               </Text>
@@ -1619,42 +1638,62 @@ export default function ProgramApplyScreen({ navigation, route }) {
         </>
       )}
 
-      {selectedProgram === "employeeChild" && (
-        <>
-          {renderReviewSection("Academic Path", "trail-sign-outline", [
-            ...(!isChildDesignation ? [{ label: "Education Path", value: values.educPath, icon: "map-outline" }] : []),
-            { label: "New Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
-          ])}
-          {renderReviewSection("Educational History", "school-outline", [
-            { label: "HS School Name", value: values.secondarySchool, icon: "business-outline" },
-            { label: "Strand", value: values.strand, icon: "bookmarks-outline" },
-            { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
-            ...(values.incomingFreshman === "Yes" ? [{ label: "Secondary GWA", value: values.secondaryGwa, icon: "analytics-outline" }] : []),
-          ])}
-          {renderReviewSection("Higher Education", "medal-outline", [
-            { label: "University / College", value: values.tertiarySchool, icon: "location-outline" },
-            { label: "Degree Program", value: values.program, icon: "school-outline" },
-            { label: "Term System", value: values.term, icon: "time-outline" },
-            { label: "Term Start Date", value: values.termStartDate, icon: "calendar-outline" },
-            { label: "Term End Date", value: values.termEndDate, icon: "calendar-outline" },
-            ...(values.incomingFreshman === "No" ? [{ label: "Tertiary GWA", value: values.tertiaryGwa, icon: "analytics-outline" }] : []),
-          ])}
-          {renderReviewSection("Staff Information", "id-card-outline", [
-            { label: "Staff ID", value: values.staffId, icon: "barcode-outline" },
-            { label: "Staff Employee", value: `${values.firstName} ${values.lastName}`, icon: "person-outline" },
-            { label: "Position", value: values.position, icon: "briefcase-outline" },
-          ])}
-          {renderReviewSection("Supporting Documents", "document-text-outline", [
-            ...(values.incomingFreshman === "Yes" ? [
-              { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" }
-            ] : []),
-            { label: "COR", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
-            ...(values.incomingFreshman === "No" ? [
-              { label: "Current Term Report", value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached", icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle" }
-            ] : []),
-          ])}
-        </>
-      )}
+      {selectedProgram === "employeeChild" && (() => {
+        const isMasters = !isChildDesignation && values.educPath === "Masters Education";
+        return (
+          <>
+            {renderReviewSection("Academic Path", "trail-sign-outline", [
+              ...(!isChildDesignation ? [{ label: "Education Path", value: values.educPath, icon: "map-outline" }] : []),
+              { label: "New Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
+            ])}
+            {renderReviewSection("Educational History", "school-outline", [
+              { label: "HS School Name", value: values.secondarySchool, icon: "business-outline" },
+              { label: "Strand", value: values.strand, icon: "bookmarks-outline" },
+              { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
+              ...(values.incomingFreshman === "Yes" && !isMasters ? [{ label: "Secondary GWA", value: values.secondaryGwa, icon: "analytics-outline" }] : []),
+            ])}
+            {isMasters && renderReviewSection("Previous Tertiary Education", "book-outline", [
+              { label: "Previous School Name", value: values.prevSchoolName, icon: "business-outline" },
+              { label: "Previous Program", value: values.prevProgram, icon: "school-outline" },
+              { label: "Previous Year Graduated", value: values.prevYearGraduated, icon: "calendar-outline" },
+              { label: "Previous Tertiary GWA", value: values.secondaryGwa, icon: "analytics-outline" },
+              ...(values.incomingFreshman === "Yes" ? [
+                { label: "Grade Scale", value: values.prevGradeScale, icon: "ribbon-outline" },
+              ] : []),
+            ])}
+            {renderReviewSection(isMasters ? "Current Masters Education" : "Higher Education", "medal-outline", [
+              { label: isMasters ? "University / College Name" : "University / College", value: values.tertiarySchool, icon: "location-outline" },
+              { label: "Degree Program", value: values.program, icon: "school-outline" },
+              { label: "Term System", value: values.term, icon: "time-outline" },
+              { label: "Term Start Date", value: values.termStartDate, icon: "calendar-outline" },
+              { label: "Term End Date", value: values.termEndDate, icon: "calendar-outline" },
+              ...(values.incomingFreshman === "No" ? [{ label: isMasters ? "Current Masters GWA" : "Tertiary GWA", value: values.tertiaryGwa, icon: "analytics-outline" }] : []),
+            ])}
+            {renderReviewSection("Staff Information", "id-card-outline", [
+              { label: "Staff ID", value: values.staffId, icon: "barcode-outline" },
+              { label: "Staff Employee", value: `${values.firstName} ${values.lastName}`, icon: "person-outline" },
+              { label: "Position", value: values.position, icon: "briefcase-outline" },
+            ])}
+            {renderReviewSection("Supporting Documents", "document-text-outline", [
+              ...(values.incomingFreshman === "Yes" ? [
+                {
+                  label: isMasters ? "Previous Tertiary Grade Report" : "Grade Report",
+                  value: uploadText.gradeReport ? "Attached" : "Not Attached",
+                  icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle"
+                }
+              ] : []),
+              { label: "COR", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
+              ...(values.incomingFreshman === "No" ? [
+                {
+                  label: isMasters ? "Current Masters Term Report" : "Current Term Report",
+                  value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached",
+                  icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle"
+                }
+              ] : []),
+            ])}
+          </>
+        );
+      })()}
 
       <View style={styles.premiumReviewCard}>
         <View style={styles.declarationHeader}>

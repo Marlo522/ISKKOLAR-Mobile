@@ -30,6 +30,7 @@ const FIELD_MAP = {
   prev_school_name: "prevSchoolName",
   prev_program: "prevProgram",
   prev_year_graduated: "prevYearGraduated",
+  prev_grade_scale: "prevGradeScale",
   staff_id: "staffId",
   first_name: "firstName",
   middle_name: "middleName",
@@ -121,7 +122,7 @@ const buildPayload = (values, isChildDesignation) => {
     strand: values.strand || "",
     year_graduated: values.yearGraduated || "",
     secondary_year_graduated: values.yearGraduated || "",
-    secondary_gwa: values.incomingFreshman === "Yes" ? values.secondaryGwa || "" : "",
+    secondary_gwa: (values.incomingFreshman === "Yes" || values.educPath === "Masters Education") ? values.secondaryGwa || "" : "",
     tertiary_school: values.tertiarySchool || "",
     program: values.program || "",
     term_type: values.termType || "",
@@ -135,6 +136,7 @@ const buildPayload = (values, isChildDesignation) => {
     prev_school_name: values.prevSchoolName || "",
     prev_program: values.prevProgram || "",
     prev_year_graduated: values.prevYearGraduated || "",
+    prev_grade_scale: values.prevGradeScale || "",
     staff_id: values.staffId || "",
     first_name: values.firstName || "",
     middle_name: values.middleName || "",
@@ -282,14 +284,33 @@ export const useStaffApplication = (isChildDesignation) => {
         if (!values.program || values.program.trim() === "")
           preflightErrors.program = "Degree Program is required.";
 
-        if (values.incomingFreshman === "Yes") {
-          if (!values.secondaryGwa || values.secondaryGwa.trim() === "")
-            preflightErrors.secondaryGwa = "Secondary GWA is required.";
+        if (values.educPath === "Masters Education") {
+          if (!values.prevSchoolName || values.prevSchoolName.trim() === "")
+            preflightErrors.prevSchoolName = "Previous School Name is required.";
+          if (!values.prevProgram || values.prevProgram.trim() === "")
+            preflightErrors.prevProgram = "Previous Program is required.";
+          if (!values.prevYearGraduated || values.prevYearGraduated.trim() === "")
+            preflightErrors.prevYearGraduated = "Previous Year Graduated is required.";
+        }
+
+        if (values.educPath === "Masters Education") {
+          if (!values.secondaryGwa || values.secondaryGwa.trim() === "") {
+            preflightErrors.secondaryGwa = "Previous Tertiary GWA is required.";
+          }
+        } else {
+          if (values.incomingFreshman === "Yes") {
+            if (!values.secondaryGwa || values.secondaryGwa.trim() === "") {
+              preflightErrors.secondaryGwa = "Secondary GWA is required.";
+            }
+          }
         }
         
         if (values.incomingFreshman === "No") {
-          if (!values.tertiaryGwa || values.tertiaryGwa.trim() === "")
-            preflightErrors.tertiaryGwa = "Tertiary GWA is required.";
+          if (!values.tertiaryGwa || values.tertiaryGwa.trim() === "") {
+            preflightErrors.tertiaryGwa = values.educPath === "Masters Education"
+              ? "Current Masters GWA is required."
+              : "Tertiary GWA is required.";
+          }
         }
 
         if (!values.termStartDate || values.termStartDate.trim() === "") {
