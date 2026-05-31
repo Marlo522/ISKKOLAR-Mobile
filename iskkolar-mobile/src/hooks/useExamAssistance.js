@@ -96,12 +96,10 @@ export const useExamAssistance = () => {
     setIsCheckingGuard(true);
     try {
       const apps = await getExamAssistanceApplications();
-      const ongoing = (apps || []).find((app) =>
-        ONGOING_STATUSES.has(String(app?.status || "").toLowerCase())
-      );
-      if (ongoing) {
+      const [firstApplication] = Array.isArray(apps) ? apps : [];
+      if (firstApplication) {
         setOngoingApplication({
-          ...ongoing,
+          ...firstApplication,
           application_type: "exam_assistance",
         });
       } else {

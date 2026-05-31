@@ -25,6 +25,7 @@ import { checkAnyOngoingApplication } from "../services/applicationGuardService"
 import api from "../services/api";
 import ApplicationsClosedScreen from "./ApplicationsClosedScreen";
 import ApplicationResultState from "../components/ApplicationResultState";
+import { getScholarshipFormAccess } from "../services/applicationGuardService";
 
 const infoFields = {
   educPath: "Tertiary Education",
@@ -123,7 +124,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const [declarations, setDeclarations] = useState({ agree1: false, agree2: false, agree3: false });
   const [verifiedStaffId, setVerifiedStaffId] = useState("");
   const [isCheckingApplication, setIsCheckingApplication] = useState(true);
-  const [ongoingApplication, setOngoingApplication] = useState(null);
+  const [formAccess, setFormAccess] = useState({ allowed: true, reason: null, message: "", blockedApplication: null });
   const [isApplicationsClosed, setIsApplicationsClosed] = useState(false);
   const [closedYear, setClosedYear] = useState(new Date().getFullYear());
 
@@ -135,6 +136,8 @@ export default function ProgramApplyScreen({ navigation, route }) {
     qualificationOutcome: tertiaryQualificationOutcome,
     submitApplication: submitTertiary,
     validateStep: validateTertiaryStep,
+    isCheckingGuard: tertiaryIsCheckingGuard,
+    ongoingApplication: tertiaryOngoingApplication,
   } = useTertiaryApplication();
 
   const {
@@ -148,6 +151,8 @@ export default function ProgramApplyScreen({ navigation, route }) {
     submitApplication: submitStaff,
     validateStep: validateStaffStep,
     verifyStaffById,
+    isCheckingGuard: staffIsCheckingGuard,
+    ongoingApplication: staffOngoingApplication,
   } = useStaffApplication(isChildDesignation);
 
   const {
@@ -158,6 +163,8 @@ export default function ProgramApplyScreen({ navigation, route }) {
     qualificationOutcome: vocationalQualificationOutcome,
     submitApplication: submitVocational,
     validateStep: validateVocationalStep,
+    isCheckingGuard: vocationalIsCheckingGuard,
+    ongoingApplication: vocationalOngoingApplication,
   } = useVocationalApplication();
 
   const isEmployeeChildFlow = selectedProgram === "employeeChild";
@@ -215,9 +222,9 @@ export default function ProgramApplyScreen({ navigation, route }) {
     const runCheck = async () => {
       try {
         setIsCheckingApplication(true);
-        const ongoing = await checkAnyOngoingApplication();
+        const access = await getScholarshipFormAccess({ program: selectedProgram, option });
         if (!mounted) return;
-        setOngoingApplication(ongoing);
+        setFormAccess(access);
 
         // Fetch application settings from Supabase (via the backend API)
         let settingsData = null;
@@ -1756,15 +1763,89 @@ export default function ProgramApplyScreen({ navigation, route }) {
     );
   }
 
-  if (ongoingApplication) {
+  if (!formAccess.allowed) {
     return (
       <ApplicationSubmissionGuard
         isChecking={false}
-        ongoingApplication={ongoingApplication}
+        ongoingApplication={formAccess.reason === "active_stage" ? formAccess.blockedApplication : null}
+        title={formAccess.reason === "rejected_this_year" ? "Application Locked" : "Application Restricted"}
+        cardTitle={formAccess.reason === "rejected_this_year" ? "You cannot apply again" : undefined}
+        message={formAccess.message}
+        secondaryMessage={formAccess.reason === "rejected_this_year" ? "Please review your application history for details." : undefined}
         onBack={() => navigation?.goBack?.()}
         onViewApplications={() => navigation?.navigate?.("Application")}
       />
     );
+  }
+
+  // Per-program guard checks (show the full UI guard instead of toasts)
+  if (selectedProgram === "tertiary") {
+    if (tertiaryIsCheckingGuard) {
+      return (
+        <ApplicationSubmissionGuard
+          isChecking={true}
+          ongoingApplication={null}
+          onBack={() => navigation?.goBack?.()}
+          onViewApplications={() => navigation?.navigate?.("Application")}
+        />
+      );
+    }
+    if (tertiaryOngoingApplication && completeStage !== "qualificationReport") {
+      return (
+        <ApplicationSubmissionGuard
+          isChecking={false}
+          ongoingApplication={tertiaryOngoingApplication}
+          onBack={() => navigation?.goBack?.()}
+          onViewApplications={() => navigation?.navigate?.("Application")}
+        />
+      );
+    }
+  }
+
+  if (isVocationalFlow) {
+    if (vocationalIsCheckingGuard) {
+      return (
+        <ApplicationSubmissionGuard
+          isChecking={true}
+          ongoingApplication={null}
+          onBack={() => navigation?.goBack?.()}
+          onViewApplications={() => navigation?.navigate?.("Application")}
+        />
+      );
+    }
+    if (vocationalOngoingApplication && completeStage !== "qualificationReport") {
+      return (
+        <ApplicationSubmissionGuard
+          isChecking={false}
+          ongoingApplication={vocationalOngoingApplication}
+          onBack={() => navigation?.goBack?.()}
+          onViewApplications={() => navigation?.navigate?.("Application")}
+        />
+      );
+    }
+  }
+
+  if (isEmployeeChildFlow) {
+    if (staffIsCheckingGuard) {
+      return (
+        <ApplicationSubmissionGuard
+          isChecking={true}
+          ongoingApplication={null}
+          onBack={() => navigation?.goBack?.()}
+          onViewApplications={() => navigation?.navigate?.("Application")}
+        />
+      );
+    }
+    if (staffOngoingApplication && completeStage !== "qualificationReport") {
+      return (
+        <ApplicationSubmissionGuard
+          isChecking={false}
+          ongoingApplication={staffOngoingApplication}
+          onBack={() => navigation?.goBack?.()}
+          onViewApplications={() => navigation?.navigate?.("Application")}
+        />
+      );
+    }
   }
 
   return (

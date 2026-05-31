@@ -1,4 +1,5 @@
-import { useState, useCallback, useContext } from "react";
+import { useState, useCallback, useContext, useEffect } from "react";
+import { getScholarshipFormAccess } from "../services/applicationGuardService";
 import { AuthContext } from "../context/AuthContext";
 import {
   getMyVocationalApplications as fetchMyApplications,
@@ -192,6 +193,9 @@ const normalizeApiErrorShape = (err) => ({
   errors: Array.isArray(err?.errors) ? err.errors : [],
 });
 
+const FRIENDLY_NETWORK_VALIDATION_MESSAGE =
+  "We could not verify your application right now because the connection was interrupted. Please check your internet connection and try again.";
+
 // ─── HOOK ────────────────────────────────────────────────────
 
 export const useVocationalApplication = () => {
@@ -264,7 +268,7 @@ export const useVocationalApplication = () => {
     }
 
     if (err.status === 0) {
-      setError("Network error. Please check your connection and try again.");
+      setError(FRIENDLY_NETWORK_VALIDATION_MESSAGE);
       return;
     }
 
@@ -275,6 +279,25 @@ export const useVocationalApplication = () => {
   const getMyApplications = useCallback(async () => {
     return await fetchMyApplications();
   }, []);
+
+  const [isCheckingGuard, setIsCheckingGuard] = useState(true);
+  const [ongoingApplication, setOngoingApplication] = useState(null);
+
+  const checkGuard = useCallback(async () => {
+    setIsCheckingGuard(true);
+    try {
+      const access = await getScholarshipFormAccess({ program: "vocational" });
+      setOngoingApplication(access?.blockedApplication || null);
+    } catch {
+      setOngoingApplication(null);
+    } finally {
+      setIsCheckingGuard(false);
+    }
+  }, [getMyApplications]);
+
+  useEffect(() => {
+    checkGuard();
+  }, [checkGuard]);
 
   // Validates a single step before the user can advance.
   // uiStep is 0-based (step 0 = academic, step 1 = family, step 2 = documents).
@@ -485,14 +508,8 @@ export const useVocationalApplication = () => {
       if (values.hasGuardian) rolesArray.push("guardian");
       (dynamicFamilyMembers || []).forEach(m => rolesArray.push(m.relationship));
 
-      // Only hard-block on 400 (field validation errors from the server).
-      if (err?.status === 400 && Array.isArray(err?.errors) && err.errors.length > 0) {
-        handleApiError(err, rolesArray);
-        return false;
-      }
-      // For any other server error, show a soft warning banner but still advance
-      setError("Could not reach server for validation. Proceeding with local checks.");
-      return true;
+      handleApiError(err, rolesArray);
+      return false;
     }
   }, []);
 
@@ -532,6 +549,9 @@ export const useVocationalApplication = () => {
     validateStep,
     clearFieldError,
     getMyApplications,
+    isCheckingGuard,
+    ongoingApplication,
+    recheckGuard: checkGuard,
   };
 };
 

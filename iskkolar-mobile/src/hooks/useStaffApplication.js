@@ -1,11 +1,14 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import {
   lookupStaffByStaffId,
   submitChildDesignationApplication,
   submitStaffAdvancementApplication,
   validateChildDesignationStep,
   validateStaffAdvancementStep,
+  getMyChildDesignationApplications,
+  getMyStaffAdvancementApplications,
 } from "../services/StaffApplication";
+import { getScholarshipFormAccess } from "../services/applicationGuardService";
 
 const FIELD_MAP = {
   educ_path: "educPath",
@@ -175,6 +178,25 @@ export const useStaffApplication = (isChildDesignation) => {
       return next;
     });
   }, []);
+
+  const [isCheckingGuard, setIsCheckingGuard] = useState(true);
+  const [ongoingApplication, setOngoingApplication] = useState(null);
+
+  const checkGuard = useCallback(async () => {
+    setIsCheckingGuard(true);
+    try {
+      const access = await getScholarshipFormAccess({ program: "employeeChild", option: isChildDesignation ? "Option 2" : "Option 1" });
+      setOngoingApplication(access?.blockedApplication || null);
+    } catch {
+      setOngoingApplication(null);
+    } finally {
+      setIsCheckingGuard(false);
+    }
+  }, [isChildDesignation]);
+
+  useEffect(() => {
+    checkGuard();
+  }, [checkGuard]);
 
   const handleApiError = useCallback((rawError) => {
     const err = normalizeApiErrorShape(rawError);
@@ -372,6 +394,9 @@ export const useStaffApplication = (isChildDesignation) => {
     submitApplication,
     clearFieldError,
     verifyStaffById,
+    isCheckingGuard,
+    ongoingApplication,
+    recheckGuard: checkGuard,
   };
 };
 

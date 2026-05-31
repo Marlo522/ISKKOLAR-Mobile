@@ -6,6 +6,44 @@ import { AuthContext } from '../context/AuthContext';
 import { getScholarActivities } from '../services/activityService';
 import { isVocationalScholar } from '../utils/scholarUtils';
 
+const isScholarUser = (user) => {
+  const values = [user?.userType, user?.role, user?.status, user?.scholarStatus, user?.program, user?.scholarshipType]
+    .map((value) => String(value || '').toLowerCase())
+    .join(' ');
+  return values.includes('scholar');
+};
+
+const isActivityVisibleToScholar = (activity, user) => {
+  const audienceValue = String(
+    activity?.audience ||
+    activity?.target_audience ||
+    activity?.visibility ||
+    activity?.launch_audience ||
+    activity?.eligible_for ||
+    activity?.eligibleFor ||
+    activity?.scholar_only ||
+    ''
+  ).toLowerCase();
+
+  if (audienceValue.includes('all')) return true;
+  if (audienceValue.includes('non-scholar') || audienceValue.includes('applicant')) return false;
+  if (audienceValue.includes('scholar')) return isScholarUser(user);
+
+  const launchStatus = String(
+    activity?.launch_scholar_status ||
+    activity?.scholar_status_at_launch ||
+    activity?.required_scholar_status ||
+    ''
+  ).toLowerCase();
+
+  if (launchStatus) {
+    const currentStatus = String(user?.scholarStatus || user?.status || user?.role || '').toLowerCase();
+    return currentStatus.includes(launchStatus) || currentStatus.includes('scholar');
+  }
+
+  return isScholarUser(user);
+};
+
 // Match the web's styling for different statuses
 const statusClasses = {
   Present: { bg: '#e6f7ef', text: '#0d7c47' },
@@ -75,8 +113,10 @@ export default function ActivitiesScreen({ navigation }) {
     }
   }, []);
 
+  const visibleActivities = scholarActivities.filter((activity) => isActivityVisibleToScholar(activity, user));
+
   // Process data similarly to the web implementation
-  const groupedByYear = scholarActivities.reduce((acc, activity) => {
+  const groupedByYear = visibleActivities.reduce((acc, activity) => {
     if (!acc[activity.year]) {
       acc[activity.year] = [];
     }
@@ -86,9 +126,9 @@ export default function ActivitiesScreen({ navigation }) {
 
   const years = Object.keys(groupedByYear).sort((a, b) => Number(b) - Number(a));
 
-  const totalActivities = scholarActivities.length;
-  const presentCount = scholarActivities.filter((a) => a.status === "Present").length;
-  const upcomingCount = scholarActivities.filter((a) => a.status === "Upcoming").length;
+  const totalActivities = visibleActivities.length;
+  const presentCount = visibleActivities.filter((a) => a.status === "Present").length;
+  const upcomingCount = visibleActivities.filter((a) => a.status === "Upcoming").length;
 
   const isVocational = isVocationalScholar(user);
 
@@ -143,14 +183,14 @@ export default function ActivitiesScreen({ navigation }) {
               <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
           </View>
-        ) : scholarActivities.length === 0 ? (
+        ) : visibleActivities.length === 0 ? (
           /* Empty State */
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
               <Ionicons name="calendar-outline" size={32} color="#9ca3af" />
             </View>
             <Text style={styles.emptyTitle}>No activities found</Text>
-            <Text style={styles.emptyText}>You don't have any activity records yet.</Text>
+            <Text style={styles.emptyText}>You don't have any visible activity records yet.</Text>
           </View>
         ) : (
           /* Content State */

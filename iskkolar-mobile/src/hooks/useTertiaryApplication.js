@@ -1,4 +1,5 @@
-import { useState, useCallback, useContext } from "react";
+import { useState, useCallback, useContext, useEffect } from "react";
+import { getScholarshipFormAccess } from "../services/applicationGuardService";
 import { AuthContext } from "../context/AuthContext";
 import { getMyApplications as fetchMyApplications, validateTertiaryStep, submitTertiaryApplication } from "../services/tertiaryAppService";
 
@@ -256,6 +257,25 @@ export const useTertiaryApplication = () => {
     return await fetchMyApplications();
   }, []);
 
+  const [isCheckingGuard, setIsCheckingGuard] = useState(true);
+  const [ongoingApplication, setOngoingApplication] = useState(null);
+
+  const checkGuard = useCallback(async () => {
+    setIsCheckingGuard(true);
+    try {
+      const access = await getScholarshipFormAccess({ program: "tertiary" });
+      setOngoingApplication(access?.blockedApplication || null);
+    } catch {
+      setOngoingApplication(null);
+    } finally {
+      setIsCheckingGuard(false);
+    }
+  }, [getMyApplications]);
+
+  useEffect(() => {
+    checkGuard();
+  }, [checkGuard]);
+
   // uiStep is the current 0-based step shown in the UI.
   // The Backend schema combines Academic and Family into step=1, and Documents into step=2.
   const validateStep = useCallback(async (uiStep, values, uploads, dynamicFamilyMembers) => {
@@ -508,6 +528,9 @@ export const useTertiaryApplication = () => {
     validateStep,
     clearFieldError,
     getMyApplications,
+    isCheckingGuard,
+    ongoingApplication,
+    recheckGuard: checkGuard,
   };
 };
 

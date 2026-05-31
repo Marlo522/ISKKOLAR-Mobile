@@ -32,6 +32,10 @@ export default function ProgramDetailScreen({ navigation, route }) {
   const [templatesError, setTemplatesError] = useState(null);
   const [downloadingIds, setDownloadingIds] = useState({});
 
+  const handleApplyPress = async (program, option) => {
+    navigation.navigate("ProgramApply", option ? { program, option } : { program });
+  };
+
   useEffect(() => {
     let active = true;
     const loadTemplates = async () => {
@@ -219,7 +223,7 @@ export default function ProgramDetailScreen({ navigation, route }) {
 
           <TouchableOpacity
             style={styles.applyBtn}
-            onPress={() => navigation.navigate("ProgramApply", { program: "employeeChild", option: item.option })}
+            onPress={() => handleApplyPress("employeeChild", item.option)}
           >
             <Text style={styles.applyBtnText}>Apply Now!</Text>
           </TouchableOpacity>
@@ -341,7 +345,7 @@ export default function ProgramDetailScreen({ navigation, route }) {
         )}
       </View>
 
-      <TouchableOpacity style={[styles.applyBtn, { flexDirection: "row", paddingHorizontal: 16, justifyContent: "center" }]} onPress={() => navigation.navigate("ProgramApply", { program: "vocational" })}>
+      <TouchableOpacity style={[styles.applyBtn, { flexDirection: "row", paddingHorizontal: 16, justifyContent: "center" }]} onPress={() => handleApplyPress("vocational")}>
         <Ionicons name="document" size={20} color="#fff" style={{ marginRight: 12 }} />
         <View style={{ flex: 1 }}>
           <Text style={styles.applyBtnText}>Apply Now!</Text>
@@ -446,7 +450,7 @@ export default function ProgramDetailScreen({ navigation, route }) {
         )}
       </View>
 
-      <TouchableOpacity style={[styles.applyBtn, { flexDirection: "row", paddingHorizontal: 16, justifyContent: "center" }]} onPress={() => navigation.navigate("ProgramApply")}>
+      <TouchableOpacity style={[styles.applyBtn, { flexDirection: "row", paddingHorizontal: 16, justifyContent: "center" }]} onPress={() => handleApplyPress("tertiary")}>
         <Ionicons name="document" size={20} color="#fff" style={{ marginRight: 12 }} />
         <View style={{ flex: 1 }}>
           <Text style={styles.applyBtnText}>Apply Now!</Text>
