@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AuthContext } from "../context/AuthContext";
+import { NotificationContext } from "../context/NotificationContext";
 
 // Import existing screens
 import ScholarDashboardScreen from "../screens/ScholarDashboardScreen";
@@ -58,6 +59,7 @@ function ScholarDashboardStackScreen() {
 export default function ScholarTabs() {
   const insets = useSafeAreaInsets();
   const { user } = useContext(AuthContext);
+  const { unreadCount } = useContext(NotificationContext);
 
   const hasVocationalValue = (obj) => {
     if (!obj) return false;
@@ -107,7 +109,14 @@ export default function ScholarTabs() {
     >
       <Tab.Screen name="Home" component={ScholarDashboardStackScreen} />
       <Tab.Screen name="Activities" component={ActivitiesScreen} />
-      <Tab.Screen name="Notifications" component={NotificationsScreen} />
+      <Tab.Screen 
+        name="Notifications" 
+        component={NotificationsScreen} 
+        options={{
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#e96e5e', color: '#fff', fontSize: 10, fontWeight: '800' }
+        }}
+      />
       <Tab.Screen name="Application" component={ApplicationScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>

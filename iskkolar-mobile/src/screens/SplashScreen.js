@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import {
   View,
   Text,
@@ -9,16 +9,35 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AuthContext } from "../context/AuthContext";
 
 export default function SplashScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { user, isHydrated } = useContext(AuthContext);
   const [showWelcome, setShowWelcome] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowWelcome(true), 2600);
-    return () => clearTimeout(timer);
-  }, []);
+    if (!isHydrated) return;
+
+    if (user) {
+      // If remember me kept them logged in, bypass welcome/login and auto-route
+      const timer = setTimeout(() => {
+        if (user.role === "applicant") {
+          navigation.replace("Main");
+        } else if (user.role === "scholar") {
+          navigation.replace("ScholarTabs");
+        } else {
+          setShowWelcome(true);
+        }
+      }, 2000);
+      return () => clearTimeout(timer);
+    } else {
+      // User is logged out, show welcome screen after duration
+      const timer = setTimeout(() => setShowWelcome(true), 2600);
+      return () => clearTimeout(timer);
+    }
+  }, [isHydrated, user, navigation]);
 
   const handleRegister = () => navigation.navigate("Signup");
   const handleLogin = () => navigation.navigate("Login");

@@ -1,11 +1,14 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import {
   lookupStaffByStaffId,
   submitChildDesignationApplication,
   submitStaffAdvancementApplication,
   validateChildDesignationStep,
   validateStaffAdvancementStep,
+  getMyChildDesignationApplications,
+  getMyStaffAdvancementApplications,
 } from "../services/StaffApplication";
+import { getScholarshipFormAccess } from "../services/applicationGuardService";
 
 const FIELD_MAP = {
   educ_path: "educPath",
@@ -27,6 +30,7 @@ const FIELD_MAP = {
   prev_school_name: "prevSchoolName",
   prev_program: "prevProgram",
   prev_year_graduated: "prevYearGraduated",
+  prev_grade_scale: "prevGradeScale",
   staff_id: "staffId",
   first_name: "firstName",
   middle_name: "middleName",
@@ -36,6 +40,9 @@ const FIELD_MAP = {
   cor: "cor",
   grade_report: "gradeReport",
   current_term_report: "currentTermGradeReport",
+  letter_of_intent: "letterOfIntentApplicant",
+  letter_of_intent_applicant: "letterOfIntentApplicant",
+  letter_of_intent_parent: "letterOfIntentParent",
   general: "_general",
 };
 
@@ -98,35 +105,49 @@ const normalizeApiErrorShape = (err) => ({
   errors: Array.isArray(err?.errors) ? err.errors : [],
 });
 
-const buildPayload = (values, isChildDesignation) => ({
-  applicant_category: isChildDesignation ? "child_designation" : "self_advancement",
-  educ_path: isChildDesignation ? "Tertiary" : values.educPath || "",
-  incoming_freshman: values.incomingFreshman === "Yes" ? "true" : "false",
-  secondary_school: values.secondarySchool || "",
-  strand: values.strand || "",
-  year_graduated: values.yearGraduated || "",
-  secondary_year_graduated: values.yearGraduated || "",
-  secondary_gwa: values.secondaryGwa || "",
-  tertiary_school: values.tertiarySchool || "",
-  program: values.program || "",
-  term_type: values.termType || "",
-  grade_scale: values.gradeScale || "",
-  year_level: values.yearLevel || "",
-  term: values.term || "",
-  term_start_date: values.termStartDate || "",
-  term_end_date: values.termEndDate || "",
-  tertiary_gwa: values.tertiaryGwa || "",
-  expected_graduation_year: values.expectedGradYear || "",
-  prev_school_name: values.prevSchoolName || "",
-  prev_program: values.prevProgram || "",
-  prev_year_graduated: values.prevYearGraduated || "",
-  staff_id: values.staffId || "",
-  first_name: values.firstName || "",
-  middle_name: values.middleName || "",
-  last_name: values.lastName || "",
-  suffix: values.suffix || "",
-  position: values.position || "",
-});
+const buildPayload = (values, isChildDesignation) => {
+  let mappedEducPath = "";
+  if (!isChildDesignation && values.educPath) {
+    if (values.educPath.startsWith("Tertiary")) {
+      mappedEducPath = "Tertiary";
+    } else if (values.educPath.startsWith("Masters")) {
+      mappedEducPath = "Masters";
+    } else {
+      mappedEducPath = values.educPath;
+    }
+  }
+
+  return {
+    applicant_category: isChildDesignation ? "child_designation" : "self_advancement",
+    educ_path: isChildDesignation ? "Tertiary" : mappedEducPath,
+    incoming_freshman: values.incomingFreshman === "Yes" ? "true" : "false",
+    secondary_school: values.secondarySchool || "",
+    strand: values.strand || "",
+    year_graduated: values.yearGraduated || "",
+    secondary_year_graduated: values.yearGraduated || "",
+    secondary_gwa: (values.incomingFreshman === "Yes" || values.educPath === "Masters Education") ? values.secondaryGwa || "" : "",
+    tertiary_school: values.tertiarySchool || "",
+    program: values.program || "",
+    term_type: values.termType || "",
+    grade_scale: values.gradeScale || "",
+    year_level: values.yearLevel || "",
+    term: values.term || "",
+    term_start_date: values.termStartDate || "",
+    term_end_date: values.termEndDate || "",
+    tertiary_gwa: values.tertiaryGwa || "",
+    expected_graduation_year: values.expectedGradYear || "",
+    prev_school_name: values.prevSchoolName || "",
+    prev_program: values.prevProgram || "",
+    prev_year_graduated: values.prevYearGraduated || "",
+    prev_grade_scale: values.prevGradeScale || "",
+    staff_id: values.staffId || "",
+    first_name: values.firstName || "",
+    middle_name: values.middleName || "",
+    last_name: values.lastName || "",
+    suffix: values.suffix || "",
+    position: values.position || "",
+  };
+};
 
 const buildFiles = (uploads = {}) => {
   const files = {};
@@ -162,6 +183,25 @@ export const useStaffApplication = (isChildDesignation) => {
       return next;
     });
   }, []);
+
+  const [isCheckingGuard, setIsCheckingGuard] = useState(true);
+  const [ongoingApplication, setOngoingApplication] = useState(null);
+
+  const checkGuard = useCallback(async () => {
+    setIsCheckingGuard(true);
+    try {
+      const access = await getScholarshipFormAccess({ program: "employeeChild", option: isChildDesignation ? "Option 2" : "Option 1" });
+      setOngoingApplication(access?.blockedApplication || null);
+    } catch {
+      setOngoingApplication(null);
+    } finally {
+      setIsCheckingGuard(false);
+    }
+  }, [isChildDesignation]);
+
+  useEffect(() => {
+    checkGuard();
+  }, [checkGuard]);
 
   const handleApiError = useCallback((rawError) => {
     const err = normalizeApiErrorShape(rawError);
@@ -247,12 +287,33 @@ export const useStaffApplication = (isChildDesignation) => {
         if (!values.program || values.program.trim() === "")
           preflightErrors.program = "Degree Program is required.";
 
-        if (!values.secondaryGwa || values.secondaryGwa.trim() === "")
-          preflightErrors.secondaryGwa = "Secondary GWA is required.";
+        if (values.educPath === "Masters Education") {
+          if (!values.prevSchoolName || values.prevSchoolName.trim() === "")
+            preflightErrors.prevSchoolName = "Previous School Name is required.";
+          if (!values.prevProgram || values.prevProgram.trim() === "")
+            preflightErrors.prevProgram = "Previous Program is required.";
+          if (!values.prevYearGraduated || values.prevYearGraduated.trim() === "")
+            preflightErrors.prevYearGraduated = "Previous Year Graduated is required.";
+        }
+
+        if (values.educPath === "Masters Education") {
+          if (!values.secondaryGwa || values.secondaryGwa.trim() === "") {
+            preflightErrors.secondaryGwa = "Previous Tertiary GWA is required.";
+          }
+        } else {
+          if (values.incomingFreshman === "Yes") {
+            if (!values.secondaryGwa || values.secondaryGwa.trim() === "") {
+              preflightErrors.secondaryGwa = "Secondary GWA is required.";
+            }
+          }
+        }
         
         if (values.incomingFreshman === "No") {
-          if (!values.tertiaryGwa || values.tertiaryGwa.trim() === "")
-            preflightErrors.tertiaryGwa = "Tertiary GWA is required.";
+          if (!values.tertiaryGwa || values.tertiaryGwa.trim() === "") {
+            preflightErrors.tertiaryGwa = values.educPath === "Masters Education"
+              ? "Current Masters GWA is required."
+              : "Tertiary GWA is required.";
+          }
         }
 
         if (!values.termStartDate || values.termStartDate.trim() === "") {
@@ -272,12 +333,16 @@ export const useStaffApplication = (isChildDesignation) => {
         if (values.termStartDate && values.termEndDate) {
           const start = parseDateString(values.termStartDate);
           const end = parseDateString(values.termEndDate);
-          if (start && end && end <= start) {
-            preflightErrors.termEndDate = "Term End Date must be later than Term Start Date.";
+          if (start && end) {
+            const limit = new Date(start);
+            limit.setMonth(limit.getMonth() + 1);
+            if (end < limit) {
+              preflightErrors.termEndDate = "Term End Date must be at least 1 month after Term Start Date.";
+            }
           }
         }
 
-        const checkYear = (val, key, label) => {
+        const checkYear = (val, key, label, allowFuture = false) => {
           if (!val) return;
           if (!/^\d{4}$/.test(String(val))) {
             preflightErrors[key] = `${label} must be 4 digits.`;
@@ -285,14 +350,33 @@ export const useStaffApplication = (isChildDesignation) => {
           }
 
           const numericYear = Number(val);
-          if (numericYear > currentYear) {
+          if (!allowFuture && numericYear > currentYear) {
             preflightErrors[key] = `${label} cannot be in the future.`;
           }
         };
 
         checkYear(values.yearGraduated, "yearGraduated", "Year Graduated");
         checkYear(values.prevYearGraduated, "prevYearGraduated", "Previous Year Graduated");
-        checkYear(values.expectedGradYear, "expectedGradYear", "Expected Graduation Year");
+        checkYear(values.expectedGradYear, "expectedGradYear", "Expected Graduation Year", true);
+
+        if (!uploads.cor) {
+          preflightErrors.cor = "Certificate of Registration is required.";
+        }
+        if (values.incomingFreshman === "No" && !uploads.currentTermGradeReport) {
+          preflightErrors.currentTermGradeReport = "Current Term Report Card is required.";
+        }
+        if (isChildDesignation) {
+          if (!uploads.letterOfIntentApplicant) {
+            preflightErrors.letterOfIntentApplicant = "Letter of Intent (Applicant) is required.";
+          }
+          if (!uploads.letterOfIntentParent) {
+            preflightErrors.letterOfIntentParent = "Letter of Intent (Parent) is required.";
+          }
+        } else {
+          if (!uploads.letterOfIntentApplicant) {
+            preflightErrors.letterOfIntentApplicant = "Letter of Intent is required.";
+          }
+        }
 
         if (Object.keys(preflightErrors).length > 0) {
           setFieldErrors(preflightErrors);
@@ -353,6 +437,9 @@ export const useStaffApplication = (isChildDesignation) => {
     submitApplication,
     clearFieldError,
     verifyStaffById,
+    isCheckingGuard,
+    ongoingApplication,
+    recheckGuard: checkGuard,
   };
 };
 

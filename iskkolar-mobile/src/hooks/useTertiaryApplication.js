@@ -1,4 +1,5 @@
-import { useState, useCallback, useContext } from "react";
+import { useState, useCallback, useContext, useEffect } from "react";
+import { getScholarshipFormAccess } from "../services/applicationGuardService";
 import { AuthContext } from "../context/AuthContext";
 import { getMyApplications as fetchMyApplications, validateTertiaryStep, submitTertiaryApplication } from "../services/tertiaryAppService";
 
@@ -26,6 +27,8 @@ const FIELD_MAP = {
   birth_certificate: "birthCert",
   essay: "essay",
   recommendation_letter: "recommendation",
+  letter_of_intent_applicant: "letterOfIntentApplicant",
+  letter_of_intent_parent: "letterOfIntentParent",
   income_cert_father: "incomeFather",
   income_cert_mother: "incomeMother",
   indigency_cert_father: "indigencyFather",
@@ -256,6 +259,25 @@ export const useTertiaryApplication = () => {
     return await fetchMyApplications();
   }, []);
 
+  const [isCheckingGuard, setIsCheckingGuard] = useState(true);
+  const [ongoingApplication, setOngoingApplication] = useState(null);
+
+  const checkGuard = useCallback(async () => {
+    setIsCheckingGuard(true);
+    try {
+      const access = await getScholarshipFormAccess({ program: "tertiary" });
+      setOngoingApplication(access?.blockedApplication || null);
+    } catch {
+      setOngoingApplication(null);
+    } finally {
+      setIsCheckingGuard(false);
+    }
+  }, [getMyApplications]);
+
+  useEffect(() => {
+    checkGuard();
+  }, [checkGuard]);
+
   // uiStep is the current 0-based step shown in the UI.
   // The Backend schema combines Academic and Family into step=1, and Documents into step=2.
   const validateStep = useCallback(async (uiStep, values, uploads, dynamicFamilyMembers) => {
@@ -311,8 +333,12 @@ export const useTertiaryApplication = () => {
       if (values.termStartDate && values.termEndDate) {
         const start = parseDateString(values.termStartDate);
         const end = parseDateString(values.termEndDate);
-        if (start && end && end <= start) {
-          preFlightErrors.termEndDate = "Term End Date must be later than Term Start Date.";
+        if (start && end) {
+          const limit = new Date(start);
+          limit.setMonth(limit.getMonth() + 1);
+          if (end < limit) {
+            preFlightErrors.termEndDate = "Term End Date must be at least 1 month after Term Start Date.";
+          }
         }
       }
     }
@@ -346,6 +372,9 @@ export const useTertiaryApplication = () => {
       
       const checkMember = (name, status, occ, inc, prefix, niceName) => {
         if (!name || name.trim() === "") preFlightErrors[prefix + "Name"] = `${niceName} Name is required.`;
+        if (!status || status === "--") {
+          preFlightErrors[prefix + "Status"] = `${niceName} Employment Status is required.`;
+        }
         if (requiresProof(status)) {
           if (!occ || occ.trim() === "") preFlightErrors[prefix + "Occupation"] = `${niceName} Occupation is required.`;
           if (!inc || inc.trim() === "") preFlightErrors[prefix + "Income"] = `${niceName} Income is required.`;
@@ -373,26 +402,25 @@ export const useTertiaryApplication = () => {
         }
       }
 
-      const fatherIsOptional = values.hasGuardian;
-      if (values.fatherStatus !== "Deceased") {
-        if (!fatherIsOptional || values.fatherName) {
-          checkMember(values.fatherName, values.fatherStatus, values.fatherOccupation, values.fatherIncome, "father", "Father's");
-          if (!values.fatherContact || values.fatherContact.length < 11) preFlightErrors.fatherContact = "Contact Number must be 11 digits.";
-        }
+      const hasFather = values.fatherName && values.fatherName.trim() !== "";
+      if (hasFather && values.fatherStatus !== "Deceased") {
+        checkMember(values.fatherName, values.fatherStatus, values.fatherOccupation, values.fatherIncome, "father", "Father's");
+        if (!values.fatherContact || values.fatherContact.length < 11) preFlightErrors.fatherContact = "Contact Number must be 11 digits.";
       }
       
-      const motherIsOptional = values.hasGuardian;
-      if (values.motherStatus !== "Deceased") {
-        if (!motherIsOptional || values.motherName) {
-          checkMember(values.motherName, values.motherStatus, values.motherOccupation, values.motherIncome, "mother", "Mother's");
-          if (!values.motherContact || values.motherContact.length < 11) preFlightErrors.motherContact = "Contact Number must be 11 digits.";
-        }
+      const hasMother = values.motherName && values.motherName.trim() !== "";
+      if (hasMother && values.motherStatus !== "Deceased") {
+        checkMember(values.motherName, values.motherStatus, values.motherOccupation, values.motherIncome, "mother", "Mother's");
+        if (!values.motherContact || values.motherContact.length < 11) preFlightErrors.motherContact = "Contact Number must be 11 digits.";
       }
 
       // Automatically validate all dynamically injected family members
       (dynamicFamilyMembers || []).forEach((mem, idx) => {
         if (!mem.name || mem.name.trim() === "") preFlightErrors[`dynFamily_${idx}_name`] = "Member Name is required.";
         if (!mem.relationship || mem.relationship.trim() === "") preFlightErrors[`dynFamily_${idx}_relationship`] = "Relationship is required.";
+        if (!mem.status || mem.status === "--") {
+          preFlightErrors[`dynFamily_${idx}_status`] = "Employment Status is required.";
+        }
         if (mem.status !== "Deceased") {
           if (!mem.contactNo || mem.contactNo.length < 11) preFlightErrors[`dynFamily_${idx}_contactNo`] = "Contact Number must be 11 digits.";
         }
@@ -407,6 +435,8 @@ export const useTertiaryApplication = () => {
       // Step 2: Validate essential files
       if (!uploads.birthCert) preFlightErrors.birthCert = "Birth certificate is required.";
       if (!uploads.essay) preFlightErrors.essay = "Essay is required.";
+      if (!uploads.letterOfIntentApplicant) preFlightErrors.letterOfIntentApplicant = "Letter of Intent (Applicant) is required.";
+      if (!uploads.letterOfIntentParent) preFlightErrors.letterOfIntentParent = "Letter of Intent (Parent) is required.";
 
       const fatherIsOptional = values.hasGuardian;
       const motherIsOptional = values.hasGuardian;
@@ -419,12 +449,14 @@ export const useTertiaryApplication = () => {
         if (requiresIndigency(values.guardianStatus) && !uploads.indigencyGuardian) preFlightErrors.indigencyGuardian = "Certificate of indigency required.";
       }
 
-      if (!fatherIsOptional || values.fatherName) {
+      const hasFatherDoc = values.fatherName && values.fatherName.trim() !== "";
+      if (hasFatherDoc) {
         if (requiresProof(values.fatherStatus) && !uploads.incomeFather) preFlightErrors.incomeFather = "Income certificate required.";
         if (requiresIndigency(values.fatherStatus) && !uploads.indigencyFather) preFlightErrors.indigencyFather = "Certificate of indigency required.";
       }
 
-      if (!motherIsOptional || values.motherName) {
+      const hasMotherDoc = values.motherName && values.motherName.trim() !== "";
+      if (hasMotherDoc) {
         if (requiresProof(values.motherStatus) && !uploads.incomeMother) preFlightErrors.incomeMother = "Income certificate required.";
         if (requiresIndigency(values.motherStatus) && !uploads.indigencyMother) preFlightErrors.indigencyMother = "Certificate of indigency required.";
       }
@@ -500,6 +532,9 @@ export const useTertiaryApplication = () => {
     validateStep,
     clearFieldError,
     getMyApplications,
+    isCheckingGuard,
+    ongoingApplication,
+    recheckGuard: checkGuard,
   };
 };
 

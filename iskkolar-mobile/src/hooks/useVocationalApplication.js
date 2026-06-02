@@ -1,4 +1,5 @@
-import { useState, useCallback, useContext } from "react";
+import { useState, useCallback, useContext, useEffect } from "react";
+import { getScholarshipFormAccess } from "../services/applicationGuardService";
 import { AuthContext } from "../context/AuthContext";
 import {
   getMyVocationalApplications as fetchMyApplications,
@@ -25,6 +26,8 @@ const FIELD_MAP = {
   birth_certificate: "birthCert",
   essay: "essay",
   recommendation_letter: "recommendation",
+  letter_of_intent_applicant: "letterOfIntentApplicant",
+  letter_of_intent_parent: "letterOfIntentParent",
   income_cert_father: "incomeFather",
   income_cert_mother: "incomeMother",
   indigency_cert_father: "indigencyFather",
@@ -192,6 +195,9 @@ const normalizeApiErrorShape = (err) => ({
   errors: Array.isArray(err?.errors) ? err.errors : [],
 });
 
+const FRIENDLY_NETWORK_VALIDATION_MESSAGE =
+  "We could not verify your application right now because the connection was interrupted. Please check your internet connection and try again.";
+
 // ─── HOOK ────────────────────────────────────────────────────
 
 export const useVocationalApplication = () => {
@@ -264,7 +270,7 @@ export const useVocationalApplication = () => {
     }
 
     if (err.status === 0) {
-      setError("Network error. Please check your connection and try again.");
+      setError(FRIENDLY_NETWORK_VALIDATION_MESSAGE);
       return;
     }
 
@@ -275,6 +281,25 @@ export const useVocationalApplication = () => {
   const getMyApplications = useCallback(async () => {
     return await fetchMyApplications();
   }, []);
+
+  const [isCheckingGuard, setIsCheckingGuard] = useState(true);
+  const [ongoingApplication, setOngoingApplication] = useState(null);
+
+  const checkGuard = useCallback(async () => {
+    setIsCheckingGuard(true);
+    try {
+      const access = await getScholarshipFormAccess({ program: "vocational" });
+      setOngoingApplication(access?.blockedApplication || null);
+    } catch {
+      setOngoingApplication(null);
+    } finally {
+      setIsCheckingGuard(false);
+    }
+  }, [getMyApplications]);
+
+  useEffect(() => {
+    checkGuard();
+  }, [checkGuard]);
 
   // Validates a single step before the user can advance.
   // uiStep is 0-based (step 0 = academic, step 1 = family, step 2 = documents).
@@ -346,6 +371,9 @@ export const useVocationalApplication = () => {
       const checkMember = (name, status, occ, inc, prefix, niceName) => {
         if (!name || name.trim() === "")
           preFlightErrors[prefix + "Name"] = `${niceName} Name is required.`;
+        if (!status || status === "--") {
+          preFlightErrors[prefix + "Status"] = `${niceName} Employment Status is required.`;
+        }
         if (requiresProof(status)) {
           if (!occ || occ.trim() === "")
             preFlightErrors[prefix + "Occupation"] = `${niceName} Occupation is required.`;
@@ -375,30 +403,26 @@ export const useVocationalApplication = () => {
         }
       }
 
-      const fatherIsOptional = values.hasGuardian;
-      if (values.fatherStatus !== "Deceased") {
-        if (!fatherIsOptional || values.fatherName) {
-          checkMember(
-            values.fatherName, values.fatherStatus,
-            values.fatherOccupation, values.fatherIncome,
-            "father", "Father's"
-          );
-          if (!values.fatherContact || values.fatherContact.length < 11)
-            preFlightErrors.fatherContact = "Contact Number must be 11 digits.";
-        }
+      const hasFather = values.fatherName && values.fatherName.trim() !== "";
+      if (hasFather && values.fatherStatus !== "Deceased") {
+        checkMember(
+          values.fatherName, values.fatherStatus,
+          values.fatherOccupation, values.fatherIncome,
+          "father", "Father's"
+        );
+        if (!values.fatherContact || values.fatherContact.length < 11)
+          preFlightErrors.fatherContact = "Contact Number must be 11 digits.";
       }
 
-      const motherIsOptional = values.hasGuardian;
-      if (values.motherStatus !== "Deceased") {
-        if (!motherIsOptional || values.motherName) {
-          checkMember(
-            values.motherName, values.motherStatus,
-            values.motherOccupation, values.motherIncome,
-            "mother", "Mother's"
-          );
-          if (!values.motherContact || values.motherContact.length < 11)
-            preFlightErrors.motherContact = "Contact Number must be 11 digits.";
-        }
+      const hasMother = values.motherName && values.motherName.trim() !== "";
+      if (hasMother && values.motherStatus !== "Deceased") {
+        checkMember(
+          values.motherName, values.motherStatus,
+          values.motherOccupation, values.motherIncome,
+          "mother", "Mother's"
+        );
+        if (!values.motherContact || values.motherContact.length < 11)
+          preFlightErrors.motherContact = "Contact Number must be 11 digits.";
       }
 
       // Validate each dynamically added family member
@@ -407,6 +431,9 @@ export const useVocationalApplication = () => {
           preFlightErrors[`dynFamily_${idx}_name`] = "Member Name is required.";
         if (!mem.relationship || mem.relationship.trim() === "")
           preFlightErrors[`dynFamily_${idx}_relationship`] = "Relationship is required.";
+        if (!mem.status || mem.status === "--") {
+          preFlightErrors[`dynFamily_${idx}_status`] = "Employment Status is required.";
+        }
         if (mem.status !== "Deceased") {
           if (!mem.contactNo || mem.contactNo.length < 11)
             preFlightErrors[`dynFamily_${idx}_contactNo`] = "Contact Number must be 11 digits.";
@@ -426,6 +453,10 @@ export const useVocationalApplication = () => {
         preFlightErrors.birthCert = "Birth Certificate is required.";
       if (!uploads.essay)
         preFlightErrors.essay = "Essay is required.";
+      if (!uploads.letterOfIntentApplicant)
+        preFlightErrors.letterOfIntentApplicant = "Letter of Intent (Applicant) is required.";
+      if (!uploads.letterOfIntentParent)
+        preFlightErrors.letterOfIntentParent = "Letter of Intent (Parent) is required.";
 
       const fatherIsOptional = values.hasGuardian;
       const motherIsOptional = values.hasGuardian;
@@ -439,14 +470,16 @@ export const useVocationalApplication = () => {
         if (requiresIndigency(values.guardianStatus) && !uploads.indigencyGuardian) preFlightErrors.indigencyGuardian = "Certificate of indigency required.";
       }
 
-      if (!fatherIsOptional || values.fatherName) {
+      const hasFatherDoc = values.fatherName && values.fatherName.trim() !== "";
+      if (hasFatherDoc) {
         if (requiresProof(values.fatherStatus) && !uploads.incomeFather)
           preFlightErrors.incomeFather = "Income certificate required.";
         if (requiresIndigency(values.fatherStatus) && !uploads.indigencyFather)
           preFlightErrors.indigencyFather = "Certificate of indigency required.";
       }
 
-      if (!motherIsOptional || values.motherName) {
+      const hasMotherDoc = values.motherName && values.motherName.trim() !== "";
+      if (hasMotherDoc) {
         if (requiresProof(values.motherStatus) && !uploads.incomeMother)
           preFlightErrors.incomeMother = "Income certificate required.";
         if (requiresIndigency(values.motherStatus) && !uploads.indigencyMother)
@@ -481,18 +514,8 @@ export const useVocationalApplication = () => {
       if (values.hasGuardian) rolesArray.push("guardian");
       (dynamicFamilyMembers || []).forEach(m => rolesArray.push(m.relationship));
 
-      // DEBUG: Log the exact error to terminal so I can extract it!
-      console.log("VOCATIONAL_VALIDATION_ERROR", JSON.stringify(err, null, 2));
-      require("react-native").Alert.alert("Backend Validation Error", JSON.stringify(err));
-      
-      // Only hard-block on 400 (field validation errors from the server).
-      if (err?.status === 400 && Array.isArray(err?.errors) && err.errors.length > 0) {
-        handleApiError(err, rolesArray);
-        return false;
-      }
-      // For any other server error, show a soft warning banner but still advance
-      setError("Could not reach server for validation. Proceeding with local checks.");
-      return true;
+      handleApiError(err, rolesArray);
+      return false;
     }
   }, []);
 
@@ -532,6 +555,9 @@ export const useVocationalApplication = () => {
     validateStep,
     clearFieldError,
     getMyApplications,
+    isCheckingGuard,
+    ongoingApplication,
+    recheckGuard: checkGuard,
   };
 };
 

@@ -1,8 +1,12 @@
 import { useEffect, useContext } from 'react';
 import { Platform, PermissionsAndroid, Alert, NativeModules } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { AuthContext } from '../context/AuthContext';
 import { registerPushToken } from '../services/pushNotificationService';
+import { NotificationContext } from '../context/NotificationContext';
+import { registerForPushNotificationsAsync, showNativeNotification } from '../services/nativeNotificationService';
+import { navigationRef } from '../navigation/AppNavigator';
 
 const isFirebaseAvailable = !!NativeModules.RNFBAppModule;
 
@@ -25,6 +29,7 @@ const getMessaging = () => {
  */
 export const usePushNotifications = () => {
   const { user } = useContext(AuthContext);
+  const { fetchAnnouncements } = useContext(NotificationContext);
 
   // 1. Request Permission
   const requestUserPermission = async () => {
@@ -102,6 +107,7 @@ export const usePushNotifications = () => {
 
     // Fetch and register token on mount or when the user logged-in state changes
     if (user && user.id) {
+      registerForPushNotificationsAsync();
       fetchAndRegisterToken();
     }
 
@@ -120,32 +126,61 @@ export const usePushNotifications = () => {
 
     // 3. Foreground Message Listener
     const unsubscribeOnMessage = messaging().onMessage(async (remoteMessage) => {
+      if (!user) {
+        console.log('FCM: Foreground message ignored because user is logged out.');
+        return;
+      }
       console.log('FCM: Foreground message received:', remoteMessage);
       
       const title = remoteMessage.notification?.title || 'New Announcement';
       const body = remoteMessage.notification?.body || '';
 
-      Alert.alert(
-        title,
-        body,
-        [{ text: 'Close', style: 'cancel' }],
-        { cancelable: true }
-      );
+      // Instantly trigger announcement reload so the dynamic popup banner shows up immediately
+      void fetchAnnouncements();
+
+      // Dispatch a native system notification in the status bar/lock screen notification center
+      void showNativeNotification(title, body, remoteMessage.data);
     });
 
-    // 4. Handle notification clicks that open the app from background/killed state
+    // 4. Handle native local status bar notification clicks
+    const nativeNotificationResponseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      console.log('FCM: Native status bar notification clicked:', response);
+      if (!user) {
+        console.log('FCM: Native notification click ignored because user is logged out.');
+        return;
+      }
+      if (navigationRef.isReady()) {
+        navigationRef.navigate('Notifications');
+      }
+    });
+
+    // 5. Handle FCM notification clicks that open the app from background state
     const unsubscribeNotificationOpen = messaging().onNotificationOpenedApp((remoteMessage) => {
       console.log('FCM: Notification caused app to open from background state:', remoteMessage);
-      // Optional: Navigation handling logic can go here (e.g. Navigate to notifications screen)
+      if (!user) {
+        console.log('FCM: Notification background click ignored because user is logged out.');
+        return;
+      }
+      if (navigationRef.isReady()) {
+        navigationRef.navigate('Notifications');
+      }
     });
 
-    // Check if the app was opened from a completely killed state via a notification click
+    // Check if the app was opened from a completely killed state via an FCM notification click
     messaging()
       .getInitialNotification()
       .then((remoteMessage) => {
         if (remoteMessage) {
           console.log('FCM: Notification caused app to open from quit state:', remoteMessage);
-          // Optional: Navigation handling logic can go here
+          setTimeout(() => {
+            if (!user) {
+              console.log('FCM: Notification quit-state click ignored because user is logged out.');
+              return;
+            }
+            if (navigationRef.isReady()) {
+              navigationRef.navigate('Notifications');
+            }
+          }, 800);
         }
       })
       .catch((error) => console.warn('FCM: Error getting initial notification:', error));
@@ -154,6 +189,7 @@ export const usePushNotifications = () => {
       unsubscribeTokenRefresh();
       unsubscribeOnMessage();
       unsubscribeNotificationOpen();
+      nativeNotificationResponseSubscription.remove();
     };
   }, [user]);
 

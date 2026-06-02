@@ -10,6 +10,9 @@ import GraduationCelebration from "../components/GraduationCelebration";
 import { getGradeComplianceTerms, submitGradeCompliance } from "../services/gradeComplianceService";
 import { AuthContext } from "../context/AuthContext";
 import ApplicationResultState from "../components/ApplicationResultState";
+import { useGradeCompliance } from "../hooks/useGradeCompliance";
+import { getSubmissionWindowStatus, validateNextTermDates, parseStringToDate } from "../utils/gradeComplianceUtils";
+import ApplicationSubmissionGuard from "../components/ApplicationSubmissionGuard";
 
 const statusColors = {
   Pending: { bg: "#fff8e6", text: "#b5850a" },
@@ -22,6 +25,7 @@ const statusColors = {
 export default function GradeComplianceScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
+  const { isCheckingGuard, ongoingApplication } = useGradeCompliance();
   const [completeStage, setCompleteStage] = useState("none");
   const [termRequirements, setTermRequirements] = useState([]);
   const [academicYear, setAcademicYear] = useState("");
@@ -129,6 +133,28 @@ export default function GradeComplianceScreen({ navigation }) {
     }
   }, [completeStage, scaleAnim]);
 
+  if (isCheckingGuard) {
+    return (
+      <ApplicationSubmissionGuard
+        isChecking={true}
+        ongoingApplication={null}
+        onBack={() => navigation.goBack()}
+        onViewApplications={() => navigation.navigate("Application")}
+      />
+    );
+  }
+
+  if (ongoingApplication) {
+    return (
+      <ApplicationSubmissionGuard
+        isChecking={false}
+        ongoingApplication={ongoingApplication}
+        onBack={() => navigation.goBack()}
+        onViewApplications={() => navigation.navigate("Application")}
+      />
+    );
+  }
+
   const spin = spinAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
@@ -215,41 +241,7 @@ export default function GradeComplianceScreen({ navigation }) {
     );
   };
 
-  const parseStringToDate = (str) => {
-    if (!str) return null;
-    const cleaned = String(str).trim();
-    if (!cleaned) return null;
 
-    // 1. ISO format (e.g. "YYYY-MM-DD" or with time)
-    if (cleaned.includes("-")) {
-      const parts = cleaned.split("T")[0].split("-");
-      if (parts.length === 3) {
-        const y = parseInt(parts[0], 10);
-        const m = parseInt(parts[1], 10);
-        const d = parseInt(parts[2], 10);
-        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
-          return new Date(y, m - 1, d);
-        }
-      }
-    }
-
-    // 2. Slash format (e.g. "MM/DD/YYYY" or "M/D/YYYY")
-    if (cleaned.includes("/")) {
-      const parts = cleaned.split("/");
-      if (parts.length === 3) {
-        const m = parseInt(parts[0], 10);
-        const d = parseInt(parts[1], 10);
-        const y = parseInt(parts[2], 10);
-        if (!isNaN(m) && !isNaN(d) && !isNaN(y)) {
-          return new Date(y, m - 1, d);
-        }
-      }
-    }
-
-    // 3. Fallback to standard JS parsing
-    const fallback = new Date(cleaned);
-    return isNaN(fallback.getTime()) ? null : fallback;
-  };
 
   const handleSubmit = async () => {
     const isGraduating = selectedTerm?.isLastSemesterBeforeGraduation;
@@ -263,40 +255,10 @@ export default function GradeComplianceScreen({ navigation }) {
     };
 
     if (!isGraduating) {
-      const startD = nextTermStartDate ? parseStringToDate(nextTermStartDate) : null;
-      const endD = nextTermEndDate ? parseStringToDate(nextTermEndDate) : null;
-      
-      const today = new Date();
-      today.setDate(today.getDate() - 1); // 1-day lag buffer
-      today.setHours(0, 0, 0, 0);
-
-      if (startD && startD < today) {
-        nextFieldErrors.nextTermStartDate = "Start date cannot be in the past.";
-      }
-      if (startD && endD && endD <= startD) {
-        nextFieldErrors.nextTermEndDate = "End date must be after start date.";
-      }
-
-      // Validate dates against the Academic Year
-      const acadYearStr = academicYear || "2025-2026";
-      const years = acadYearStr.match(/\d{4}/g);
-      if (years && years.length >= 1) {
-        const startYear = parseInt(years[0], 10);
-        const endYear = years.length >= 2 ? parseInt(years[1], 10) : startYear;
-
-        if (startD && !nextFieldErrors.nextTermStartDate) {
-          const sYear = startD.getFullYear();
-          if (sYear < startYear || sYear > endYear) {
-            nextFieldErrors.nextTermStartDate = `Start date must be between ${startYear} and ${endYear} (${acadYearStr} academic year).`;
-          }
-        }
-        if (endD && !nextFieldErrors.nextTermEndDate) {
-          const eYear = endD.getFullYear();
-          if (eYear < startYear || eYear > endYear) {
-            nextFieldErrors.nextTermEndDate = `End date must be between ${startYear} and ${endYear} (${acadYearStr} academic year).`;
-          }
-        }
-      }
+      const termEndDate = selectedTerm?.currentTermEndDate || selectedTerm?.endDate || null;
+      const dateErrors = validateNextTermDates(nextTermStartDate, nextTermEndDate, termEndDate);
+      if (dateErrors.nextTermStartDate) nextFieldErrors.nextTermStartDate = dateErrors.nextTermStartDate;
+      if (dateErrors.nextTermEndDate) nextFieldErrors.nextTermEndDate = dateErrors.nextTermEndDate;
     }
 
     setFieldErrors(nextFieldErrors);
@@ -333,18 +295,79 @@ export default function GradeComplianceScreen({ navigation }) {
       await loadTerms();
       setIsSubmitting(false);
     } catch (error) {
-      setFieldErrors((current) => ({
-        ...current,
-        term: error?.message || "Failed to submit grade compliance.",
-      }));
       setIsSubmitting(false);
+      // DEV ONLY: log exact backend error shape to Expo terminal (not shown to user)
+      console.error("[GradeCompliance] submit error:", JSON.stringify(error, null, 2));
+
+      // Collect validation errors from all possible backend response shapes.
+      const rawErrors =
+        (Array.isArray(error?.errors) && error.errors.length > 0 ? error.errors : null) ||
+        (Array.isArray(error?.data?.errors) && error.data.errors.length > 0 ? error.data.errors : null) ||
+        [];
+
+      // Map backend field names (camelCase, snake_case, Zod path arrays) → UI state key
+      const FIELD_MAP = {
+        gradeReport: "gradeReport",
+        grade_report: "gradeReport",
+        cor: "cor",
+        nextTermStartDate: "nextTermStartDate",
+        next_term_start_date: "nextTermStartDate",
+        nextTermEndDate: "nextTermEndDate",
+        next_term_end_date: "nextTermEndDate",
+        gwa: "gwa",
+        term: "term",
+        scholarshipName: "term",
+        scholarship_name: "term",
+      };
+
+      if (rawErrors.length > 0) {
+        const mappedErrors = {};
+        const unmappedMessages = [];
+
+        rawErrors.forEach((e) => {
+          // Support plain string field, Zod-style path array, or dot-notation
+          const rawField = Array.isArray(e?.path)
+            ? e.path[0]
+            : (e?.field || e?.param || "");
+          const key = String(rawField).trim();
+          const uiKey = FIELD_MAP[key] || FIELD_MAP[key.toLowerCase()];
+          const msg = e?.message || e?.msg || "Invalid value.";
+
+          if (uiKey) {
+            mappedErrors[uiKey] = msg;
+          } else {
+            unmappedMessages.push(msg);
+          }
+        });
+
+        setFieldErrors((current) => ({ ...current, ...mappedErrors }));
+
+        // Surface any non-field errors in the general banner
+        if (unmappedMessages.length > 0 && !mappedErrors.term) {
+          setFieldErrors((current) => ({
+            ...current,
+            term: unmappedMessages.join(" "),
+          }));
+        }
+      } else {
+        // No structured field errors — show a friendly general message.
+        const raw = error?.message || "";
+        const isGenericValidation = /validation|invalid|bad request/i.test(raw);
+        setFieldErrors((current) => ({
+          ...current,
+          term: isGenericValidation
+            ? "Some fields could not be validated. Please review your form and try again."
+            : raw || "Failed to submit grade compliance.",
+        }));
+      }
     }
   };
 
 
   const renderTodoCard = (termItem) => {
     const statusColor = statusColors[termItem.status] || statusColors.default;
-    const isLate = termItem.isLate || false;
+    const windowStatus = getSubmissionWindowStatus(termItem.deadline);
+    const isLate = windowStatus.isLate;
     const deadlineStr = termItem.deadline ? new Date(termItem.deadline).toLocaleDateString() : "Not set";
 
     return (
@@ -383,7 +406,9 @@ export default function GradeComplianceScreen({ navigation }) {
           </View>
           <View style={styles.gridItem}>
             <Text style={styles.gridLabel}>Deadline</Text>
-            <Text style={[styles.gridValue, isLate && { color: "#dc2626" }]}>{deadlineStr}</Text>
+            <Text style={[styles.gridValue, isLate && { color: "#dc2626" }]}>
+              {deadlineStr} {isLate ? "(Late)" : ""}
+            </Text>
           </View>
           <View style={styles.gridItem}>
             <Text style={styles.gridLabel}>Documents</Text>
@@ -410,6 +435,18 @@ export default function GradeComplianceScreen({ navigation }) {
               <View style={[styles.submitBtnAction, { backgroundColor: '#e2e5f1', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }]}>
                 <Ionicons name="lock-closed-outline" size={15} color="#8c95b7" style={{ marginRight: 6 }} />
                 <Text style={[styles.submitBtnActionText, { color: '#8c95b7' }]}>Locked (Submit Previous Term First)</Text>
+              </View>
+            );
+          }
+
+          if (!windowStatus.canSubmit) {
+            const opensOnStr = windowStatus.windowOpensOn ? windowStatus.windowOpensOn.toLocaleDateString() : "";
+            return (
+              <View style={[styles.submitBtnAction, styles.disabledBtnAction]}>
+                <Ionicons name="calendar-outline" size={15} color="#8c95b7" style={{ marginRight: 6 }} />
+                <Text style={[styles.submitBtnActionText, { color: '#8c95b7' }]}>
+                  Not available yet (Opens {opensOnStr})
+                </Text>
               </View>
             );
           }
@@ -515,6 +552,7 @@ export default function GradeComplianceScreen({ navigation }) {
       );
     }
 
+    const windowStatus = selectedTerm ? getSubmissionWindowStatus(selectedTerm.deadline) : null;
     return (
       <View style={styles.formCard}>
         {fieldErrors.term ? (
@@ -522,6 +560,14 @@ export default function GradeComplianceScreen({ navigation }) {
             <Text style={styles.errorBannerText}>{fieldErrors.term}</Text>
           </View>
         ) : null}
+        {windowStatus && windowStatus.isLate && (
+          <View style={styles.lateBanner}>
+            <Ionicons name="warning-outline" size={16} color="#b45309" style={{ marginRight: 8 }} />
+            <Text style={styles.lateBannerText}>
+              The deadline has passed. This will be marked as a late submission.
+            </Text>
+          </View>
+        )}
         {!selectedTerm?.isLastSemesterBeforeGraduation && (
           <View style={styles.progressBarWrapper}>
             <View style={styles.progressBarRow}>
@@ -575,6 +621,15 @@ export default function GradeComplianceScreen({ navigation }) {
                   label="Next Term Start Date"
                   value={nextTermStartDate}
                   minimumDate={(() => {
+                    const termEnd = selectedTerm?.currentTermEndDate || selectedTerm?.endDate;
+                    if (termEnd) {
+                      const d = parseStringToDate(termEnd);
+                      if (d) {
+                        const next = new Date(d);
+                        next.setDate(next.getDate() + 1);
+                        return next;
+                      }
+                    }
                     const today = new Date();
                     today.setDate(today.getDate() - 1); // 1-day safety buffer
                     return today;
@@ -594,9 +649,9 @@ export default function GradeComplianceScreen({ navigation }) {
                   minimumDate={(() => {
                     const startD = parseStringToDate(nextTermStartDate);
                     if (startD) {
-                      const nextDay = new Date(startD);
-                      nextDay.setDate(nextDay.getDate() + 1);
-                      return nextDay;
+                      const minEnd = new Date(startD);
+                      minEnd.setMonth(minEnd.getMonth() + 1);
+                      return minEnd;
                     }
                     const today = new Date();
                     today.setDate(today.getDate() - 1);
@@ -964,5 +1019,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#cbd5e1",
     lineHeight: 18,
+  },
+  lateBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fffbeb",
+    borderColor: "#fde68a",
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 20,
+  },
+  lateBannerText: {
+    color: "#b45309",
+    fontSize: 13,
+    fontWeight: "500",
+    flex: 1,
+    lineHeight: 18,
+  },
+  disabledBtnAction: {
+    backgroundColor: "#e2e5f1",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Alert, 
 import SafeTextInput from "../components/SafeTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { programOptions, vocationalProgramOptions, heiSchoolNames } from "../utils/programConstants";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { AuthContext } from "../context/AuthContext";
@@ -42,6 +43,7 @@ export default function TransferSchoolScreen({ navigation }) {
 
   const [corFile, setCorFile] = useState(null);
   const [completeStage, setCompleteStage] = useState("none");
+  const [activePredictiveKey, setActivePredictiveKey] = useState(null);
 
   // Selector modal state
   const [selectorVisible, setSelectorVisible] = useState(false);
@@ -314,23 +316,73 @@ export default function TransferSchoolScreen({ navigation }) {
     </View>
   );
 
-  const renderInput = (label, key, placeholder, keyboardType = "default") => (
-    <View style={[styles.row, fieldErrors[key] && styles.rowWithError]}>
-      <Text style={styles.label}>{label} <Text style={{ color: "red" }}>*</Text></Text>
-      <SafeTextInput
-        style={[styles.input, fieldErrors[key] && { borderColor: "red" }]}
-        placeholder={placeholder}
-        placeholderTextColor="#888"
-        keyboardType={keyboardType}
-        value={values[key]}
-        onChangeText={(text) => {
-          const sanitized = keyboardType === "numeric" ? text.replace(/[^0-9]/g, "") : text;
-          setField(key, sanitized);
-        }}
-      />
-      {fieldErrors[key] && <Text style={styles.errorText}>{fieldErrors[key]}</Text>}
-    </View>
-  );
+  const isPredictiveField = (key) => ["newProgram", "newSchool"].includes(key);
+
+  const renderInput = (label, key, placeholder, keyboardType = "default") => {
+    const isPredictive = isPredictiveField(key);
+    const query = values[key] || "";
+    const isVocational = vocationalProgramOptions.some(opt => opt.toLowerCase() === currentProgram.toLowerCase());
+    const optionsSource =
+      key === "newSchool"
+        ? heiSchoolNames
+        : isVocational
+        ? vocationalProgramOptions
+        : programOptions;
+    const suggestions = isPredictive && query.trim().length >= 1
+      ? optionsSource.filter(opt => opt.toLowerCase().includes(query.toLowerCase()))
+      : [];
+
+    return (
+      <View style={[styles.row, fieldErrors[key] && styles.rowWithError, { zIndex: isPredictive && activePredictiveKey === key && suggestions.length > 0 ? 99 : 1 }]}>
+        <Text style={styles.label}>{label} <Text style={{ color: "red" }}>*</Text></Text>
+        <SafeTextInput
+          style={[styles.input, fieldErrors[key] && { borderColor: "red" }]}
+          placeholder={placeholder}
+          placeholderTextColor="#888"
+          keyboardType={keyboardType}
+          value={values[key]}
+          onChangeText={(text) => {
+            const sanitized = keyboardType === "numeric" ? text.replace(/[^0-9]/g, "") : text;
+            setField(key, sanitized);
+          }}
+          onFocus={() => {
+            if (isPredictive) {
+              setActivePredictiveKey(key);
+            }
+          }}
+          onBlur={() => {
+            if (isPredictive) {
+              setTimeout(() => {
+                setActivePredictiveKey(null);
+              }, 200);
+            }
+          }}
+        />
+        {isPredictive && activePredictiveKey === key && suggestions.length > 0 && (
+          <View style={styles.predictionsContainer}>
+            <ScrollView keyboardShouldPersistTaps="handled" style={styles.predictionsScroll}>
+              {suggestions.slice(0, 6).map((item, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.predictionItem}
+                  onPress={() => {
+                    setField(key, item);
+                    setActivePredictiveKey(null);
+                  }}
+                >
+                  <Ionicons name="school-outline" size={14} color="#5b5f97" style={{ marginRight: 8 }} />
+                  <Text style={styles.predictionText} numberOfLines={1}>
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+        {fieldErrors[key] && <Text style={styles.errorText}>{fieldErrors[key]}</Text>}
+      </View>
+    );
+  };
 
   const renderTextArea = (label, key, placeholder) => (
     <View style={[styles.row, fieldErrors[key] && styles.rowWithError]}>
@@ -617,4 +669,38 @@ const styles = StyleSheet.create({
   modalOptionActive: { backgroundColor: "#4f5fc5", borderColor: "#4f5fc5" },
   modalOptionText: { fontSize: 15, color: "#4f5fc5", fontWeight: "700" },
   modalOptionTextActive: { color: "#fff" },
+  predictionsContainer: {
+    position: "absolute",
+    top: 76,
+    left: 0,
+    right: 0,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#eaecf0",
+    maxHeight: 200,
+    zIndex: 9999,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+    overflow: "hidden",
+  },
+  predictionsScroll: {
+    maxHeight: 200,
+  },
+  predictionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eaecf0",
+  },
+  predictionText: {
+    fontSize: 14,
+    color: "#1c2131",
+    fontWeight: "600",
+  },
 });

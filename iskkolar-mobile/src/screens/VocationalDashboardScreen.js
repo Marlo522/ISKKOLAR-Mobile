@@ -5,12 +5,12 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   Animated, 
-  ScrollView, 
   RefreshControl 
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
+import { NotificationContext } from '../context/NotificationContext';
 import { getScholarDashboardSummary } from '../services/scholarDashboardService';
 import { getMyVocationalCompletion } from '../services/vocationalDashboardService';
 
@@ -24,6 +24,7 @@ const formatDisplayDate = (value) => {
 
 export default function VocationalDashboardScreen({ navigation }) {
   const { user } = useContext(AuthContext);
+  const { unreadCount, fetchAnnouncements } = useContext(NotificationContext);
   const insets = useSafeAreaInsets();
   
   const [dashboardSummary, setDashboardSummary] = useState(null);
@@ -56,7 +57,7 @@ export default function VocationalDashboardScreen({ navigation }) {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadData();
+    await Promise.all([loadData(), fetchAnnouncements()]);
     setRefreshing(false);
   };
 
@@ -136,7 +137,8 @@ export default function VocationalDashboardScreen({ navigation }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#727ab6']} />}
       >
         {/* Banner with Circle Progress (Mirroring Web) */}
-        <View style={styles.heroBanner}>
+        <View style={[styles.heroBanner, { position: 'relative' }]}>
+
           <View style={styles.heroHeader}>
             <View style={{ flex: 1, marginRight: 8 }}>
               <Text style={styles.heroLabel}>VOCATIONAL DASHBOARD</Text>
@@ -242,6 +244,40 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 15,
     elevation: 8,
+  },
+  bellButton: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#e96e5e',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#727ab6',
+  },
+  bellBadgeText: {
+    color: '#fff',
+    fontSize: 8,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   heroHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   heroLabel: { color: '#d0d4e9', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8 },

@@ -75,6 +75,26 @@ const STATUS_BADGE = {
   not_started: { bg: "#f9fafb", text: "#6b7280", dot: "#9ca3af" },
 };
 
+const extractApplicationItems = (response) => {
+  if (!response) return [];
+
+  if (Array.isArray(response)) return response;
+
+  if (Array.isArray(response.applicationItems)) return response.applicationItems;
+
+  if (Array.isArray(response.data?.applicationItems)) return response.data.applicationItems;
+
+  if (Array.isArray(response.data)) return response.data;
+
+  return [];
+};
+
+const extractVocationalSubmission = (response) => {
+  if (!response) return null;
+
+  return response.data || response;
+};
+
 export default function ApplicationScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
@@ -109,9 +129,7 @@ export default function ApplicationScreen({ navigation }) {
     try {
       setLoading(true);
       const res = await getScholarApplicationHistory();
-      if (res.success) {
-        setApplicationItems(res.data.applicationItems || []);
-      }
+      setApplicationItems(extractApplicationItems(res));
     } catch (error) {
       console.error("Failed to fetch application history", error);
     } finally {
@@ -124,7 +142,7 @@ export default function ApplicationScreen({ navigation }) {
     try {
       setVocLoading(true);
       const res = await getMyVocationalCompletion();
-      setVocSubmission(res?.data || null);
+      setVocSubmission(extractVocationalSubmission(res));
     } catch (error) {
       console.warn("Failed to fetch vocational submission", error);
       setVocSubmission(null);

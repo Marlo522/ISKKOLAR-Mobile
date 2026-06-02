@@ -9,6 +9,7 @@ export const useLogin = (navigation) => {
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   // ─── UPDATE A SINGLE FIELD ───────────────────────────────────
   const updateField = (field, value) => {
@@ -50,7 +51,7 @@ export const useLogin = (navigation) => {
 
       const userData = { ...response.user, role: normalizedRole };
 
-      await loginUser(userData);
+      await loginUser(userData, rememberMe);
 
       switch (normalizedRole) {
         case "applicant":
@@ -86,6 +87,8 @@ export const useLogin = (navigation) => {
     errors,
     apiError,
     loading,
+    rememberMe,
+    setRememberMe,
     updateField,
     handleLogin,
   };

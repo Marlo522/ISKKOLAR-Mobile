@@ -27,7 +27,6 @@ export default function ApplicationResultState({
           <Text style={styles.manualReviewTitle}>Submitted for Manual Review</Text>
         </View>
         <Text style={styles.manualReviewText}>
-          AI-powered document verification is currently disabled by the administrator. 
           Your application has been submitted successfully and will be reviewed manually 
           by our staff. You will be notified once a decision has been made.
         </Text>
