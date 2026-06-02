@@ -119,12 +119,15 @@ export default function ProgramApplyScreen({ navigation, route }) {
     indigencyGuardian: null,
     recommendation: null,
     essay: null,
+    letterOfIntentApplicant: null,
+    letterOfIntentParent: null,
   });
   const [localSubmitting, setLocalSubmitting] = useState(false);
   const [completeStage, setCompleteStage] = useState("none");
   const [selectVisible, setSelectVisible] = useState(false);
   const [selectContext, setSelectContext] = useState(null);
   const [declarations, setDeclarations] = useState({ agree1: false, agree2: false, agree3: false });
+  const [termsModalVisible, setTermsModalVisible] = useState(false);
   const [verifiedStaffId, setVerifiedStaffId] = useState("");
   const [isCheckingApplication, setIsCheckingApplication] = useState(true);
   const [formAccess, setFormAccess] = useState({ allowed: true, reason: null, message: "", blockedApplication: null });
@@ -1077,177 +1080,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
               </Text>
             </>
           )}
-          {renderUpload("COR", "cor")}
-        </View>
-      );
-    }
-
-    if (step === 1) {
-      return (
-        <View>
-          <Text style={styles.sectionHeader}>Family Information</Text>
-
-          <TouchableOpacity
-            style={[styles.declRow, { backgroundColor: "#f8f9fc", padding: 12, borderRadius: 8, borderWidth: 1, borderColor: "#dce3f1", marginBottom: 20 }]}
-            onPress={() => updateValue("hasGuardian", !values.hasGuardian)}
-          >
-            <View style={[styles.checkbox, values.hasGuardian && styles.checkboxChecked]}>
-              {values.hasGuardian && <Ionicons name="checkmark" size={16} color="#fff" />}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: "700", color: "#3d4fa0" }}>I have a Guardian (instead of or in addition to parents)</Text>
-              <Text style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>Check this if you are under the care of a legal guardian. You may still fill in parent information below.</Text>
-            </View>
-          </TouchableOpacity>
-
-          {fieldErrors.hasGuardian ? (
-            <Text style={{ color: "#ef4444", fontSize: 13, fontWeight: "600", marginBottom: 15, marginTop: -10 }}>
-              {fieldErrors.hasGuardian}
-            </Text>
-          ) : null}
-
-          {values.hasGuardian && (
-            <View>
-              <Text style={styles.sectionHeader}>| Guardian's Information</Text>
-              {renderInput("Guardian's Name", "guardianName", "Enter Guardian's Name")}
-              {renderDatePicker("Birthday", "guardianBirthday")}
-              {renderSelect("Employment Status", "guardianStatus", ["--", "Employed", "Unemployed", "Self-Employed"])}
-              {renderContactInput("Contact Number", "guardianContact")}
-              {requiresIncomeProof(values.guardianStatus) && (
-                <>
-                  {renderInput("Occupation", "guardianOccupation", "Enter Occupation")}
-                  {renderNumericInput("Monthly Income", "guardianIncome", "Enter Monthly Income")}
-                </>
-              )}
-            </View>
-          )}
-
-          <Text style={styles.sectionHeader}>| Father's Information{values.hasGuardian ? " (Optional)" : ""}</Text>
-          {renderInput("Father's Name", "fatherName", "Enter Father's Name")}
-          {renderDatePicker("Birthday", "fatherBirthday")}
-          {renderSelect("Employment Status", "fatherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
-          {values.fatherStatus !== "Deceased" && renderContactInput("Contact Number", "fatherContact")}
-          {requiresIncomeProof(values.fatherStatus) && (
-            <>
-              {renderInput("Occupation", "fatherOccupation", "Enter Occupation")}
-              {renderNumericInput("Monthly Income", "fatherIncome", "Enter Monthly Income")}
-            </>
-          )}
-
-          <Text style={styles.sectionHeader}>| Mother's Information{values.hasGuardian ? " (Optional)" : ""}</Text>
-          {renderInput("Mother's Name", "motherName", "Enter Mother's Name")}
-          {renderDatePicker("Birthday", "motherBirthday")}
-          {renderSelect("Employment Status", "motherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
-          {values.motherStatus !== "Deceased" && renderContactInput("Contact Number", "motherContact")}
-          {requiresIncomeProof(values.motherStatus) && (
-            <>
-              {renderInput("Occupation", "motherOccupation", "Enter Occupation")}
-              {renderNumericInput("Monthly Income", "motherIncome", "Enter Monthly Income")}
-            </>
-          )}
-
-          {renderCommonFamilyMembers()}
-        </View>
-      );
-    }
-
-    if (step === 2) {
-      return (
-        <View>
-          <Text style={styles.sectionHeader}>| Supporting Documents</Text>
-          <View style={{ backgroundColor: "#eaf2fe", padding: 13, borderRadius: 8, marginBottom: 18 }}>
-            <Text style={{ color: "#305fce", fontSize: 13 }}>
-              Upload clear and readable files only. Accepted formats: PDF, DOC, DOCX. Max file size: 10MB each.
-            </Text>
-          </View>
-
-          {renderUpload("Birth Certificate (Applicant)", "birthCert")}
-
-          {values.hasGuardian && (
-            <>
-              {requiresIncomeProof(values.guardianStatus)
-                ? renderUpload("Income Certificate (Guardian)", "incomeGuardian")
-                : values.guardianStatus === "Unemployed"
-                  ? renderUpload("Certificate of Indigency (Guardian)", "indigencyGuardian")
-                  : <Text style={styles.skippedDoc}>Income/indigency document not required for Guardian ({values.guardianStatus}).</Text>}
-            </>
-          )}
-
-          {requiresIncomeProof(values.fatherStatus)
-            ? renderUpload("Income Certificate (Father)", "incomeFather")
-            : values.fatherStatus === "Unemployed"
-              ? renderUpload("Certificate of Indigency (Father)", "indigencyFather")
-              : <Text style={styles.skippedDoc}>Income/indigency document not required for Father ({values.fatherStatus}).</Text>}
-
-          {requiresIncomeProof(values.motherStatus)
-            ? renderUpload("Income Certificate (Mother)", "incomeMother")
-            : values.motherStatus === "Unemployed"
-              ? renderUpload("Certificate of Indigency (Mother)", "indigencyMother")
-              : <Text style={styles.skippedDoc}>Income/indigency document not required for Mother ({values.motherStatus}).</Text>}
-
-          {familyMembers.map((member, idx) => {
-            if (requiresIncomeProof(member.status)) {
-              return (
-                <View key={"member-doc-inc-" + idx}>
-                  {renderUpload("Income Certificate (" + (member.name || "Family Member " + (idx + 1)) + ")", "incomeMember_" + idx)}
-                </View>
-              );
-            }
-            if (member.status === "Unemployed") {
-              return (
-                <View key={"member-doc-ind-" + idx}>
-                  {renderUpload("Certificate of Indigency (" + (member.name || "Family Member " + (idx + 1)) + ")", "indigencyMember_" + idx)}
-                </View>
-              );
-            }
-            return null;
-          })}
-
-          {renderUpload("Recommendation Letter (Optional)", "recommendation")}
-          {renderUpload("Essay", "essay")}
-        </View>
-      );
-    }
-
-    return renderReview();
-  };
-
-  const renderVocationalFlow = () => {
-    if (step === 0) {
-      return (
-        <View>
-          <Text style={styles.sectionHeader}>Academic Information</Text>
-          {renderSelect("Scholarship type", "scholarshipType", [
-            "TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY (TESDA)",
-            "DUALTECH (DUALTECH IN FOCUS)"
-          ], "TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY (TESDA)")}
-
-
-          <Text style={styles.sectionHeader}>| Secondary Education</Text>
-          {renderInput("School Name", "secondarySchool", "Enter School Name")}
-          {renderSelect("Strand", "strand", [
-            "Science, Technology, Engineering and Mathematics (STEM)",
-            "Accountancy, Business and Management (ABM)",
-            "Humanities and Social Sciences (HUMSS)",
-            "General Academic Strand (GAS)",
-            "Technical-Vocational Livelihood (TVL)",
-            "Information and Communications Technology (ICT)",
-            "PRE-K-12 CURRICULUM"
-          ])}
-          {renderYearInput("Year Graduated", "yearGraduated")}
-          {renderInput("Secondary GWA (General Weighted Average)", "secondaryGwa", "e.g. 88.50", { keyboardType: "numeric" })}
-          <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide your final general average from your high school report card.</Text>
-          {renderUpload("Grade Report", "gradeReport")}
-          <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
-            Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
-          </Text>
-
-          <Text style={styles.sectionHeader}>| Vocational/Technical Education</Text>
-          {renderInput("School Name", "vocationalSchoolName", "Enter School Name")}
-          {renderInput("Program", "vocationalProgram", "Enter Program")}
-          {renderSelect("Course Duration", "courseDuration", ["3 months", "6 months", "9 months", "12 months", "18 months", "24 months"])}
-          {renderDatePicker("Completion Date", "completionDate")}
-          {renderUpload("COR", "cor")}
+          {renderUpload("Certificate of Registration", "cor")}
         </View>
       );
     }
@@ -1375,6 +1208,180 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
           {renderUpload("Recommendation Letter Form (Optional)", "recommendation")}
           {renderUpload("Essay", "essay")}
+          {renderUpload("Letter of Intent (Applicant)", "letterOfIntentApplicant")}
+          {renderUpload("Letter of Intent (Parent)", "letterOfIntentParent")}
+        </View>
+      );
+    }
+
+    return renderReview();
+  };
+
+  const renderVocationalFlow = () => {
+    if (step === 0) {
+      return (
+        <View>
+          <Text style={styles.sectionHeader}>Academic Information</Text>
+          {renderSelect("Scholarship type", "scholarshipType", [
+            "TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY (TESDA)",
+            "DUALTECH (DUALTECH IN FOCUS)"
+          ], "TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY (TESDA)")}
+
+
+          <Text style={styles.sectionHeader}>| Secondary Education</Text>
+          {renderInput("School Name", "secondarySchool", "Enter School Name")}
+          {renderSelect("Strand", "strand", [
+            "Science, Technology, Engineering and Mathematics (STEM)",
+            "Accountancy, Business and Management (ABM)",
+            "Humanities and Social Sciences (HUMSS)",
+            "General Academic Strand (GAS)",
+            "Technical-Vocational Livelihood (TVL)",
+            "Information and Communications Technology (ICT)",
+            "PRE-K-12 CURRICULUM"
+          ])}
+          {renderYearInput("Year Graduated", "yearGraduated")}
+          {renderInput("Secondary GWA (General Weighted Average)", "secondaryGwa", "e.g. 88.50", { keyboardType: "numeric" })}
+          <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide your final general average from your high school report card.</Text>
+          {renderUpload("Grade Report", "gradeReport")}
+          <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
+            Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
+          </Text>
+
+          <Text style={styles.sectionHeader}>| Vocational/Technical Education</Text>
+          {renderInput("School Name", "vocationalSchoolName", "Enter School Name")}
+          {renderInput("Program", "vocationalProgram", "Enter Program")}
+          {renderSelect("Course Duration", "courseDuration", ["3 months", "6 months", "9 months", "12 months", "18 months", "24 months"])}
+          {renderDatePicker("Completion Date", "completionDate")}
+          {renderUpload("Certificate of Registration", "cor")}
+        </View>
+      );
+    }
+
+    if (step === 1) {
+      return (
+        <View>
+          <Text style={styles.sectionHeader}>Family Information</Text>
+
+          <TouchableOpacity
+            style={[styles.declRow, { backgroundColor: "#f8f9fc", padding: 12, borderRadius: 8, borderWidth: 1, borderColor: "#dce3f1", marginBottom: 20 }]}
+            onPress={() => updateValue("hasGuardian", !values.hasGuardian)}
+          >
+            <View style={[styles.checkbox, values.hasGuardian && styles.checkboxChecked]}>
+              {values.hasGuardian && <Ionicons name="checkmark" size={16} color="#fff" />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: "700", color: "#3d4fa0" }}>I have a Guardian (instead of or in addition to parents)</Text>
+              <Text style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>Check this if you are under the care of a legal guardian. You may still fill in parent information below.</Text>
+            </View>
+          </TouchableOpacity>
+
+          {fieldErrors.hasGuardian ? (
+            <Text style={{ color: "#ef4444", fontSize: 13, fontWeight: "600", marginBottom: 15, marginTop: -10 }}>
+              {fieldErrors.hasGuardian}
+            </Text>
+          ) : null}
+
+          {values.hasGuardian && (
+            <View>
+              <Text style={styles.sectionHeader}>| Guardian's Information</Text>
+              {renderInput("Guardian's Name", "guardianName", "Enter Guardian's Name")}
+              {renderDatePicker("Birthday", "guardianBirthday")}
+              {renderSelect("Employment Status", "guardianStatus", ["--", "Employed", "Unemployed", "Self-Employed"])}
+              {renderContactInput("Contact Number", "guardianContact")}
+              {requiresIncomeProof(values.guardianStatus) && (
+                <>
+                  {renderInput("Occupation", "guardianOccupation", "Enter Occupation")}
+                  {renderNumericInput("Monthly Income", "guardianIncome", "Enter Monthly Income")}
+                </>
+              )}
+            </View>
+          )}
+
+          <Text style={styles.sectionHeader}>| Father's Information{values.hasGuardian ? " (Optional)" : ""}</Text>
+          {renderInput("Father's Name", "fatherName", "Enter Father's Name")}
+          {renderDatePicker("Birthday", "fatherBirthday")}
+          {renderSelect("Employment Status", "fatherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
+          {values.fatherStatus !== "Deceased" && renderContactInput("Contact Number", "fatherContact")}
+          {requiresIncomeProof(values.fatherStatus) && (
+            <>
+              {renderInput("Occupation", "fatherOccupation", "Enter Occupation")}
+              {renderNumericInput("Monthly Income", "fatherIncome", "Enter Monthly Income")}
+            </>
+          )}
+
+          <Text style={styles.sectionHeader}>| Mother's Information{values.hasGuardian ? " (Optional)" : ""}</Text>
+          {renderInput("Mother's Name", "motherName", "Enter Mother's Name")}
+          {renderDatePicker("Birthday", "motherBirthday")}
+          {renderSelect("Employment Status", "motherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
+          {values.motherStatus !== "Deceased" && renderContactInput("Contact Number", "motherContact")}
+          {requiresIncomeProof(values.motherStatus) && (
+            <>
+              {renderInput("Occupation", "motherOccupation", "Enter Occupation")}
+              {renderNumericInput("Monthly Income", "motherIncome", "Enter Monthly Income")}
+            </>
+          )}
+
+          {renderCommonFamilyMembers()}
+        </View>
+      );
+    }
+
+    if (step === 2) {
+      return (
+        <View>
+          <Text style={styles.sectionHeader}>| Supporting Documents</Text>
+          <View style={{ backgroundColor: "#eaf2fe", padding: 13, borderRadius: 8, marginBottom: 18 }}>
+            <Text style={{ color: "#305fce", fontSize: 13 }}>
+              Upload clear and readable files only. Accepted formats: PDF, DOC, DOCX. Max file size: 10MB each.
+            </Text>
+          </View>
+
+          {renderUpload("Birth Certificate (Applicant)", "birthCert")}
+
+          {values.hasGuardian && (
+            <>
+              {requiresIncomeProof(values.guardianStatus)
+                ? renderUpload("Income Certificate (Guardian)", "incomeGuardian")
+                : values.guardianStatus === "Unemployed"
+                  ? renderUpload("Certificate of Indigency (Guardian)", "indigencyGuardian")
+                  : <Text style={styles.skippedDoc}>Income/indigency document not required for Guardian ({values.guardianStatus}).</Text>}
+            </>
+          )}
+
+          {requiresIncomeProof(values.fatherStatus)
+            ? renderUpload("Income Certificate (Father)", "incomeFather")
+            : values.fatherStatus === "Unemployed"
+              ? renderUpload("Certificate of Indigency (Father)", "indigencyFather")
+              : <Text style={styles.skippedDoc}>Income/indigency document not required for Father ({values.fatherStatus}).</Text>}
+
+          {requiresIncomeProof(values.motherStatus)
+            ? renderUpload("Income Certificate (Mother)", "incomeMother")
+            : values.motherStatus === "Unemployed"
+              ? renderUpload("Certificate of Indigency (Mother)", "indigencyMother")
+              : <Text style={styles.skippedDoc}>Income/indigency document not required for Mother ({values.motherStatus}).</Text>}
+
+          {familyMembers.map((member, idx) => {
+            if (requiresIncomeProof(member.status)) {
+              return (
+                <View key={"member-doc-inc-" + idx}>
+                  {renderUpload("Income Certificate (" + (member.name || "Family Member " + (idx + 1)) + ")", "incomeMember_" + idx)}
+                </View>
+              );
+            }
+            if (member.status === "Unemployed") {
+              return (
+                <View key={"member-doc-ind-" + idx}>
+                  {renderUpload("Certificate of Indigency (" + (member.name || "Family Member " + (idx + 1)) + ")", "indigencyMember_" + idx)}
+                </View>
+              );
+            }
+            return null;
+          })}
+
+          {renderUpload("Recommendation Letter Form (Optional)", "recommendation")}
+          {renderUpload("Essay", "essay")}
+          {renderUpload("Letter of Intent (Applicant)", "letterOfIntentApplicant")}
+          {renderUpload("Letter of Intent (Parent)", "letterOfIntentParent")}
         </View>
       );
     }
@@ -1427,13 +1434,13 @@ export default function ProgramApplyScreen({ navigation, route }) {
               {renderYearInput("Previous Year Graduated", "prevYearGraduated")}
               {renderInput("Previous Tertiary GWA", "secondaryGwa", "e.g. 1.75 or 88.50", { keyboardType: "numeric" })}
               <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide the GWA from your previous tertiary transcript.</Text>
-              {renderUpload("Grade Report", "gradeReport")}
-              <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
-                Guide: Please upload your final grade report for the previous tertiary program.
-              </Text>
               {values.incomingFreshman === "Yes" && (
                 <>
                   {renderSelect("Grade Scale", "prevGradeScale", ["1.0 - 5.00 Grading System", "4.00 GPA System", "Percentage System", "Letter Grade System"])}
+                  {renderUpload("Grade Report", "gradeReport")}
+                  <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
+                    Guide: Please upload your final grade report for the previous tertiary program.
+                  </Text>
                 </>
               )}
             </>
@@ -1474,13 +1481,37 @@ export default function ProgramApplyScreen({ navigation, route }) {
               <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>
                 {isMasters ? "Provide your GWA from your most recent masters semester/term." : "Provide your GWA from your most recent semester/term."}
               </Text>
-              {renderUpload(isMasters ? "Current Masters Term Report Card" : "Current Term Report Card", "currentTermGradeReport")}
+            </>
+          )}
+
+          {renderUpload("Certificate of Registration", "cor")}
+
+          {isChildDesignation && values.incomingFreshman === "No" && (
+            <>
+              {renderUpload("Current Term Report Card", "currentTermGradeReport")}
               <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
                 Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
               </Text>
             </>
           )}
-          {renderUpload("COR", "cor")}
+
+          {isChildDesignation && (
+            <>
+              {renderUpload("Letter of Intent (Applicant)", "letterOfIntentApplicant")}
+              {renderUpload("Letter of Intent (Parent)", "letterOfIntentParent")}
+            </>
+          )}
+
+          {!isChildDesignation && values.incomingFreshman === "No" && (
+            <>
+              {renderUpload("Current Term Report Card", "currentTermGradeReport")}
+              <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
+                Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
+              </Text>
+            </>
+          )}
+
+          {!isChildDesignation && renderUpload("Letter of Intent", "letterOfIntentApplicant")}
         </View>
       );
     }
@@ -1528,7 +1559,9 @@ export default function ProgramApplyScreen({ navigation, route }) {
               </View>
               <View style={styles.reviewDataContent}>
                 <Text style={styles.reviewLabel}>{item.label}</Text>
-                <Text style={styles.reviewValue}>{item.value || "-"}</Text>
+                <Text style={styles.reviewValue}>
+                  {item.value === "Attached" ? "Uploaded" : item.value === "Not Attached" ? "Not Uploaded" : item.value || "-"}
+                </Text>
               </View>
             </View>
             {idx < items.length - 1 && <View style={styles.reviewDivider} />}
@@ -1538,63 +1571,107 @@ export default function ProgramApplyScreen({ navigation, route }) {
     </View>
   );
 
-  const renderReview = () => (
-    <View style={{ paddingBottom: 20 }}>
-      <Text style={styles.sectionTitle}>Review Information</Text>
-      <Text style={styles.sectionSubtitle}>Please double-check all details below before submitting your application.</Text>
+  const renderReview = () => {
+    const familyItems = [];
+    
+    // Guardian (highest priority, only if hasGuardian is true and guardianName is entered)
+    if (values.hasGuardian && values.guardianName && values.guardianName.trim() !== "") {
+      familyItems.push(
+        { label: "Guardian's Name", value: values.guardianName, icon: "person-outline" },
+        { label: "Guardian Status", value: values.guardianStatus, icon: "information-circle-outline" },
+        ...(requiresIncomeProof(values.guardianStatus) ? [
+          { label: "Guardian Income", value: values.guardianIncome, icon: "cash-outline" }
+        ] : [])
+      );
+    }
 
-      {selectedProgram === "tertiary" && (
-        <>
-          {renderReviewSection("Scholarship Fund Details", "card-outline", [
-            { label: "Scholarship Type", value: values.scholarshipType, icon: "ribbon-outline" },
-            { label: "Incoming Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
-          ])}
+    // Father (only if fatherName is entered)
+    if (values.fatherName && values.fatherName.trim() !== "") {
+      familyItems.push(
+        { label: "Father's Name", value: values.fatherName, icon: "man-outline" },
+        { label: "Father Status", value: values.fatherStatus, icon: "information-circle-outline" },
+        ...(values.fatherStatus !== "Deceased" && requiresIncomeProof(values.fatherStatus) ? [
+          { label: "Father Income", value: values.fatherIncome, icon: "cash-outline" }
+        ] : [])
+      );
+    }
 
-          {renderReviewSection("Secondary Education", "school-outline", [
-            { label: "High School Name", value: values.secondarySchool, icon: "business-outline" },
-            { label: "Strand", value: values.strand, icon: "bookmarks-outline" },
-            { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
-            { label: "Secondary GWA", value: values.secondaryGwa, icon: "analytics-outline" },
-          ])}
+    // Mother (only if motherName is entered)
+    if (values.motherName && values.motherName.trim() !== "") {
+      familyItems.push(
+        { label: "Mother's Name", value: values.motherName, icon: "woman-outline" },
+        { label: "Mother Status", value: values.motherStatus, icon: "information-circle-outline" },
+        ...(values.motherStatus !== "Deceased" && requiresIncomeProof(values.motherStatus) ? [
+          { label: "Mother Income", value: values.motherIncome, icon: "cash-outline" }
+        ] : [])
+      );
+    }
 
-          {renderReviewSection("Higher Education", "medal-outline", [
-            { label: "University / College", value: values.tertiarySchool, icon: "location-outline" },
-            { label: "Degree Program", value: values.program, icon: "school-outline" },
-            { label: "Current Year Level", value: values.yearLevel, icon: "layers-outline" },
-            { label: "Term System", value: values.term, icon: "time-outline" },
-            { label: "Term Start Date", value: values.termStartDate, icon: "calendar-outline" },
-            { label: "Term End Date", value: values.termEndDate, icon: "calendar-outline" },
-            ...(values.incomingFreshman === "No" ? [{ label: "Tertiary GWA", value: values.tertiaryGwa, icon: "analytics-outline" }] : []),
-          ])}
+    // Dynamic family members
+    const hasCoreFamilyData = 
+      (values.hasGuardian && values.guardianName && values.guardianName.trim() !== "") ||
+      (values.fatherName && values.fatherName.trim() !== "") ||
+      (values.motherName && values.motherName.trim() !== "");
 
-          {renderReviewSection("Family Background", "people-outline", [
-            { label: "Father's Name", value: values.fatherName, icon: "man-outline" },
-            { label: "Father Status", value: values.fatherStatus, icon: "information-circle-outline" },
-            ...(values.fatherStatus !== "Deceased" && requiresIncomeProof(values.fatherStatus) ? [
-              { label: "Father Income", value: values.fatherIncome, icon: "cash-outline" }
-            ] : []),
-            { label: "Mother's Name", value: values.motherName, icon: "woman-outline" },
-            { label: "Mother Status", value: values.motherStatus, icon: "information-circle-outline" },
-            ...(values.motherStatus !== "Deceased" && requiresIncomeProof(values.motherStatus) ? [
-              { label: "Mother Income", value: values.motherIncome, icon: "cash-outline" }
-            ] : []),
-            ...familyMembers.map((member, idx) => ({
-              label: `Family Member ${idx + 1} (${member.name || 'Unnamed'})`,
-              value: `${member.relationship} - ${member.status}`,
-              icon: "person-outline"
-            })),
-          ])}
+    if (hasCoreFamilyData) {
+      familyMembers.forEach((member, idx) => {
+        familyItems.push({
+          label: `Family Member ${idx + 1} (${member.name || 'Unnamed'})`,
+          value: `${member.relationship} - ${member.status}`,
+          icon: "person-outline"
+        });
+      });
+    }
+
+    return (
+      <View style={{ paddingBottom: 20 }}>
+        <Text style={styles.sectionTitle}>Review Information</Text>
+        <Text style={styles.sectionSubtitle}>Please double-check all details below before submitting your application.</Text>
+
+        {selectedProgram === "tertiary" && (
+          <>
+            {renderReviewSection("Scholarship Fund Details", "card-outline", [
+              { label: "Scholarship Type", value: values.scholarshipType, icon: "ribbon-outline" },
+              { label: "Incoming Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
+            ])}
+
+            {renderReviewSection("Secondary Education", "school-outline", [
+              { label: "High School Name", value: values.secondarySchool, icon: "business-outline" },
+              { label: "Strand", value: values.strand, icon: "bookmarks-outline" },
+              { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
+              { label: "Secondary GWA", value: values.secondaryGwa, icon: "analytics-outline" },
+            ])}
+
+            {renderReviewSection("Tertiary Education Information", "medal-outline", [
+              { label: "University / College", value: values.tertiarySchool, icon: "location-outline" },
+              { label: "Degree Program", value: values.program, icon: "school-outline" },
+              { label: "Current Year Level", value: values.yearLevel, icon: "layers-outline" },
+              { label: "Term System", value: values.term, icon: "time-outline" },
+              { label: "Term Start Date", value: values.termStartDate, icon: "calendar-outline" },
+              { label: "Term End Date", value: values.termEndDate, icon: "calendar-outline" },
+              { label: "Expected Graduation Year", value: values.expectedGradYear, icon: "calendar-outline" },
+              ...(values.incomingFreshman === "No" ? [{ label: "Tertiary GWA", value: values.tertiaryGwa, icon: "analytics-outline" }] : []),
+            ])}
+
+            {familyItems.length > 0 && renderReviewSection("Family / Guardian Information", "people-outline", familyItems)}
 
           {renderReviewSection("Supporting Documents", "document-text-outline", [
             ...(values.incomingFreshman === "Yes" ? [
               { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" }
             ] : []),
-            { label: "COR", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
+            { label: "Certificate of Registration", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
             ...(values.incomingFreshman === "No" ? [
-              { label: "Current Term Report", value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached", icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle" }
+              { label: "Current Term Report Card", value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached", icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle" }
             ] : []),
             { label: "Certificate of Indigency", value: uploadText.indigency ? "Attached" : "Not Attached", icon: uploadText.indigency ? "checkmark-circle" : "close-circle" },
             { label: "Birth Certificate", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
+            ...(values.hasGuardian ? [
+              ...(requiresIncomeProof(values.guardianStatus) ? [
+                { label: "Income Certificate (Guardian)", value: uploadText.incomeGuardian ? "Attached" : "Not Attached", icon: uploadText.incomeGuardian ? "checkmark-circle" : "close-circle" }
+              ] : values.guardianStatus === "Unemployed" ? [
+                { label: "Certificate of Indigency (Guardian)", value: uploadText.indigencyGuardian ? "Attached" : "Not Attached", icon: uploadText.indigencyGuardian ? "checkmark-circle" : "close-circle" }
+              ] : [])
+            ] : []),
             ...(requiresIncomeProof(values.fatherStatus) ? [
               { label: "Income Certificate (Father)", value: uploadText.incomeFather ? "Attached" : "Not Attached", icon: uploadText.incomeFather ? "checkmark-circle" : "close-circle" }
             ] : values.fatherStatus === "Unemployed" ? [
@@ -1615,8 +1692,10 @@ export default function ProgramApplyScreen({ navigation, route }) {
                 icon: uploadText[key] ? "checkmark-circle" : "close-circle"
               };
             }),
-            { label: "Recommendation Letter", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
+            { label: "Recommendation Letter Form (Optional)", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
             { label: "Personal Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
+            { label: "Letter of Intent (Applicant)", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" },
+            { label: "Letter of Intent (Parent)", value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle" },
           ])}
         </>
       )}
@@ -1638,29 +1717,13 @@ export default function ProgramApplyScreen({ navigation, route }) {
             { label: "Course Duration", value: values.courseDuration, icon: "time-outline" },
             { label: "Completion Date", value: values.completionDate, icon: "calendar-outline" },
           ])}
-          {renderReviewSection("Family Background", "people-outline", [
-            { label: "Father's Name", value: values.fatherName, icon: "man-outline" },
-            { label: "Father Status", value: values.fatherStatus, icon: "information-circle-outline" },
-            ...(values.fatherStatus !== "Deceased" && requiresIncomeProof(values.fatherStatus) ? [
-              { label: "Father Income", value: values.fatherIncome, icon: "cash-outline" }
-            ] : []),
-            { label: "Mother's Name", value: values.motherName, icon: "woman-outline" },
-            { label: "Mother Status", value: values.motherStatus, icon: "information-circle-outline" },
-            ...(values.motherStatus !== "Deceased" && requiresIncomeProof(values.motherStatus) ? [
-              { label: "Mother Income", value: values.motherIncome, icon: "cash-outline" }
-            ] : []),
-            ...familyMembers.map((member, idx) => ({
-              label: `Family Member ${idx + 1} (${member.name || 'Unnamed'})`,
-              value: `${member.relationship} - ${member.status}`,
-              icon: "person-outline"
-            })),
-          ])}
+          {familyItems.length > 0 && renderReviewSection("Family / Guardian Information", "people-outline", familyItems)}
 
           {renderReviewSection("Supporting Documents", "document-text-outline", [
             ...(values.incomingFreshman === "Yes" ? [
               { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" }
             ] : []),
-            { label: "COR", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
+            { label: "Certificate of Registration", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
             { label: "Certificate of Indigency", value: uploadText.indigency ? "Attached" : "Not Attached", icon: uploadText.indigency ? "checkmark-circle" : "close-circle" },
             { label: "Birth Certificate", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
             ...(requiresIncomeProof(values.fatherStatus) ? [
@@ -1683,8 +1746,10 @@ export default function ProgramApplyScreen({ navigation, route }) {
                 icon: uploadText[key] ? "checkmark-circle" : "close-circle"
               };
             }),
-            { label: "Recommendation Letter", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
-            { label: "Personal Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
+            { label: "Recommendation Letter Form (Optional)", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
+            { label: "Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
+            { label: "Letter of Intent (Applicant)", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" },
+            { label: "Letter of Intent (Parent)", value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle" },
           ])}
         </>
       )}
@@ -1693,36 +1758,40 @@ export default function ProgramApplyScreen({ navigation, route }) {
         const isMasters = !isChildDesignation && values.educPath === "Masters Education";
         return (
           <>
-            {renderReviewSection("Academic Path", "trail-sign-outline", [
+            {renderReviewSection("Academic Information", "school-outline", [
               ...(!isChildDesignation ? [{ label: "Education Path", value: values.educPath, icon: "map-outline" }] : []),
-              { label: "New Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
-            ])}
-            {renderReviewSection("Educational History", "school-outline", [
-              { label: "HS School Name", value: values.secondarySchool, icon: "business-outline" },
-              { label: "Strand", value: values.strand, icon: "bookmarks-outline" },
-              { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
-              ...(values.incomingFreshman === "Yes" && !isMasters ? [{ label: "Secondary GWA", value: values.secondaryGwa, icon: "analytics-outline" }] : []),
-            ])}
-            {isMasters && renderReviewSection("Previous Tertiary Education", "book-outline", [
-              { label: "Previous School Name", value: values.prevSchoolName, icon: "business-outline" },
-              { label: "Previous Program", value: values.prevProgram, icon: "school-outline" },
-              { label: "Previous Year Graduated", value: values.prevYearGraduated, icon: "calendar-outline" },
-              { label: "Previous Tertiary GWA", value: values.secondaryGwa, icon: "analytics-outline" },
-              ...(values.incomingFreshman === "Yes" ? [
-                { label: "Grade Scale", value: values.prevGradeScale, icon: "ribbon-outline" },
-              ] : []),
-            ])}
-            {renderReviewSection(isMasters ? "Current Masters Education" : "Higher Education", "medal-outline", [
-              { label: isMasters ? "University / College Name" : "University / College", value: values.tertiarySchool, icon: "location-outline" },
-              { label: "Degree Program", value: values.program, icon: "school-outline" },
-              { label: "Term System", value: values.term, icon: "time-outline" },
+              { label: "Incoming Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
+              ...(isMasters ? [
+                { label: "Previous School Name", value: values.prevSchoolName, icon: "business-outline" },
+                { label: "Previous Program", value: values.prevProgram, icon: "school-outline" },
+                { label: "Previous Year Graduated", value: values.prevYearGraduated, icon: "calendar-outline" },
+                { label: "Previous Tertiary GWA", value: values.secondaryGwa, icon: "analytics-outline" },
+                ...(values.incomingFreshman === "Yes" ? [
+                  { label: "Grade Scale", value: values.prevGradeScale, icon: "ribbon-outline" },
+                ] : []),
+              ] : [
+                { label: "Secondary School", value: values.secondarySchool, icon: "business-outline" },
+                { label: "Strand", value: values.strand, icon: "bookmarks-outline" },
+                { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
+                ...(values.incomingFreshman === "Yes" ? [{ label: "Secondary GWA", value: values.secondaryGwa, icon: "analytics-outline" }] : []),
+              ]),
+              { label: isMasters ? "University / College Name" : "Tertiary School", value: values.tertiarySchool, icon: "location-outline" },
+              { label: "Program", value: values.program, icon: "school-outline" },
+              { label: "Term Type", value: values.termType, icon: "receipt-outline" },
+              { label: "Grade Scale", value: values.gradeScale, icon: "ribbon-outline" },
+              { label: "Year Level", value: values.yearLevel, icon: "ribbon-outline" },
+              { label: "Term", value: values.term, icon: "time-outline" },
               { label: "Term Start Date", value: values.termStartDate, icon: "calendar-outline" },
               { label: "Term End Date", value: values.termEndDate, icon: "calendar-outline" },
-              ...(values.incomingFreshman === "No" ? [{ label: isMasters ? "Current Masters GWA" : "Tertiary GWA", value: values.tertiaryGwa, icon: "analytics-outline" }] : []),
+              { label: "Expected Graduation Year", value: values.expectedGradYear, icon: "calendar-outline" },
+              ...(values.incomingFreshman === "No" ? [{ label: isMasters ? "Current Masters GWA" : "Current GWA", value: values.tertiaryGwa, icon: "analytics-outline" }] : []),
             ])}
-            {renderReviewSection("Staff Information", "id-card-outline", [
+             {renderReviewSection("Staff Information", "id-card-outline", [
               { label: "Staff ID", value: values.staffId, icon: "barcode-outline" },
-              { label: "Staff Employee", value: `${values.firstName} ${values.lastName}`, icon: "person-outline" },
+              { label: "First Name", value: values.firstName, icon: "person-outline" },
+              { label: "Middle Name", value: values.middleName || "--", icon: "person-outline" },
+              { label: "Last Name", value: values.lastName, icon: "person-outline" },
+              { label: "Suffix", value: values.suffix || "--", icon: "person-outline" },
               { label: "Position", value: values.position, icon: "briefcase-outline" },
             ])}
             {renderReviewSection("Supporting Documents", "document-text-outline", [
@@ -1733,14 +1802,20 @@ export default function ProgramApplyScreen({ navigation, route }) {
                   icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle"
                 }
               ] : []),
-              { label: "COR", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
+              { label: "Certificate of Registration", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
               ...(values.incomingFreshman === "No" ? [
                 {
-                  label: isMasters ? "Current Masters Term Report" : "Current Term Report",
+                  label: "Current Term Report Card",
                   value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached",
                   icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle"
                 }
               ] : []),
+              ...(isChildDesignation ? [
+                { label: "Letter of Intent (Applicant)", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" },
+                { label: "Letter of Intent (Parent)", value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle" }
+              ] : [
+                { label: "Letter of Intent", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" }
+              ]),
             ])}
           </>
         );
@@ -1753,36 +1828,105 @@ export default function ProgramApplyScreen({ navigation, route }) {
         </View>
 
         <View style={styles.declarationItems}>
-          <TouchableOpacity style={styles.declRow} activeOpacity={0.7} onPress={() => setDeclarations((d) => ({ ...d, agree1: !d.agree1 }))}>
-            <View style={[styles.modernCheckbox, declarations.agree1 && styles.modernCheckboxChecked]}>
+          <View style={styles.declRow}>
+            <TouchableOpacity 
+              activeOpacity={0.7} 
+              onPress={() => setDeclarations((d) => {
+                const nextVal = !d.agree1;
+                return { agree1: nextVal, agree2: nextVal, agree3: nextVal };
+              })}
+              style={[styles.modernCheckbox, declarations.agree1 && styles.modernCheckboxChecked, { marginTop: 2 }]}
+            >
               {declarations.agree1 && <Ionicons name="checkmark" size={14} color="#fff" />}
-            </View>
-            <Text style={styles.declarationText}>
-              I certify that all information provided in this application is true and correct to the best of my knowledge. I understand that any false or misleading information may result in the denial or revocation of any scholarship granted.
+            </TouchableOpacity>
+            
+            <Text style={[styles.declarationText, { marginLeft: 10 }]}>
+              <Text onPress={() => setDeclarations((d) => {
+                const nextVal = !d.agree1;
+                return { agree1: nextVal, agree2: nextVal, agree3: nextVal };
+              })}>
+                By ticking, you are confirming that you have read, understood and agree to KKFI{" "}
+              </Text>
+              <Text 
+                style={{ color: "#3d4fa0", fontWeight: "700", textDecorationLine: "underline" }}
+                onPress={() => setTermsModalVisible(true)}
+              >
+                declaration and agreement terms.
+              </Text>
             </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.declRow} activeOpacity={0.7} onPress={() => setDeclarations((d) => ({ ...d, agree2: !d.agree2 }))}>
-            <View style={[styles.modernCheckbox, declarations.agree2 && styles.modernCheckboxChecked]}>
-              {declarations.agree2 && <Ionicons name="checkmark" size={14} color="#fff" />}
-            </View>
-            <Text style={styles.declarationText}>
-              I agree to provide any additional documentation requested by KKFI and to comply with all scholarship terms and conditions.
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.declRow} activeOpacity={0.7} onPress={() => setDeclarations((d) => ({ ...d, agree3: !d.agree3 }))}>
-            <View style={[styles.modernCheckbox, declarations.agree3 && styles.modernCheckboxChecked]}>
-              {declarations.agree3 && <Ionicons name="checkmark" size={14} color="#fff" />}
-            </View>
-            <Text style={styles.declarationText}>
-              I have read and agree to the <Text style={{ color: "#3d4fa0", fontWeight: "700" }}>Data Privacy Notice</Text>. I consent to the collection, processing, and storage of my personal data for scholarship evaluation and related program administration.
-            </Text>
-          </TouchableOpacity>
+          </View>
         </View>
       </View>
+
+      <Modal
+        visible={termsModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setTermsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContentCard}>
+            {/* Modal Header */}
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitleText}>Declaration and Agreement Terms</Text>
+              <TouchableOpacity onPress={() => setTermsModalVisible(false)} style={styles.modalCloseBtn}>
+                <Ionicons name="close" size={20} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Separator line */}
+            <View style={styles.modalDivider} />
+
+            {/* Modal Body */}
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalBodyContainer}>
+              {/* Term 1 */}
+              <View style={styles.modalTermRow}>
+                <View style={styles.modalNumberCircle}>
+                  <Text style={styles.modalNumberText}>1</Text>
+                </View>
+                <Text style={styles.modalTermText}>
+                  I certify that all information provided in this application is true and correct to the best of my knowledge. I understand that any false or misleading information may result in the denial or revocation of any scholarship granted.
+                </Text>
+              </View>
+
+              {/* Term 2 */}
+              <View style={styles.modalTermRow}>
+                <View style={styles.modalNumberCircle}>
+                  <Text style={styles.modalNumberText}>2</Text>
+                </View>
+                <Text style={styles.modalTermText}>
+                  I agree to provide any additional documentation requested by KKFI and to comply with all scholarship terms and conditions.
+                </Text>
+              </View>
+
+              {/* Term 3 */}
+              <View style={styles.modalTermRow}>
+                <View style={styles.modalNumberCircle}>
+                  <Text style={styles.modalNumberText}>3</Text>
+                </View>
+                <Text style={styles.modalTermText}>
+                  I have read and agree to the Data Privacy Notice. I consent to the collection, processing, and storage of my personal data for scholarship evaluation and related program administration.
+                </Text>
+              </View>
+            </ScrollView>
+
+            {/* Modal Footer Button */}
+            <TouchableOpacity 
+              style={styles.modalAgreeBtn}
+              activeOpacity={0.85}
+              onPress={() => {
+                setDeclarations({ agree1: true, agree2: true, agree3: true });
+                setTermsModalVisible(false);
+              }}
+            >
+              <Text style={styles.modalAgreeBtnText}>I Agree</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
+};
 
   const renderQualification = () => {
     const aiCheckingEnabled = qualificationOutcome?.ai_checking_enabled ?? true;
@@ -2207,5 +2351,146 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#2f427f",
     fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContentCard: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 15,
+    elevation: 8,
+    maxHeight: "85%",
+  },
+  modalHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingBottom: 8,
+  },
+  modalTitleText: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#111827",
+    flex: 1,
+    paddingRight: 10,
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#f3f4f6",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: "#e5e7eb",
+    marginVertical: 14,
+  },
+  modalBodyContainer: {
+    paddingBottom: 15,
+  },
+  modalTermRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 20,
+  },
+  modalNumberCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#eef2ff",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+    marginTop: 2,
+  },
+  modalNumberText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#3d4fa0",
+  },
+  modalTermText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#4b5563",
+    lineHeight: 22,
+    fontWeight: "500",
+  },
+  modalAgreeBtn: {
+    backgroundColor: "#5b5f97",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  modalAgreeBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  gridCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginBottom: 20,
+  },
+  gridHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  gridHeaderBar: {
+    width: 4,
+    height: 18,
+    backgroundColor: '#3d4fa0',
+    borderRadius: 2,
+    marginRight: 8,
+  },
+  gridHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#3d4fa0',
+  },
+  gridContent: {
+    marginTop: 4,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  gridCol: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  gridField: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  gridLabel: {
+    fontSize: 13,
+    color: '#6b7280',
+    flex: 1,
+    paddingRight: 4,
+  },
+  gridValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+    textAlign: 'right',
   },
 });

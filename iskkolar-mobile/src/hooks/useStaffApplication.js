@@ -40,6 +40,9 @@ const FIELD_MAP = {
   cor: "cor",
   grade_report: "gradeReport",
   current_term_report: "currentTermGradeReport",
+  letter_of_intent: "letterOfIntentApplicant",
+  letter_of_intent_applicant: "letterOfIntentApplicant",
+  letter_of_intent_parent: "letterOfIntentParent",
   general: "_general",
 };
 
@@ -355,6 +358,25 @@ export const useStaffApplication = (isChildDesignation) => {
         checkYear(values.yearGraduated, "yearGraduated", "Year Graduated");
         checkYear(values.prevYearGraduated, "prevYearGraduated", "Previous Year Graduated");
         checkYear(values.expectedGradYear, "expectedGradYear", "Expected Graduation Year", true);
+
+        if (!uploads.cor) {
+          preflightErrors.cor = "Certificate of Registration is required.";
+        }
+        if (values.incomingFreshman === "No" && !uploads.currentTermGradeReport) {
+          preflightErrors.currentTermGradeReport = "Current Term Report Card is required.";
+        }
+        if (isChildDesignation) {
+          if (!uploads.letterOfIntentApplicant) {
+            preflightErrors.letterOfIntentApplicant = "Letter of Intent (Applicant) is required.";
+          }
+          if (!uploads.letterOfIntentParent) {
+            preflightErrors.letterOfIntentParent = "Letter of Intent (Parent) is required.";
+          }
+        } else {
+          if (!uploads.letterOfIntentApplicant) {
+            preflightErrors.letterOfIntentApplicant = "Letter of Intent is required.";
+          }
+        }
 
         if (Object.keys(preflightErrors).length > 0) {
           setFieldErrors(preflightErrors);

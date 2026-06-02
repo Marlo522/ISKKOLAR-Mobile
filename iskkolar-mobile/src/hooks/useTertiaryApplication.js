@@ -27,6 +27,8 @@ const FIELD_MAP = {
   birth_certificate: "birthCert",
   essay: "essay",
   recommendation_letter: "recommendation",
+  letter_of_intent_applicant: "letterOfIntentApplicant",
+  letter_of_intent_parent: "letterOfIntentParent",
   income_cert_father: "incomeFather",
   income_cert_mother: "incomeMother",
   indigency_cert_father: "indigencyFather",
@@ -433,6 +435,8 @@ export const useTertiaryApplication = () => {
       // Step 2: Validate essential files
       if (!uploads.birthCert) preFlightErrors.birthCert = "Birth certificate is required.";
       if (!uploads.essay) preFlightErrors.essay = "Essay is required.";
+      if (!uploads.letterOfIntentApplicant) preFlightErrors.letterOfIntentApplicant = "Letter of Intent (Applicant) is required.";
+      if (!uploads.letterOfIntentParent) preFlightErrors.letterOfIntentParent = "Letter of Intent (Parent) is required.";
 
       const fatherIsOptional = values.hasGuardian;
       const motherIsOptional = values.hasGuardian;
