@@ -12,6 +12,7 @@ import {
   Animated,
 } from "react-native";
 import SafeTextInput from "../components/SafeTextInput";
+import { programOptions, vocationalProgramOptions, heiSchoolNames } from "../utils/programConstants";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
@@ -88,6 +89,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const isChildDesignation = selectedProgram === "employeeChild" && option === "Option 2";
 
   const [step, setStep] = useState(0);
+  const [activePredictiveKey, setActivePredictiveKey] = useState(null);
   const scrollViewRef = useRef(null);
 
   useEffect(() => {
@@ -591,19 +593,68 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
   // ─── Render helpers ───────────────────────────────────────────────────────
 
-  const renderInput = (label, key, placeholder = null, inputProps = {}) => (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <SafeTextInput placeholderTextColor="#888"
-        value={values[key]}
-        placeholder={placeholder || "Enter " + label}
-        onChangeText={(text) => updateValue(key, text)}
-        {...inputProps}
-        style={[styles.input, fieldErrors[key] && styles.errorInput]}
-      />
-      {fieldErrors[key] && <Text style={styles.errorText}>{fieldErrors[key]}</Text>}
-    </View>
-  );
+  const isPredictiveField = (key) => ["program", "vocationalProgram", "prevProgram", "tertiarySchool", "prevSchoolName"].includes(key);
+
+  const renderInput = (label, key, placeholder = null, inputProps = {}) => {
+    const isPredictive = isPredictiveField(key);
+    const query = values[key] || "";
+    const optionsSource =
+      key === "vocationalProgram"
+        ? vocationalProgramOptions
+        : ["tertiarySchool", "prevSchoolName"].includes(key)
+        ? heiSchoolNames
+        : programOptions;
+    const suggestions = isPredictive && query.trim().length >= 1
+      ? optionsSource.filter(opt => opt.toLowerCase().includes(query.toLowerCase()))
+      : [];
+
+    return (
+      <View style={[styles.row, { zIndex: isPredictive && activePredictiveKey === key && suggestions.length > 0 ? 99 : 1 }]}>
+        <Text style={styles.label}>{label}</Text>
+        <SafeTextInput placeholderTextColor="#888"
+          value={values[key]}
+          placeholder={placeholder || "Enter " + label}
+          onChangeText={(text) => updateValue(key, text)}
+          onFocus={() => {
+            if (isPredictive) {
+              setActivePredictiveKey(key);
+            }
+          }}
+          onBlur={() => {
+            if (isPredictive) {
+              setTimeout(() => {
+                setActivePredictiveKey(null);
+              }, 200);
+            }
+          }}
+          {...inputProps}
+          style={[styles.input, fieldErrors[key] && styles.errorInput]}
+        />
+        {isPredictive && activePredictiveKey === key && suggestions.length > 0 && (
+          <View style={styles.predictionsContainer}>
+            <ScrollView keyboardShouldPersistTaps="handled" style={styles.predictionsScroll}>
+              {suggestions.slice(0, 6).map((item, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.predictionItem}
+                  onPress={() => {
+                    updateValue(key, item);
+                    setActivePredictiveKey(null);
+                  }}
+                >
+                  <Ionicons name="school-outline" size={14} color="#5b5f97" style={{ marginRight: 8 }} />
+                  <Text style={styles.predictionText} numberOfLines={1}>
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+        {fieldErrors[key] && <Text style={styles.errorText}>{fieldErrors[key]}</Text>}
+      </View>
+    );
+  };
 
   const renderReadonlyValue = (label, value) => (
     <View style={styles.row}>
@@ -1376,13 +1427,13 @@ export default function ProgramApplyScreen({ navigation, route }) {
               {renderYearInput("Previous Year Graduated", "prevYearGraduated")}
               {renderInput("Previous Tertiary GWA", "secondaryGwa", "e.g. 1.75 or 88.50", { keyboardType: "numeric" })}
               <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide the GWA from your previous tertiary transcript.</Text>
+              {renderUpload("Grade Report", "gradeReport")}
+              <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
+                Guide: Please upload your final grade report for the previous tertiary program.
+              </Text>
               {values.incomingFreshman === "Yes" && (
                 <>
                   {renderSelect("Grade Scale", "prevGradeScale", ["1.0 - 5.00 Grading System", "4.00 GPA System", "Percentage System", "Letter Grade System"])}
-                  {renderUpload("Grade Report", "gradeReport")}
-                  <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
-                    Guide: Please upload your final grade report for the previous tertiary program.
-                  </Text>
                 </>
               )}
             </>
@@ -2122,5 +2173,39 @@ const styles = StyleSheet.create({
     color: "#848baf",
     fontSize: 14,
     fontWeight: "500",
+  },
+  predictionsContainer: {
+    position: "absolute",
+    top: 76,
+    left: 0,
+    right: 0,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#ccd1ed",
+    maxHeight: 200,
+    zIndex: 9999,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+    overflow: "hidden",
+  },
+  predictionsScroll: {
+    maxHeight: 200,
+  },
+  predictionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f2fb",
+  },
+  predictionText: {
+    fontSize: 14,
+    color: "#2f427f",
+    fontWeight: "600",
   },
 });

@@ -232,6 +232,7 @@ export const NotificationProvider = ({ children }) => {
       setArchivedIds([]);
       loadedAnnouncementsRef.current = [];
       hasShownInitialBannerRef.current = false;
+      setActiveBanner(null);
     }
   }, [user, loadReadIds, fetchAnnouncements]);
 
@@ -256,7 +257,7 @@ export const NotificationProvider = ({ children }) => {
       {children}
 
       {/* Floating In-App Top Notification Banner Popup */}
-      {activeBanner && (
+      {user && activeBanner && (
         <Animated.View style={[
           styles.bannerContainer,
           { transform: [{ translateY: slideAnim }] }

@@ -5,7 +5,7 @@ import {
   getMyStaffAdvancementApplications,
 } from "./StaffApplication";
 
-const ONGOING_STATUSES = new Set(["pending", "under_review", "initial_passed", "for_review", "for_interview"]);
+const ONGOING_STATUSES = new Set(["pending", "under_review", "initial_passed", "for_review", "for_interview", "submitted"]);
 const REJECTED_STATUSES = new Set(["rejected", "disapproved", "non_compliant"]);
 
 const PROGRAM_TO_TYPES = {

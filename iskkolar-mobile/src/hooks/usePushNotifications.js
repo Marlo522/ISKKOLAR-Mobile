@@ -126,6 +126,10 @@ export const usePushNotifications = () => {
 
     // 3. Foreground Message Listener
     const unsubscribeOnMessage = messaging().onMessage(async (remoteMessage) => {
+      if (!user) {
+        console.log('FCM: Foreground message ignored because user is logged out.');
+        return;
+      }
       console.log('FCM: Foreground message received:', remoteMessage);
       
       const title = remoteMessage.notification?.title || 'New Announcement';
@@ -141,6 +145,10 @@ export const usePushNotifications = () => {
     // 4. Handle native local status bar notification clicks
     const nativeNotificationResponseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
       console.log('FCM: Native status bar notification clicked:', response);
+      if (!user) {
+        console.log('FCM: Native notification click ignored because user is logged out.');
+        return;
+      }
       if (navigationRef.isReady()) {
         navigationRef.navigate('Notifications');
       }
@@ -149,6 +157,10 @@ export const usePushNotifications = () => {
     // 5. Handle FCM notification clicks that open the app from background state
     const unsubscribeNotificationOpen = messaging().onNotificationOpenedApp((remoteMessage) => {
       console.log('FCM: Notification caused app to open from background state:', remoteMessage);
+      if (!user) {
+        console.log('FCM: Notification background click ignored because user is logged out.');
+        return;
+      }
       if (navigationRef.isReady()) {
         navigationRef.navigate('Notifications');
       }
@@ -161,6 +173,10 @@ export const usePushNotifications = () => {
         if (remoteMessage) {
           console.log('FCM: Notification caused app to open from quit state:', remoteMessage);
           setTimeout(() => {
+            if (!user) {
+              console.log('FCM: Notification quit-state click ignored because user is logged out.');
+              return;
+            }
             if (navigationRef.isReady()) {
               navigationRef.navigate('Notifications');
             }

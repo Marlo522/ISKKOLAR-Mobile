@@ -83,6 +83,7 @@ const ONGOING_STATUSES = new Set([
   "initial_passed",
   "for_review",
   "for_interview",
+  "submitted",
 ]);
 
 export const useExamAssistance = () => {

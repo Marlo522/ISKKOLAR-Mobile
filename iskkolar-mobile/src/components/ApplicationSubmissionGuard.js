@@ -25,9 +25,11 @@ export default function ApplicationSubmissionGuard({
     );
   }
 
-  if (!ongoingApplication) return null;
+  const hasCustomCopy = Boolean(message || secondaryMessage || cardTitle);
 
-  const isExamAssistance = ongoingApplication.application_type === "exam_assistance";
+  if (!ongoingApplication && !hasCustomCopy) return null;
+
+  const isExamAssistance = ongoingApplication?.application_type === "exam_assistance";
   const normalizedStatus = String(ongoingApplication?.status || "").toLowerCase();
   const isInterviewStage = normalizedStatus === "for_interview" || ongoingApplication?.guard_reason === "active_stage";
   const isRejectedCooldown =
@@ -36,7 +38,6 @@ export default function ApplicationSubmissionGuard({
     normalizedStatus === "rejected" ||
     normalizedStatus === "disapproved" ||
     normalizedStatus === "non_compliant";
-  const hasCustomCopy = Boolean(message || secondaryMessage || cardTitle);
   const examAssistanceMessage =
     "You have already submitted an Exam Assistance application. This is a one-time support program and only one application is allowed per user.";
   const examAssistanceSecondaryMessage =

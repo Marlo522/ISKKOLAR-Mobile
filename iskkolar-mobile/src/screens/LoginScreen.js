@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLogin } from "../hooks/useLogin";
 
 export default function LoginScreen({ navigation }) {
-  const { form, errors, apiError, loading, updateField, handleLogin } = useLogin(navigation);
+  const { form, errors, apiError, loading, rememberMe, setRememberMe, updateField, handleLogin } = useLogin(navigation);
   const insets = useSafeAreaInsets();
 
   // Local UI-only state
@@ -88,8 +88,19 @@ export default function LoginScreen({ navigation }) {
           {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
         </View>
 
-        {/* Forgot password */}
-        <View style={styles.row}>
+        {/* Remember Me & Forgot password */}
+        <View style={styles.rowContainer}>
+          <TouchableOpacity 
+            style={styles.rememberMeContainer} 
+            activeOpacity={0.8}
+            onPress={() => setRememberMe(!rememberMe)}
+          >
+            <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+              {rememberMe && <Ionicons name="checkmark" size={12} color="#fff" />}
+            </View>
+            <Text style={styles.rememberMeLabel}>Remember Me</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
             <Text style={styles.link}>Forgot Password?</Text>
           </TouchableOpacity>
@@ -149,6 +160,37 @@ const styles = StyleSheet.create({
   errorText: { color: "#dc2626", fontSize: 12, marginTop: 6 },
   row: { flexDirection: "row", justifyContent: "flex-end", marginBottom: 18 },
   link: { color: "#5b5f97", fontSize: 13, fontWeight: "600" },
+  rowContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 18,
+    width: "100%",
+  },
+  rememberMeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "#a9b1c0",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  checkboxChecked: {
+    backgroundColor: "#5b5f97",
+    borderColor: "#5b5f97",
+  },
+  rememberMeLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#4a4f6a",
+  },
   primaryButton: {
     backgroundColor: "#5b5f97", paddingVertical: 14,
     borderRadius: 14, alignItems: "center",

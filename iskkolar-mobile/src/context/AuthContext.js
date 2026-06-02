@@ -8,6 +8,7 @@ export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const normalizeUser = (value) => {
     if (!value || typeof value !== "object") return null;
@@ -24,17 +25,24 @@ export const AuthProvider = ({ children }) => {
 
     const hydrateSession = async () => {
       try {
-        const storedUser = await AsyncStorage.getItem("user");
-
-        if (!mounted) return;
-
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser);
-          setUser(normalizeUser(parsedUser));
+        const storedRememberMe = await AsyncStorage.getItem("remember_me");
+        
+        if (storedRememberMe === "true") {
+          const storedUser = await AsyncStorage.getItem("user");
+          if (storedUser && mounted) {
+            const parsedUser = JSON.parse(storedUser);
+            setUser(normalizeUser(parsedUser));
+          }
+        } else {
+          // If remember_me is not active, clean up any residual session on startup
+          await AsyncStorage.removeItem("user");
         }
       } catch (error) {
-        if (!mounted) return;
-        setUser(null);
+        if (mounted) setUser(null);
+      } finally {
+        if (mounted) {
+          setIsHydrated(true);
+        }
       }
     };
 
@@ -45,10 +53,11 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const loginUser = async (userData) => {
+  const loginUser = async (userData, rememberMe = false) => {
     const normalized = normalizeUser(userData);
     setUser(normalized);
     await AsyncStorage.setItem("user", JSON.stringify(normalized));
+    await AsyncStorage.setItem("remember_me", rememberMe ? "true" : "false");
   };
 
   const logoutUser = async () => {
@@ -79,10 +88,11 @@ export const AuthProvider = ({ children }) => {
     // 3. Clear local state and Storage (always execute even if server requests fail)
     setUser(null);
     await AsyncStorage.removeItem("user");
+    await AsyncStorage.setItem("remember_me", "false");
   };
 
   return (
-    <AuthContext.Provider value={{ user, loginUser, logoutUser }}>
+    <AuthContext.Provider value={{ user, isHydrated, loginUser, logoutUser }}>
       {children}
     </AuthContext.Provider>
   );
