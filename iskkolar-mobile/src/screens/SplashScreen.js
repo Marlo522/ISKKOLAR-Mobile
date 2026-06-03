@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useRef } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   StatusBar,
+  Animated,
+  Easing,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,6 +18,49 @@ export default function SplashScreen() {
   const insets = useSafeAreaInsets();
   const { user, isHydrated } = useContext(AuthContext);
   const [showWelcome, setShowWelcome] = useState(false);
+
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  const welcomeFade = useRef(new Animated.Value(0)).current;
+  const welcomeSlide = useRef(new Animated.Value(40)).current;
+
+  // Entry animation for loader logo
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 6,
+        tension: 30,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // Loop pulse animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.04,
+            duration: 1200,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1200,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    });
+  }, []);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -30,14 +75,33 @@ export default function SplashScreen() {
         } else {
           setShowWelcome(true);
         }
-      }, 2000);
+      }, 2400); // Slightly adjusted to allow animation to show
       return () => clearTimeout(timer);
     } else {
       // User is logged out, show welcome screen after duration
-      const timer = setTimeout(() => setShowWelcome(true), 2600);
+      const timer = setTimeout(() => setShowWelcome(true), 3000); // 3 seconds to let pulse run once/twice
       return () => clearTimeout(timer);
     }
   }, [isHydrated, user, navigation]);
+
+  // Trigger welcome screen animations when it is shown
+  useEffect(() => {
+    if (showWelcome) {
+      Animated.parallel([
+        Animated.timing(welcomeFade, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.spring(welcomeSlide, {
+          toValue: 0,
+          friction: 6,
+          tension: 25,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [showWelcome]);
 
   const handleRegister = () => navigation.navigate("Signup");
   const handleLogin = () => navigation.navigate("Login");
@@ -46,22 +110,43 @@ export default function SplashScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
-      <View style={styles.content}>
-        <Image
-          source={require("../../assets/images/logo.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text style={styles.title}>ISKKOLAR</Text>
+        <View style={styles.content}>
+          <Animated.Image
+            source={require("../../assets/images/logo.png")}
+            style={[
+              styles.logo,
+              {
+                opacity: fadeAnim,
+                transform: [
+                  { scale: Animated.multiply(scaleAnim, pulseAnim) }
+                ]
+              }
+            ]}
+            resizeMode="contain"
+          />
+        </View>
       </View>
-    </View>
-  );
-}
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
-      <View style={styles.top}>
+      
+      <Animated.View 
+        style={[
+          styles.top, 
+          { 
+            opacity: welcomeFade,
+            transform: [{
+              translateY: welcomeSlide.interpolate({
+                inputRange: [0, 40],
+                outputRange: [0, -15]
+              })
+            }]
+          }
+        ]}
+      >
         <Image
           source={require("../../assets/images/logo.png")}
           style={styles.logoSmall}
@@ -70,9 +155,17 @@ export default function SplashScreen() {
         <Text style={styles.tagline}>
           75 Years of Faithful Mission,{"\n"}Changing Lives with Purpose and Compassion
         </Text>
-      </View>
+      </Animated.View>
 
-      <View style={styles.bottom}>
+      <Animated.View 
+        style={[
+          styles.bottom, 
+          { 
+            opacity: welcomeFade,
+            transform: [{ translateY: welcomeSlide }]
+          }
+        ]}
+      >
         <View style={styles.card}>
           <Text style={styles.welcomeTitle}>Welcome!</Text>
           <Text style={styles.welcomeSubtitle}>
@@ -90,7 +183,7 @@ export default function SplashScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -107,9 +200,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   logo: {
-    width: 200,
-    height: 200,
-    marginBottom: 18,
+    width: 320,
+    height: 320,
+    marginBottom: 20,
   },
   title: {
     fontSize: 32,
@@ -124,9 +217,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   logoSmall: {
-    width: 140,
-    height: 140,
-    marginBottom: 16,
+    width: 220,
+    height: 220,
+    marginBottom: 18,
   },
   tagline: {
     textAlign: "center",

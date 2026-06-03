@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f5f5f5" },
   container: { padding: 24, flexGrow: 1, justifyContent: "center" },
   logoContainer: { alignItems: "center", marginBottom: 18, marginTop: 10 },
-  loginLogo: { width: 200, height: 200 },
+  loginLogo: { width: 260, height: 260 },
   header: {
     fontSize: 28, fontWeight: "700", color: "#3d4076",
     textAlign: "center", marginBottom: 6,
