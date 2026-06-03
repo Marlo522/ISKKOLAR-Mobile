@@ -50,7 +50,7 @@ export default function ApplicationSubmissionGuard({
   const interviewCardMessage =
     "You already have a scholarship application in For Interview status.";
   const interviewFooterMessage =
-    "You cannot submit a new application at this time. Please complete or withdraw your current application before applying again.";
+    "You cannot submit a new application at this time. Please wait until your application is processed.";
 
   const statusLabel = isExamAssistance
     ? "Exam Assistance Lock"
