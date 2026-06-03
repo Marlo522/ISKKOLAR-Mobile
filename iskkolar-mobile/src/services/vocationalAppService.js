@@ -89,6 +89,72 @@ const appendFile = (formData, apiField, file) => {
 };
 
 // Builds the full multipart FormData payload for all vocational endpoints.
+const appendVocationalAcademicFields = (formData, values, uploads) => {
+  formData.append("scholarship_type", values.scholarshipType || "TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY (TESDA)");
+  formData.append("secondary_school", values.secondarySchool || "");
+  formData.append("strand", values.strand || "");
+  formData.append("year_graduated", values.yearGraduated || "");
+  formData.append("secondary_gwa", values.secondaryGwa || "");
+  formData.append("vocational_school", values.vocationalSchoolName || "");
+  formData.append("vocational_program", values.vocationalProgram || "");
+  formData.append("course_duration", values.courseDuration || "");
+  formData.append("completion_date", values.completionDate || "");
+
+  if (uploads) {
+    appendFile(formData, "cor", uploads.cor);
+    appendFile(formData, "grade_report", uploads.gradeReport);
+  }
+};
+
+const appendVocationalFamilyFields = (formData, values, dynamicFamilyMembers) => {
+  const familyMembers = buildFamilyMembers(values, dynamicFamilyMembers);
+  formData.append("has_guardian", values.hasGuardian ? "true" : "false");
+  formData.append("family_members", JSON.stringify(familyMembers));
+};
+
+const appendVocationalDocumentFields = (formData, uploads, values, dynamicFamilyMembers) => {
+  if (!uploads) return;
+
+  appendVocationalFamilyFields(formData, values, dynamicFamilyMembers);
+  appendFile(formData, "birth_certificate", uploads.birthCert);
+  appendFile(formData, "essay", uploads.essay);
+  appendFile(formData, "recommendation_letter", uploads.recommendation);
+  appendFile(formData, "letter_intent_applicant", uploads.letterOfIntentApplicant);
+  appendFile(formData, "letter_intent_parent", uploads.letterOfIntentParent);
+
+  appendFile(formData, "income_cert_father", uploads.incomeFather);
+  appendFile(formData, "income_cert_mother", uploads.incomeMother);
+  appendFile(formData, "indigency_cert_father", uploads.indigencyFather);
+  appendFile(formData, "indigency_cert_mother", uploads.indigencyMother);
+
+  if (values.hasGuardian) {
+    appendFile(formData, "income_cert_guardian", uploads.incomeGuardian);
+    appendFile(formData, "indigency_cert_guardian", uploads.indigencyGuardian);
+  }
+
+  (dynamicFamilyMembers || []).forEach((_, idx) => {
+    const incFile = uploads["incomeMember_" + idx];
+    if (incFile) appendFile(formData, "income_cert_member_" + idx, incFile);
+
+    const indFile = uploads["indigencyMember_" + idx];
+    if (indFile) appendFile(formData, "indigency_cert_member_" + idx, indFile);
+  });
+};
+
+const prepareVocationalStepFormData = (step, values, uploads, dynamicFamilyMembers) => {
+  const formData = new FormData();
+
+  if (step === 1) {
+    appendVocationalAcademicFields(formData, values, uploads);
+  } else if (step === 2) {
+    appendVocationalFamilyFields(formData, values, dynamicFamilyMembers);
+  } else if (step === 3) {
+    appendVocationalDocumentFields(formData, uploads, values, dynamicFamilyMembers);
+  }
+
+  return formData;
+};
+
 const prepareFormData = (values, uploads, dynamicFamilyMembers) => {
   const formData = new FormData();
 
@@ -107,6 +173,7 @@ const prepareFormData = (values, uploads, dynamicFamilyMembers) => {
 
   // Family members must be serialised as JSON since FormData is flat
   const familyMembers = buildFamilyMembers(values, dynamicFamilyMembers);
+  formData.append("has_guardian", values.hasGuardian ? "true" : "false");
   formData.append("family_members", JSON.stringify(familyMembers));
 
   // Document uploads — only attach fields that have a real file
@@ -117,6 +184,8 @@ const prepareFormData = (values, uploads, dynamicFamilyMembers) => {
     appendFile(formData, "birth_certificate", uploads.birthCert);
     appendFile(formData, "essay", uploads.essay);
     appendFile(formData, "recommendation_letter", uploads.recommendation);
+    appendFile(formData, "letter_intent_applicant", uploads.letterOfIntentApplicant);
+    appendFile(formData, "letter_intent_parent", uploads.letterOfIntentParent);
     appendFile(formData, "income_cert_father", uploads.incomeFather);
     appendFile(formData, "income_cert_mother", uploads.incomeMother);
     appendFile(formData, "indigency_cert_father", uploads.indigencyFather);
@@ -154,7 +223,7 @@ export const getMyVocationalApplications = async () => {
 
 // Sends form data to the backend step-validator before allowing the user to advance.
 export const validateVocationalStep = async (apiStep, values, uploads, dynamicFamilyMembers) => {
-  const formData = prepareFormData(values, uploads, dynamicFamilyMembers);
+  const formData = prepareVocationalStepFormData(apiStep, values, uploads, dynamicFamilyMembers);
   await api.post("/scholarships/vocational/validate-step?step=" + apiStep, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',

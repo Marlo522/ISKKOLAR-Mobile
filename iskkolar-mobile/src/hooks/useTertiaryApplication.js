@@ -27,8 +27,8 @@ const FIELD_MAP = {
   birth_certificate: "birthCert",
   essay: "essay",
   recommendation_letter: "recommendation",
-  letter_of_intent_applicant: "letterOfIntentApplicant",
-  letter_of_intent_parent: "letterOfIntentParent",
+  letter_intent_applicant: "letterOfIntentApplicant",
+  letter_intent_parent: "letterOfIntentParent",
   income_cert_father: "incomeFather",
   income_cert_mother: "incomeMother",
   indigency_cert_father: "indigencyFather",
@@ -279,7 +279,8 @@ export const useTertiaryApplication = () => {
   }, [checkGuard]);
 
   // uiStep is the current 0-based step shown in the UI.
-  // The Backend schema combines Academic and Family into step=1, and Documents into step=2.
+  // Backend scholarship validation is 1-based:
+  // 1 = academic, 2 = family, 3 = supporting documents.
   const validateStep = useCallback(async (uiStep, values, uploads, dynamicFamilyMembers) => {
     setError(null);
     setFieldErrors({});
@@ -320,10 +321,11 @@ export const useTertiaryApplication = () => {
         preFlightErrors.termStartDate = "Term Start Date is required.";
       } else {
         const start = parseDateString(values.termStartDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        if (start && start < today) {
-          preFlightErrors.termStartDate = "Term Start Date cannot be in the past.";
+        const currentYear = new Date().getFullYear();
+        const yearStart = new Date(currentYear, 0, 1);
+        const yearEnd = new Date(currentYear, 11, 31);
+        if (start && (start < yearStart || start > yearEnd)) {
+          preFlightErrors.termStartDate = "Term Start Date must be within the current year.";
         }
       }
       if (!values.termEndDate || values.termEndDate.trim() === "") {
@@ -392,14 +394,6 @@ export const useTertiaryApplication = () => {
           checkMember(values.guardianName, values.guardianStatus, values.guardianOccupation, values.guardianIncome, "guardian", "Guardian's");
           if (!values.guardianContact || values.guardianContact.length < 11) preFlightErrors.guardianContact = "Contact Number must be 11 digits.";
         }
-
-        // Only allow either Father or Mother information, not both
-        const hasFather = values.fatherName && values.fatherName.trim() !== "";
-        const hasMother = values.motherName && values.motherName.trim() !== "";
-        if (hasFather && hasMother) {
-          preFlightErrors.fatherName = "If you have a guardian, you can only provide either Father's or Mother's information, not both.";
-          preFlightErrors.motherName = "If you have a guardian, you can only provide either Father's or Mother's information, not both.";
-        }
       }
 
       const hasFather = values.fatherName && values.fatherName.trim() !== "";
@@ -437,9 +431,6 @@ export const useTertiaryApplication = () => {
       if (!uploads.essay) preFlightErrors.essay = "Essay is required.";
       if (!uploads.letterOfIntentApplicant) preFlightErrors.letterOfIntentApplicant = "Letter of Intent (Applicant) is required.";
       if (!uploads.letterOfIntentParent) preFlightErrors.letterOfIntentParent = "Letter of Intent (Parent) is required.";
-
-      const fatherIsOptional = values.hasGuardian;
-      const motherIsOptional = values.hasGuardian;
 
       const requiresProof = (status) => ["Employed", "Self-Employed"].includes(status);
       const requiresIndigency = (status) => status === "Unemployed";

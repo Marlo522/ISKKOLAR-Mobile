@@ -26,8 +26,8 @@ const FIELD_MAP = {
   birth_certificate: "birthCert",
   essay: "essay",
   recommendation_letter: "recommendation",
-  letter_of_intent_applicant: "letterOfIntentApplicant",
-  letter_of_intent_parent: "letterOfIntentParent",
+  letter_intent_applicant: "letterOfIntentApplicant",
+  letter_intent_parent: "letterOfIntentParent",
   income_cert_father: "incomeFather",
   income_cert_mother: "incomeMother",
   indigency_cert_father: "indigencyFather",
@@ -303,12 +303,13 @@ export const useVocationalApplication = () => {
 
   // Validates a single step before the user can advance.
   // uiStep is 0-based (step 0 = academic, step 1 = family, step 2 = documents).
-  // The backend treats academic + family as step=1, and documents as step=2.
+  // Backend scholarship validation is 1-based:
+  // 1 = academic, 2 = family, 3 = supporting documents.
   const validateStep = useCallback(async (uiStep, values, uploads, dynamicFamilyMembers) => {
     setError(null);
     setFieldErrors({});
 
-    const apiStep = uiStep + 1; // Backend endpoints are 1-indexed (1=Academic, 2=Family, 3=Docs)
+    const apiStep = uiStep + 1;
 
     // ── PRE-FLIGHT FRONTEND VALIDATION ──────────────────────
     // The backend Zod schema does not enforce all UI constraints
@@ -393,14 +394,6 @@ export const useVocationalApplication = () => {
           checkMember(values.guardianName, values.guardianStatus, values.guardianOccupation, values.guardianIncome, "guardian", "Guardian's");
           if (!values.guardianContact || values.guardianContact.length < 11) preFlightErrors.guardianContact = "Contact Number must be 11 digits.";
         }
-
-        // Only allow either Father or Mother information, not both
-        const hasFather = values.fatherName && values.fatherName.trim() !== "";
-        const hasMother = values.motherName && values.motherName.trim() !== "";
-        if (hasFather && hasMother) {
-          preFlightErrors.fatherName = "If you have a guardian, you can only provide either Father's or Mother's information, not both.";
-          preFlightErrors.motherName = "If you have a guardian, you can only provide either Father's or Mother's information, not both.";
-        }
       }
 
       const hasFather = values.fatherName && values.fatherName.trim() !== "";
@@ -457,9 +450,6 @@ export const useVocationalApplication = () => {
         preFlightErrors.letterOfIntentApplicant = "Letter of Intent (Applicant) is required.";
       if (!uploads.letterOfIntentParent)
         preFlightErrors.letterOfIntentParent = "Letter of Intent (Parent) is required.";
-
-      const fatherIsOptional = values.hasGuardian;
-      const motherIsOptional = values.hasGuardian;
 
       const requiresProof = (status) =>
         ["Employed", "Self-Employed"].includes(status);

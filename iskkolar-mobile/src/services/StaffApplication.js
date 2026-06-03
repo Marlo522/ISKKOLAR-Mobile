@@ -44,14 +44,51 @@ const normalizeApiError = (error, fallbackMessage) => {
 	};
 };
 
+const filterKkfiStepPayload = (step, payload) => {
+	if (step === 1) {
+		const {
+			staff_id,
+			first_name,
+			middle_name,
+			last_name,
+			suffix,
+			position,
+			...academicPayload
+		} = payload;
+
+		return academicPayload;
+	}
+
+	if (step === 2) {
+		return {
+			staff_id: payload.staff_id || "",
+			first_name: payload.first_name || "",
+			middle_name: payload.middle_name || "",
+			last_name: payload.last_name || "",
+			suffix: payload.suffix || "",
+			position: payload.position || "",
+		};
+	}
+
+	return payload;
+};
+
+const filterKkfiStepFiles = (step, files = {}) => {
+	if (step === 2) {
+		return {};
+	}
+
+	return files;
+};
+
 const createKkfiStepValidator = (basePath, fallbackMessage) => async (step, payload, files = {}) => {
 	try {
 		const formData = new FormData();
-		appendPayload(formData, payload);
+		appendPayload(formData, filterKkfiStepPayload(step, payload));
 
-		// Attach files for any validation step after the initial academic payload.
+		const stepFiles = filterKkfiStepFiles(step, files);
 		if (step > 0) {
-			appendFiles(formData, files);
+			appendFiles(formData, stepFiles);
 		}
 
 		const response = await api.post(`/scholarships/${basePath}/validate-step?step=${step}`, formData, {

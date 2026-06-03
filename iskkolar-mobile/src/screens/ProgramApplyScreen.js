@@ -3,11 +3,9 @@ import {
   View,
   Text,
   StyleSheet,
-  
   TouchableOpacity,
   ScrollView,
   Platform,
-  Alert,
   Modal,
   Animated,
 } from "react-native";
@@ -50,6 +48,7 @@ const infoFields = {
   prevSchoolName: "",
   prevProgram: "",
   prevYearGraduated: "",
+  prevGwa: "",
   prevGradeScale: "1.0 - 5.00 Grading System",
   staffId: "",
   firstName: "",
@@ -123,6 +122,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
     letterOfIntentParent: null,
   });
   const [localSubmitting, setLocalSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState(null);
   const [completeStage, setCompleteStage] = useState("none");
   const [selectVisible, setSelectVisible] = useState(false);
   const [selectContext, setSelectContext] = useState(null);
@@ -566,6 +566,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
   const submitApplication = async () => {
     setLocalSubmitting(true);
+    setSubmissionError(null);
     try {
       if (selectedProgram === "tertiary") {
         await submitTertiary(values, uploadText, familyMembers);
@@ -576,9 +577,16 @@ export default function ProgramApplyScreen({ navigation, route }) {
       } else {
         await new Promise((resolve) => setTimeout(resolve, 1200));
       }
+      // Only advance to the qualification report on confirmed success
       setCompleteStage("qualificationReport");
     } catch (err) {
-      Alert.alert("Submission Failed", err?.message || apiError || "An error occurred.");
+      // On validation or network error: stay on the review step so the user
+      // can correct their details and re-submit without losing any form data.
+      const message =
+        err?.message ||
+        apiError ||
+        "Submission failed. Please check your details and try again.";
+      setSubmissionError(message);
     } finally {
       setLocalSubmitting(false);
     }
@@ -1432,7 +1440,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
               {renderInput("Previous School Name", "prevSchoolName", "Enter Previous School Name")}
               {renderInput("Previous Program", "prevProgram", "Enter Previous Program")}
               {renderYearInput("Previous Year Graduated", "prevYearGraduated")}
-              {renderInput("Previous Tertiary GWA", "secondaryGwa", "e.g. 1.75 or 88.50", { keyboardType: "numeric" })}
+              {renderInput("Previous Tertiary GWA", "prevGwa", "e.g. 1.75 or 88.50", { keyboardType: "numeric" })}
               <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide the GWA from your previous tertiary transcript.</Text>
               {values.incomingFreshman === "Yes" && (
                 <>
@@ -1766,7 +1774,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
                 { label: "Previous School Name", value: values.prevSchoolName, icon: "business-outline" },
                 { label: "Previous Program", value: values.prevProgram, icon: "school-outline" },
                 { label: "Previous Year Graduated", value: values.prevYearGraduated, icon: "calendar-outline" },
-                { label: "Previous Tertiary GWA", value: values.secondaryGwa, icon: "analytics-outline" },
+                { label: "Previous Tertiary GWA", value: values.prevGwa, icon: "analytics-outline" },
                 ...(values.incomingFreshman === "Yes" ? [
                   { label: "Grade Scale", value: values.prevGradeScale, icon: "ribbon-outline" },
                 ] : []),
@@ -2135,13 +2143,21 @@ export default function ProgramApplyScreen({ navigation, route }) {
       )}
 
       {!isSubmittingNow && completeStage === "none" && step === maxStep && (
-        <TouchableOpacity
-          style={[styles.nextBtn, !allDeclared && { backgroundColor: "#bcc1e8" }]}
-          onPress={() => { if (allDeclared) submitApplication(); }}
-          disabled={!allDeclared}
-        >
-          <Text style={styles.nextBtnText}>Submit Application</Text>
-        </TouchableOpacity>
+        <>
+          {!!submissionError && (
+            <View style={styles.submissionErrorBanner}>
+              <Ionicons name="alert-circle" size={18} color="#b91c1c" style={{ marginRight: 8, flexShrink: 0 }} />
+              <Text style={styles.submissionErrorText}>{submissionError}</Text>
+            </View>
+          )}
+          <TouchableOpacity
+            style={[styles.nextBtn, !allDeclared && { backgroundColor: "#bcc1e8" }]}
+            onPress={() => { if (allDeclared) submitApplication(); }}
+            disabled={!allDeclared}
+          >
+            <Text style={styles.nextBtnText}>Submit Application</Text>
+          </TouchableOpacity>
+        </>
       )}
 
       <Modal visible={selectVisible} transparent animationType="slide" statusBarTranslucent onRequestClose={closeSelect}>
@@ -2268,6 +2284,25 @@ const styles = StyleSheet.create({
   declarationText: { flex: 1, fontSize: 13, color: "#4b5563", lineHeight: 18, fontWeight: "500" },
   nextBtn: { margin: 14, backgroundColor: "#4f5fc5", borderRadius: 12, paddingVertical: 14, alignItems: "center" },
   nextBtnText: { color: "#fff", fontSize: 16, fontWeight: "800" },
+  submissionErrorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 14,
+    marginBottom: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: "#fef2f2",
+    borderWidth: 1,
+    borderColor: "#fca5a5",
+    borderRadius: 12,
+  },
+  submissionErrorText: {
+    flex: 1,
+    color: "#b91c1c",
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+  },
   centered: { alignItems: "center", justifyContent: "center", marginTop: 120 },
   completeText: { fontSize: 22, fontWeight: "800", color: "#3f4ca8", marginTop: 16, marginBottom: 22 },
   subText: { textAlign: "center", color: "#848baf", paddingHorizontal: 40, fontSize: 15 },
