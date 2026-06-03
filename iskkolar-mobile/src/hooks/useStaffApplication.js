@@ -154,6 +154,30 @@ const buildFiles = (uploads = {}) => {
   if (uploads.gradeReport) files.grade_report = uploads.gradeReport;
   if (uploads.cor) files.cor = uploads.cor;
   if (uploads.currentTermGradeReport) files.current_term_report = uploads.currentTermGradeReport;
+  if (uploads.birthCert) files.birth_certificate = uploads.birthCert;
+  if (uploads.essay) files.essay = uploads.essay;
+  if (uploads.letterOfIntentApplicant) files.letter_of_intent = uploads.letterOfIntentApplicant;
+  if (uploads.letterOfIntentParent) files.letter_of_intent_parent = uploads.letterOfIntentParent;
+  if (uploads.incomeGuardian) files.income_cert_guardian = uploads.incomeGuardian;
+  if (uploads.indigencyGuardian) files.indigency_cert_guardian = uploads.indigencyGuardian;
+  if (uploads.incomeFather) files.income_cert_father = uploads.incomeFather;
+  if (uploads.indigencyFather) files.indigency_cert_father = uploads.indigencyFather;
+  if (uploads.incomeMother) files.income_cert_mother = uploads.incomeMother;
+  if (uploads.indigencyMother) files.indigency_cert_mother = uploads.indigencyMother;
+
+  Object.entries(uploads).forEach(([key, file]) => {
+    if (!file) return;
+    const memberIncomeMatch = /^incomeMember_(\d+)$/.exec(key);
+    if (memberIncomeMatch) {
+      files[`income_cert_member_${memberIncomeMatch[1]}`] = file;
+      return;
+    }
+    const memberIndigencyMatch = /^indigencyMember_(\d+)$/.exec(key);
+    if (memberIndigencyMatch) {
+      files[`indigency_cert_member_${memberIndigencyMatch[1]}`] = file;
+    }
+  });
+
   return files;
 };
 
@@ -361,6 +385,9 @@ export const useStaffApplication = (isChildDesignation) => {
 
         if (!uploads.cor) {
           preflightErrors.cor = "Certificate of Registration is required.";
+        }
+        if (!uploads.birthCert) {
+          preflightErrors.birthCert = "Birth Certificate is required.";
         }
         if (values.incomingFreshman === "No" && !uploads.currentTermGradeReport) {
           preflightErrors.currentTermGradeReport = "Current Term Report Card is required.";

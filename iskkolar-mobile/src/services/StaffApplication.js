@@ -49,8 +49,8 @@ const createKkfiStepValidator = (basePath, fallbackMessage) => async (step, payl
 		const formData = new FormData();
 		appendPayload(formData, payload);
 
-		// KKFI step 1 may include academic documents that are server-validated.
-		if (step === 1) {
+		// Attach files for any validation step after the initial academic payload.
+		if (step > 0) {
 			appendFiles(formData, files);
 		}
 

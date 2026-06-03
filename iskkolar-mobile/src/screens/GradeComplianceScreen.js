@@ -368,7 +368,7 @@ export default function GradeComplianceScreen({ navigation }) {
     const statusColor = statusColors[termItem.status] || statusColors.default;
     const windowStatus = getSubmissionWindowStatus(termItem.deadline);
     const isLate = windowStatus.isLate;
-    const deadlineStr = termItem.deadline ? new Date(termItem.deadline).toLocaleDateString() : "Not set";
+    const deadlineStr = termItem.deadline ? new Date(termItem.deadline).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : "Not set";
 
     return (
       <View style={styles.todoCard} key={termItem.id}>

@@ -76,15 +76,15 @@ const loadAllApplications = async () => {
   ];
 };
 
-const buildRejectedYearMessage = (program, option) => {
-  const targetTypes = getTargetTypes(program, option);
-  const label = targetTypes.includes("tertiary")
+const buildRejectedYearMessage = (blockedApplication) => {
+  const type = String(blockedApplication?.application_type || "").toLowerCase();
+  const label = type.includes("tertiary")
     ? "tertiary"
-    : targetTypes.includes("vocational")
+    : type.includes("vocational")
       ? "vocational"
-      : targetTypes.includes("child_designation")
+      : type.includes("child_designation")
         ? "child designation"
-        : targetTypes.includes("staff_advancement")
+        : type.includes("staff_advancement")
           ? "staff advancement"
           : "scholarship";
 
@@ -108,7 +108,6 @@ export const getScholarshipFormAccess = async ({ program, option } = {}) => {
   const currentYear = new Date().getFullYear();
   const rejectedThisYear = allApplications.find(
     (app) =>
-      targetTypes.includes(app?.application_type) &&
       isRejectedStatus(app?.status) &&
       getApplicationYear(app) === currentYear
   );
@@ -117,7 +116,7 @@ export const getScholarshipFormAccess = async ({ program, option } = {}) => {
     return {
       allowed: false,
       reason: "rejected_this_year",
-      message: buildRejectedYearMessage(program, option),
+      message: buildRejectedYearMessage(rejectedThisYear),
       reapplyYear: currentYear + 1,
       blockedApplication: rejectedThisYear,
     };

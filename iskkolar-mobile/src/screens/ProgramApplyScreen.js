@@ -1485,6 +1485,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           )}
 
           {renderUpload("Certificate of Registration", "cor")}
+          {renderUpload("Birth Certificate (Applicant)", "birthCert")}
 
           {isChildDesignation && values.incomingFreshman === "No" && (
             <>
