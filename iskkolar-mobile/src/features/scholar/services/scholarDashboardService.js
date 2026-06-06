@@ -38,8 +38,7 @@ const getBaseUrl = () => {
     return configuredBaseUrl;
   }
 
-  const expoHost = Constants.expoConfig?.hostUri?.split(':')?.[0];
-  return `http://${expoHost || '192.168.1.13'}:5000/api`;
+  return 'https://iskkolar-backend.onrender.com/api';
 };
 
 const createFallbackClient = () => {
