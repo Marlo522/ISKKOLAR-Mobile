@@ -2,7 +2,6 @@
   "expo": {
     "name": "iskkolar-mobile",
     "slug": "iskkolar-mobile",
-    "owner": "kkfi-iskkolar",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -44,7 +43,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "b2abd6b1-dc54-403d-a084-7735729fb553"
+        "projectId": "527c5dc8-f53e-4984-b563-00defde35f1a"
       }
     }
   }
