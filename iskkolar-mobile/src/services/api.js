@@ -14,14 +14,23 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // Crucial for HTTPOnly cookies
   timeout: 15000,
 });
 
 // Request Interceptor
 api.interceptors.request.use(
-  (config) => {
-    // Note: No manual token handling here. Cookies are handled by the OS.
+  async (config) => {
+    try {
+      const storedUser = await AsyncStorage.getItem('user');
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        if (parsedUser && parsedUser.token) {
+          config.headers.Authorization = `Bearer ${parsedUser.token}`;
+        }
+      }
+    } catch (error) {
+      console.warn('API Client: Failed to retrieve auth token:', error);
+    }
     return config;
   },
   (error) => Promise.reject(error)
