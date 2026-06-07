@@ -29,7 +29,7 @@ import ApplicationResultState from "../components/ApplicationResultState";
 import { getScholarshipFormAccess } from "../services/applicationGuardService";
 
 const infoFields = {
-  educPath: "Tertiary Education",
+  educPath: "tertiary",
   scholarshipType: "", // set dynamically below based on the selected program
   incomingFreshman: "No",
   secondarySchool: "",
@@ -50,6 +50,7 @@ const infoFields = {
   prevSchoolName: "",
   prevProgram: "",
   prevYearGraduated: "",
+  prevGwa: "",
   prevGradeScale: "1.0 - 5.00 Grading System",
   staffId: "",
   firstName: "",
@@ -311,12 +312,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
     };
   }, []);
 
-  // tertiary: 4 steps (0=Academic, 1=Family, 2=Docs, 3=Review)
-  // others:   3 steps (0, 1, 2=Review)
-  const maxStep =
-    selectedProgram === "employeeChild" && !isChildDesignation
-      ? 2
-      : 3;
+  const maxStep = 3;
   const requiresIncomeProof = (status) => ["Employed", "Self-Employed"].includes(status);
 
   const parseStringToDate = (str) => {
@@ -603,7 +599,11 @@ export default function ProgramApplyScreen({ navigation, route }) {
       }
       setCompleteStage("qualificationReport");
     } catch (err) {
-      Alert.alert("Submission Failed", err?.message || apiError || "An error occurred.");
+      Alert.alert(
+        "Submission Failed",
+        err?.message || apiError || "An error occurred.",
+        [{ text: "OK", style: "default" }]
+      );
     } finally {
       setLocalSubmitting(false);
     }
@@ -1455,11 +1455,9 @@ export default function ProgramApplyScreen({ navigation, route }) {
   };
 
   const renderEmployeeChildFlow = () => {
-    if (step === 0) {
-      const isMasters = !isChildDesignation && values.educPath === "Masters Education";
-      const isTertiaryFreshman = (values.educPath === "Tertiary Education" || values.educPath === "Masters Education") && values.incomingFreshman === "Yes";
-      const isStaffTertiaryNonFreshman = (values.educPath === "Tertiary Education" || values.educPath === "Masters Education") && values.incomingFreshman === "No";
+    const isMasters = !isChildDesignation && String(values.educPath).toLowerCase().includes("masters");
 
+    if (step === 0) {
       return (
         <View>
           <Text style={styles.sectionHeader}>Academic Information</Text>
@@ -1499,7 +1497,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
               {renderInput("Previous School Name", "prevSchoolName", "Enter Previous School Name")}
               {renderInput("Previous Program", "prevProgram", "Enter Previous Program")}
               {renderYearInput("Previous Year Graduated", "prevYearGraduated")}
-              {renderInput("Previous Tertiary GWA", "secondaryGwa", "e.g. 1.75 or 88.50", { keyboardType: "numeric" })}
+              {renderInput("Previous Tertiary GWA", "prevGwa", "e.g. 1.75 or 88.50", { keyboardType: "numeric" })}
               <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide the GWA from your previous tertiary transcript.</Text>
               {values.incomingFreshman === "Yes" && (
                 <>
@@ -1561,45 +1559,19 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </>
           )}
 
-          {isChildDesignation && (
-            <View style={styles.uploadsGridContainer}>
-              {renderUpload("Certificate of Registration", "cor")}
-              {values.incomingFreshman === "No" && (
-                <>
-                  {renderUpload("Current Term Report Card", "currentTermGradeReport")}
-                  <View style={{ width: "100%" }}>
-                    <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -6, marginBottom: 16, fontStyle: 'italic' }}>
-                      Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
-                    </Text>
-                  </View>
-                </>
-              )}
-            </View>
-          )}
-
-          {!isChildDesignation && (
-            <View style={styles.uploadsGridContainer}>
-              {renderUpload("Certificate of Registration", "cor")}
-              {!isStaffTertiaryNonFreshman && !isTertiaryFreshman && (
-                renderUpload("Birth Certificate (Applicant)", "birthCert")
-              )}
-
-              {values.incomingFreshman === "No" && (
-                <>
-                  {renderUpload("Current Term Report Card", "currentTermGradeReport")}
-                  <View style={{ width: "100%" }}>
-                    <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -6, marginBottom: 16, fontStyle: 'italic' }}>
-                      Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
-                    </Text>
-                  </View>
-                </>
-              )}
-
-              {!isStaffTertiaryNonFreshman && !isTertiaryFreshman && (
-                renderUpload("Letter of Intent", "letterOfIntentApplicant")
-              )}
-            </View>
-          )}
+          <View style={styles.uploadsGridContainer}>
+            {renderUpload("Certificate of Registration", "cor")}
+            {values.incomingFreshman === "No" && (
+              <>
+                {renderUpload("Current Term Report Card", "currentTermGradeReport")}
+                <View style={{ width: "100%" }}>
+                  <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -6, marginBottom: 16, fontStyle: 'italic' }}>
+                    Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
+                  </Text>
+                </View>
+              </>
+            )}
+          </View>
         </View>
       );
     }
@@ -1627,7 +1599,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
       );
     }
 
-    if (step === 2 && isChildDesignation) {
+    if (step === 2) {
       return (
         <View>
           <Text style={styles.sectionHeader}>| Supporting Documents</Text>
@@ -1638,20 +1610,12 @@ export default function ProgramApplyScreen({ navigation, route }) {
           </View>
 
           <View style={styles.uploadsGridContainer}>
-            {renderUpload("Certificate of Registration", "cor")}
             {renderUpload("Birth Certificate (Applicant)", "birthCert")}
-            {values.incomingFreshman === "No" && (
-              <>
-                {renderUpload("Current Term Report Card", "currentTermGradeReport")}
-                <View style={{ width: "100%" }}>
-                  <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -6, marginBottom: 16, fontStyle: 'italic' }}>
-                    Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
-                  </Text>
-                </View>
-              </>
+            {renderUpload(
+              isChildDesignation ? "Letter of Intent (Applicant)" : "Letter of Intent",
+              "letterOfIntentApplicant"
             )}
-            {renderUpload("Letter of Intent (Applicant)", "letterOfIntentApplicant")}
-            {renderUpload("Letter of Intent (Parent)", "letterOfIntentParent")}
+            {isChildDesignation && renderUpload("Letter of Intent (Parent)", "letterOfIntentParent")}
           </View>
         </View>
       );
@@ -1873,9 +1837,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
       )}
 
       {selectedProgram === "employeeChild" && (() => {
-        const isMasters = !isChildDesignation && values.educPath === "Masters Education";
-        const isTertiaryOrMastersFreshman = (values.educPath === "Tertiary Education" || values.educPath === "Masters Education") && values.incomingFreshman === "Yes";
-        const isStaffTertiaryNonFreshman = (values.educPath === "Tertiary Education" || values.educPath === "Masters Education") && values.incomingFreshman === "No";
+        const isMasters = !isChildDesignation && String(values.educPath).toLowerCase().includes("masters");
         return (
           <>
             {renderReviewSection("Academic Information", "school-outline", [
@@ -1885,7 +1847,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
                 { label: "Previous School Name", value: values.prevSchoolName, icon: "business-outline" },
                 { label: "Previous Program", value: values.prevProgram, icon: "school-outline" },
                 { label: "Previous Year Graduated", value: values.prevYearGraduated, icon: "calendar-outline" },
-                { label: "Previous Tertiary GWA", value: values.secondaryGwa, icon: "analytics-outline" },
+                { label: "Previous Tertiary GWA", value: values.prevGwa, icon: "analytics-outline" },
                 ...(values.incomingFreshman === "Yes" ? [
                   { label: "Grade Scale", value: values.prevGradeScale, icon: "ribbon-outline" },
                 ] : []),
@@ -1923,9 +1885,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
                 }
               ] : []),
               { label: "Certificate of Registration", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
-              ...(((isChildDesignation && values.incomingFreshman === "Yes") || (!isChildDesignation && !isStaffTertiaryNonFreshman && !isTertiaryOrMastersFreshman)) ? [
-                { label: "Birth Certificate (Applicant)", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" }
-              ] : []),
+              { label: "Birth Certificate (Applicant)", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
               ...(values.incomingFreshman === "No" ? [
                 {
                   label: "Current Term Report Card",
@@ -1933,12 +1893,18 @@ export default function ProgramApplyScreen({ navigation, route }) {
                   icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle"
                 }
               ] : []),
-              ...(isChildDesignation && values.incomingFreshman === "Yes" ? [
-                { label: "Letter of Intent (Applicant)", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" },
-                { label: "Letter of Intent (Parent)", value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle" }
-              ] : isChildDesignation && values.incomingFreshman === "No" ? [] : (isStaffTertiaryNonFreshman || isTertiaryOrMastersFreshman) ? [] : [
-                { label: "Letter of Intent", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" }
-              ]),
+              {
+                label: isChildDesignation ? "Letter of Intent (Applicant)" : "Letter of Intent",
+                value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached",
+                icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle"
+              },
+              ...(isChildDesignation ? [
+                {
+                  label: "Letter of Intent (Parent)",
+                  value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached",
+                  icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle"
+                }
+              ] : []),
             ])}
           </>
         );

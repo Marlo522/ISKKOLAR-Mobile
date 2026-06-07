@@ -154,7 +154,11 @@ export default function ExamAssistanceScreen({ navigation }) {
       setCompleteStage("preAssessment");
     } catch (error) {
       const message = error?.message || "Failed to submit exam assistance application.";
-      Alert.alert("Submission Failed", message);
+      Alert.alert(
+        "Submission Failed",
+        message,
+        [{ text: "OK", style: "default" }]
+      );
     }
   };
 

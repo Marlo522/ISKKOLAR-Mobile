@@ -2,10 +2,12 @@ import React, { useState, useCallback, useContext } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, ActivityIndicator, RefreshControl,
+  Image, Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NotificationContext } from '../context/NotificationContext';
+import { getAttachmentDownloadUrl } from '../services/announcementService';
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -97,6 +99,20 @@ const formatInlineText = (text, style) => {
     }
     return part;
   });
+};
+
+const openAttachment = async (url) => {
+  if (!url) return;
+  try {
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      console.warn('Cannot open attachment URL:', url);
+    }
+  } catch (error) {
+    console.warn('Error opening attachment URL:', error);
+  }
 };
 
 /** Parses and renders formatted content (Headings, Lists, Paragraphs) */
@@ -242,6 +258,43 @@ const AnnouncementDetail = ({ item, onBack, isArchived, onArchive, onUnarchive }
         <View style={styles.detailBodyContainer}>
           {renderParsedContent(item.content || item.description, styles.detailBody)}
         </View>
+
+        {item.attachments && item.attachments.length > 0 && (
+          <View style={styles.attachmentsSection}>
+            <Text style={styles.attachmentsHeading}>Attachments</Text>
+            {item.attachments.map((file, index) => {
+              const isImage = file.type?.startsWith('image/') || file.url?.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+              const downloadUrl = getAttachmentDownloadUrl(file.url, file.name);
+
+              if (isImage) {
+                return (
+                  <View key={index} style={styles.attachmentImageWrapper}>
+                    <Image
+                      source={{ uri: file.url }}
+                      style={styles.attachmentImage}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.attachmentLabel}>{file.name}</Text>
+                  </View>
+                );
+              }
+
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.attachmentButton}
+                  onPress={() => openAttachment(downloadUrl)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.attachmentIconBox}>
+                    <Ionicons name="download-outline" size={16} color="#4f5ec4" />
+                  </View>
+                  <Text style={styles.attachmentButtonText}>{file.name || 'Download file'}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -256,10 +309,12 @@ export default function NotificationsScreen({ navigation }) {
     announcements,
     readIds,
     archivedIds,
+    unreadCount,
     loading,
     error,
     fetchAnnouncements,
     markAsRead,
+    markAllAnnouncementsAsRead,
     archiveAnnouncement,
     unarchiveAnnouncement
   } = useContext(NotificationContext);
@@ -328,9 +383,17 @@ export default function NotificationsScreen({ navigation }) {
             <Text style={styles.title}>Announcements</Text> 
             <Text style={styles.subtitle}>Stay updated with announcements</Text>
           </View>
+          {unreadCount > 0 && (
+            <TouchableOpacity
+              style={styles.markAllButton}
+              onPress={markAllAnnouncementsAsRead}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.markAllButtonText}>Mark All as Read ({unreadCount})</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* Filter Tabs */}
         <View style={styles.filterTabsContainer}>
           {[
             { id: 'all', label: 'All', count: announcements.filter(a => !archivedIds.includes(a.id)).length },
@@ -425,11 +488,7 @@ export default function NotificationsScreen({ navigation }) {
                   </View>
                   
                   <Text style={styles.cardMessage} numberOfLines={2}>
-                    {convertHtmlToMarkdown(item.description || item.content)
-                      .replace(/[#\*_~]{1,3}/g, '') // Strip all markers for plain text preview
-                      .replace(/\s+/g, ' ')
-                      .trim()
-                      .substring(0, 150)}
+                    {getPreviewHtml(item.content, item.description)}
                   </Text>
                   
                   <View style={styles.cardFooter}>
@@ -573,6 +632,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTextContainer: { flex: 1 },
+  markAllButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: '#4f5ec4',
+    borderRadius: 12,
+  },
+  markAllButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
   title: {
     fontSize: 22,
     fontWeight: '900',
@@ -814,6 +884,59 @@ const styles = StyleSheet.create({
     color: '#3d4369',
     lineHeight: 26,
     fontWeight: '400',
+  },
+  attachmentsSection: {
+    marginTop: 24,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  attachmentsHeading: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1a1d2d',
+    marginBottom: 12,
+  },
+  attachmentImageWrapper: {
+    marginBottom: 16,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#f8fafc',
+  },
+  attachmentImage: {
+    width: '100%',
+    height: 220,
+    backgroundColor: '#f4f5fb',
+  },
+  attachmentLabel: {
+    padding: 12,
+    color: '#475569',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  attachmentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: '#f8fafc',
+    marginBottom: 12,
+  },
+  attachmentIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: '#e0e7ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  attachmentButtonText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1f2937',
   },
   h1: {
     fontSize: 22,

@@ -51,6 +51,9 @@ export const submitExamAssistance = async (formValues, files = {}) => {
     const response = await api.post('/assistance/exam-assistance', data, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    if (response.data && response.data.success === false) {
+      throw response.data;
+    }
     return response.data;
   } catch (error) {
     throw toReadableError(error);

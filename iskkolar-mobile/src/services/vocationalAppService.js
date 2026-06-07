@@ -193,6 +193,9 @@ export const submitVocationalApplication = async (values, uploads, dynamicFamily
       'Content-Type': 'multipart/form-data',
     },
   });
+  if (response.data && response.data.success === false) {
+    throw response.data;
+  }
   return response.data;
 };
 

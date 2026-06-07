@@ -33,6 +33,10 @@ export const submitTransferRequest = async (payload, corFile) => {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
+  if (response.data && response.data.success === false) {
+    throw response.data;
+  }
+
   return response.data;
 
 };

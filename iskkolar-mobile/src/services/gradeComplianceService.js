@@ -46,6 +46,10 @@ export const submitGradeCompliance = async ({ term, scholarshipName, remarks, ne
       headers: { 'Content-Type': 'multipart/form-data' },
     });
 
+    if (response.data && response.data.success === false) {
+      throw response.data;
+    }
+
     return response.data;
   } catch (error) {
     throw error;

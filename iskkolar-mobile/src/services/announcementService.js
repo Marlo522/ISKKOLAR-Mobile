@@ -14,3 +14,18 @@ export const getScholarAnnouncements = async () => {
   }
 };
 
+/**
+ * Generates the backend download URL for a given attachment.
+ * Falls back to the direct file URL when already absolute.
+ */
+export const getAttachmentDownloadUrl = (fileUrl, fileName) => {
+  if (!fileUrl) return '';
+
+  if (/^https?:\/\//i.test(fileUrl)) {
+    return fileUrl;
+  }
+
+  const apiBase = (api.defaults.baseURL || 'http://localhost:5000/api').replace(/\/+$/, '');
+  return `${apiBase}/files/download?url=${encodeURIComponent(fileUrl)}&name=${encodeURIComponent(fileName || 'attachment')}`;
+};
+

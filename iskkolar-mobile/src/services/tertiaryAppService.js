@@ -187,6 +187,9 @@ export const submitTertiaryApplication = async (values, uploads, dynamicFamilyMe
       'Content-Type': 'multipart/form-data',
     },
   });
+  if (response.data && response.data.success === false) {
+    throw response.data;
+  }
   return response.data;
 };
 

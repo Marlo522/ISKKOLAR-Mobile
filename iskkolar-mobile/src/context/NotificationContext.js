@@ -183,6 +183,30 @@ export const NotificationProvider = ({ children }) => {
     }
   }, [user]);
 
+  // Mark all current announcements as read
+  const markAllAnnouncementsAsRead = useCallback(async () => {
+    if (!user) return;
+    const userId = user.id || user.uid;
+    if (!userId) return;
+
+    try {
+      setReadIds((prev) => {
+        const unreadIds = announcements
+          .filter((item) => !prev.includes(item.id) && !archivedIdsRef.current.includes(item.id))
+          .map((item) => item.id);
+
+        if (unreadIds.length === 0) return prev;
+        const updated = [...prev, ...unreadIds];
+        AsyncStorage.setItem(`read_announcements_${userId}`, JSON.stringify(updated)).catch(e => {
+          console.warn("NotificationContext: Failed to save read IDs", e);
+        });
+        return updated;
+      });
+    } catch (e) {
+      console.warn("NotificationContext: Failed to mark all announcements as read", e);
+    }
+  }, [user, announcements]);
+
   // Archive an announcement
   const archiveAnnouncement = useCallback(async (id) => {
     if (!user) return;
@@ -261,6 +285,7 @@ export const NotificationProvider = ({ children }) => {
       error,
       fetchAnnouncements,
       markAsRead,
+      markAllAnnouncementsAsRead,
       archiveAnnouncement,
       unarchiveAnnouncement
     }}>

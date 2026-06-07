@@ -302,7 +302,11 @@ export default function TransferSchoolScreen({ navigation }) {
       setCompleteStage("success");
     } catch (err) {
       if (!err?.isValidationError) {
-        Alert.alert("Submission Failed", err?.message || "An error occurred.");
+        Alert.alert(
+          "Submission Failed",
+          err?.message || "An error occurred.",
+          [{ text: "OK", style: "default" }]
+        );
       }
     }
   };
