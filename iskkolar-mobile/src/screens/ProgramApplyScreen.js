@@ -768,7 +768,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
     </View>
   );
 
-  const renderUpload = (label, key, isHalfWidth = true) => (
+  const renderUpload = (label, key, isHalfWidth = false) => (
     <View style={isHalfWidth ? styles.uploadRowItemHalf : styles.uploadRowItemFull}>
       <Text style={styles.label}>{label}</Text>
       <TouchableOpacity
@@ -1120,7 +1120,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           <View style={styles.uploadsGridContainer}>
             {values.incomingFreshman === "No" && (
               <>
-                {renderUpload("Current Term Report Card", "currentTermGradeReport", true)}
+                {renderUpload("Current Term Report Card", "currentTermGradeReport", false)}
                 <View style={{ width: "100%" }}>
                   <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -6, marginBottom: 16, fontStyle: 'italic' }}>
                     Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
@@ -1128,7 +1128,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
                 </View>
               </>
             )}
-            {renderUpload("Certificate of Registration", "cor", values.incomingFreshman === "No")}
+            {renderUpload("Certificate of Registration", "cor", false)}
           </View>
         </View>
       );
@@ -1249,14 +1249,14 @@ export default function ProgramApplyScreen({ navigation, route }) {
             {familyMembers.map((member, idx) => {
               if (requiresIncomeProof(member.status)) {
                 return (
-                  <View key={"member-doc-inc-" + idx} style={{ width: "48.5%" }}>
+                  <View key={"member-doc-inc-" + idx} style={{ width: "100%" }}>
                     {renderUpload("Income Certificate (" + (member.name || "Family Member " + (idx + 1)) + ")", "incomeMember_" + idx, false)}
                   </View>
                 );
               }
               if (member.status === "Unemployed") {
                 return (
-                  <View key={"member-doc-ind-" + idx} style={{ width: "48.5%" }}>
+                  <View key={"member-doc-ind-" + idx} style={{ width: "100%" }}>
                     {renderUpload("Certificate of Indigency (" + (member.name || "Family Member " + (idx + 1)) + ")", "indigencyMember_" + idx, false)}
                   </View>
                 );
@@ -1432,14 +1432,14 @@ export default function ProgramApplyScreen({ navigation, route }) {
             {familyMembers.map((member, idx) => {
               if (requiresIncomeProof(member.status)) {
                 return (
-                  <View key={"member-doc-inc-" + idx} style={{ width: "48.5%" }}>
+                  <View key={"member-doc-inc-" + idx} style={{ width: "100%" }}>
                     {renderUpload("Income Certificate (" + (member.name || "Family Member " + (idx + 1)) + ")", "incomeMember_" + idx, false)}
                   </View>
                 );
               }
               if (member.status === "Unemployed") {
                 return (
-                  <View key={"member-doc-ind-" + idx} style={{ width: "48.5%" }}>
+                  <View key={"member-doc-ind-" + idx} style={{ width: "100%" }}>
                     {renderUpload("Certificate of Indigency (" + (member.name || "Family Member " + (idx + 1)) + ")", "indigencyMember_" + idx, false)}
                   </View>
                 );
@@ -1478,7 +1478,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             "PRE-K-12 CURRICULUM"
           ])}
           {renderYearInput("Year Graduated", "yearGraduated")}
-          {values.incomingFreshman === "Yes" && !isMasters && (
+          {!isMasters && (
             <>
               {renderInput("Secondary GWA (General Weighted Average)", "secondaryGwa", "e.g. 88.50", { keyboardType: "numeric" })}
               <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide your final general average from your high school report card.</Text>

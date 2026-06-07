@@ -161,7 +161,7 @@ export default function VocationalCompletionScreen({ navigation, route }) {
     }
   };
 
-  const renderFilePicker = (key, label, isOptional = false, isHalfWidth = true) => {
+  const renderFilePicker = (key, label, isOptional = false, isHalfWidth = false) => {
     const hasFile = !!files[key];
     const hasError = !!fieldErrors[key];
     
@@ -371,9 +371,9 @@ export default function VocationalCompletionScreen({ navigation, route }) {
 
           {/* Documents */}
           <View style={styles.uploadsGridContainer}>
-            {renderFilePicker('completion_certificate', 'Completion Certificate / Diploma', false, true)}
-            {renderFilePicker('transcript_of_records', 'Transcript of Records (TOR)', true, true)}
-            {renderFilePicker('other', 'Other Supporting Document', true, true)}
+            {renderFilePicker('completion_certificate', 'Completion Certificate / Diploma', false)}
+            {renderFilePicker('transcript_of_records', 'Transcript of Records (TOR)', true)}
+            {renderFilePicker('other', 'Other Supporting Document', true)}
           </View>
 
           {error ? (

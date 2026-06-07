@@ -103,13 +103,19 @@ export default function ScholarshipRenewalScreen({ navigation }) {
     eligibility?.aiEvaluation?.recommended_action === 'Reject'
   );
 
-  const isContinueDisabled = loadingEligibility || hasFailedSubjects;
+  const alreadyRenewed = Boolean(
+    eligibility?.alreadyRenewed ||
+    eligibility?.detailedData?.alreadyRenewed
+  );
+
+  const isContinueDisabled = loadingEligibility || hasFailedSubjects || alreadyRenewed;
 
   useEffect(() => {
     console.log('Eligibility state:', eligibility);
     console.log('hasFailedSubjects:', hasFailedSubjects);
+    console.log('alreadyRenewed:', alreadyRenewed);
     console.log('isContinueDisabled:', isContinueDisabled);
-  }, [eligibility, hasFailedSubjects, isContinueDisabled]);
+  }, [eligibility, hasFailedSubjects, alreadyRenewed, isContinueDisabled]);
 
   // Animations
   const stepAnim = useRef(new Animated.Value(0)).current;
@@ -243,6 +249,8 @@ export default function ScholarshipRenewalScreen({ navigation }) {
     if (step === 1) {
       if (hasFailedSubjects) {
         nextErrors.eligibility = 'Renewal blocked: You have failed subjects in your academic record.';
+      } else if (alreadyRenewed) {
+        nextErrors.eligibility = 'Renewal blocked: Scholarship renewal can only be submitted once a year.';
       }
 
       if (!form.academicYear.trim()) {
@@ -444,11 +452,18 @@ export default function ScholarshipRenewalScreen({ navigation }) {
                   <Text style={styles.sectionHeader}>Scholar Status Evaluation</Text>
                 </View>
 
-                {hasFailedSubjects && (
+                {(hasFailedSubjects || alreadyRenewed) && (
                   <View style={styles.failedSubjectsBanner}>
                     <Ionicons name="alert-circle" size={24} color="#ef4444" />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.failedSubjectsTitle}>Renewal Blocked</Text>
+                      <Text style={styles.failedSubjectsTitle}>
+                        {alreadyRenewed ? 'Already Submitted' : 'Renewal Blocked'}
+                      </Text>
+                      <Text style={styles.failedSubjectsText}>
+                        {alreadyRenewed
+                          ? 'Scholarship renewal can only be submitted once a year.'
+                          : 'You have failed subjects in your academic record.'}
+                      </Text>
                     </View>
                   </View>
                 )}
@@ -574,7 +589,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
                             styles.verdictBox,
                             eligibility.isQualified
                               ? styles.verdictSuccess
-                              : hasFailedSubjects
+                              : (hasFailedSubjects || alreadyRenewed)
                                 ? styles.verdictError
                                 : styles.verdictWarning,
                           ]}
@@ -584,16 +599,18 @@ export default function ScholarshipRenewalScreen({ navigation }) {
                               styles.verdictText,
                               eligibility.isQualified
                                 ? styles.verdictTextSuccess
-                                : hasFailedSubjects
+                                : (hasFailedSubjects || alreadyRenewed)
                                   ? styles.verdictTextError
                                   : styles.verdictTextWarning,
                             ]}
                           >
                             {eligibility.isQualified
                               ? '✓ You meet the baseline requirements and may proceed.'
-                              : hasFailedSubjects
-                                ? '❌ Renewal blocked: You have failed subjects in your academic record.'
-                                : '⚠ You have flags on your record. You may still proceed, but your renewal is subject to admin review.'}
+                              : alreadyRenewed
+                                ? '❌ Renewal blocked: Scholarship renewal can only be submitted once a year.'
+                                : hasFailedSubjects
+                                  ? '❌ Renewal blocked: You have failed subjects in your academic record.'
+                                  : '⚠ You have flags on your record. You may still proceed, but your renewal is subject to admin review.'}
                           </Text>
                         </View>
 

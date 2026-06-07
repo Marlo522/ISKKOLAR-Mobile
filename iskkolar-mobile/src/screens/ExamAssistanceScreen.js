@@ -414,13 +414,11 @@ export default function ExamAssistanceScreen({ navigation }) {
                 <Text style={styles.sectionHeader}>Supporting Documents</Text>
               </View>
 
-              <View style={styles.rowTwoCol}>
-                <View style={styles.colHalf}>
-                  {renderFileUploadBox("Exam Registration / Confirmation", "PDF or clear image", "examRegistration")}
-                </View>
-                <View style={styles.colHalf}>
-                  {renderFileUploadBox("Review Course Enrollment (optional)", "Upload if applicable", "reviewCourse")}
-                </View>
+              <View style={styles.row}>
+                {renderFileUploadBox("Exam Registration / Confirmation", "PDF or clear image", "examRegistration")}
+              </View>
+              <View style={styles.row}>
+                {renderFileUploadBox("Review Course Enrollment (optional)", "Upload if applicable", "reviewCourse")}
               </View>
 
               <View style={styles.row}>

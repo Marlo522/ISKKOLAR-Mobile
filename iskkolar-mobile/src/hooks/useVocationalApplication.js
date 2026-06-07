@@ -34,6 +34,9 @@ const FIELD_MAP = {
   indigency_cert_mother: "indigencyMother",
   documents: "documents",
   family_members: "familyMembers",
+  father_birthday: "fatherBirthday",
+  mother_birthday: "motherBirthday",
+  guardian_birthday: "guardianBirthday",
   general: "_general",
 };
 
@@ -53,6 +56,7 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
   if (!rolesArray) {
     if (index === 0) {
       if (prop === "full_name") return "fatherName";
+      if (prop === "birthday") return "fatherBirthday";
       if (prop === "employment_status") return "fatherStatus";
       if (prop === "occupation") return "fatherOccupation";
       if (prop === "monthly_income") return "fatherIncome";
@@ -61,6 +65,7 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
     }
     if (index === 1) {
       if (prop === "full_name") return "motherName";
+      if (prop === "birthday") return "motherBirthday";
       if (prop === "employment_status") return "motherStatus";
       if (prop === "occupation") return "motherOccupation";
       if (prop === "monthly_income") return "motherIncome";
@@ -69,6 +74,7 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
     }
     const dynIndex = index - 2;
     if (prop === "full_name") return "dynFamily_" + dynIndex + "_name";
+    if (prop === "birthday") return "dynFamily_" + dynIndex + "_birthday";
     if (prop === "role") return "dynFamily_" + dynIndex + "_relationship";
     if (prop === "employment_status") return "dynFamily_" + dynIndex + "_status";
     if (prop === "occupation") return "dynFamily_" + dynIndex + "_occupation";
@@ -81,6 +87,7 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
   
   if (role === "father") {
     if (prop === "full_name") return "fatherName";
+    if (prop === "birthday") return "fatherBirthday";
     if (prop === "employment_status") return "fatherStatus";
     if (prop === "occupation") return "fatherOccupation";
     if (prop === "monthly_income") return "fatherIncome";
@@ -90,6 +97,7 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
 
   if (role === "mother") {
     if (prop === "full_name") return "motherName";
+    if (prop === "birthday") return "motherBirthday";
     if (prop === "employment_status") return "motherStatus";
     if (prop === "occupation") return "motherOccupation";
     if (prop === "monthly_income") return "motherIncome";
@@ -99,6 +107,7 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
 
   if (role === "guardian") {
     if (prop === "full_name") return "guardianName";
+    if (prop === "birthday") return "guardianBirthday";
     if (prop === "employment_status") return "guardianStatus";
     if (prop === "occupation") return "guardianOccupation";
     if (prop === "monthly_income") return "guardianIncome";
@@ -112,6 +121,7 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
   }
   
   if (prop === "full_name") return "dynFamily_" + dynCount + "_name";
+  if (prop === "birthday") return "dynFamily_" + dynCount + "_birthday";
   if (prop === "role") return "dynFamily_" + dynCount + "_relationship";
   if (prop === "employment_status") return "dynFamily_" + dynCount + "_status";
   if (prop === "occupation") return "dynFamily_" + dynCount + "_occupation";
@@ -138,6 +148,11 @@ const mapApiFieldToUiKey = (field, rolesArray) => {
   if (normalized.startsWith("indigency_cert_member_")) {
     const idx = normalized.replace("indigency_cert_member_", "");
     return "indigencyMember_" + idx;
+  }
+
+  if (normalized.startsWith("additional_") && normalized.endsWith("_birthday")) {
+    const idx = normalized.split("_")[1];
+    return `dynFamily_${idx}_birthday`;
   }
 
   return FIELD_MAP[normalized] || normalized;

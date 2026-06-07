@@ -128,7 +128,7 @@ const buildPayload = (values, isChildDesignation) => {
     strand: values.strand || "",
     year_graduated: values.yearGraduated || "",
     secondary_year_graduated: values.yearGraduated || "",
-    secondary_gwa: (values.incomingFreshman === "Yes" || values.educPath === "Masters Education") ? values.secondaryGwa || "" : "",
+    secondary_gwa: values.secondaryGwa || "",
     tertiary_school: values.tertiarySchool || "",
     program: values.program || "",
     term_type: values.termType || "",
@@ -328,10 +328,8 @@ export const useStaffApplication = (isChildDesignation) => {
             preflightErrors.secondaryGwa = "Previous Tertiary GWA is required.";
           }
         } else {
-          if (values.incomingFreshman === "Yes") {
-            if (!values.secondaryGwa || values.secondaryGwa.trim() === "") {
-              preflightErrors.secondaryGwa = "Secondary GWA is required.";
-            }
+          if (!values.secondaryGwa || values.secondaryGwa.trim() === "") {
+            preflightErrors.secondaryGwa = "Secondary GWA is required.";
           }
         }
         
