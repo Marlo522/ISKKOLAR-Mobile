@@ -6,9 +6,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Change this to your machine's LAN IP when testing on a real device
 // Android emulator: use 10.0.2.2 instead of localhost
 const expoHost = Constants.expoConfig?.hostUri?.split(':')?.[0];
-const BASE_URL = __DEV__
-  ? `http://${expoHost || '192.168.1.2'}:5000/api`
-  : 'https://your-production-url.com/api'; // MUST be HTTPS in prod
+const BASE_URL = 'https://iskkolar-backend.onrender.com/api';
+
 
 const api = axios.create({
   baseURL: BASE_URL,
