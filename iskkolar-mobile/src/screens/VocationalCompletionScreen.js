@@ -161,30 +161,37 @@ export default function VocationalCompletionScreen({ navigation, route }) {
     }
   };
 
-  const renderFilePicker = (key, label, isOptional = false) => {
+  const renderFilePicker = (key, label, isOptional = false, isHalfWidth = true) => {
     const hasFile = !!files[key];
     const hasError = !!fieldErrors[key];
     
     return (
-      <View style={styles.filePickerContainer}>
-        <Text style={styles.fieldLabel}>
+      <View style={isHalfWidth ? styles.uploadRowItemHalf : styles.uploadRowItemFull}>
+        <Text style={styles.fieldLabel} numberOfLines={1} ellipsizeMode="tail">
           {label} {isOptional ? <Text style={styles.optionalText}>(Optional)</Text> : <Text style={styles.requiredAsterisk}>*</Text>}
         </Text>
         <TouchableOpacity 
           style={[
-            styles.filePicker, 
-            hasFile && styles.filePicked, 
-            hasError && styles.filePickerError
+            styles.unifiedUploadContainer, 
+            hasError && styles.errorInput
           ]} 
           onPress={() => pickDocument(key)}
         >
           <Ionicons 
-            name={hasFile ? "checkmark-circle" : "cloud-upload-outline"} 
-            size={22} 
-            color={hasFile ? "#15803d" : "#727ab6"} 
+            name="share-outline" 
+            size={18} 
+            color={hasFile ? "#5b5f97" : "#848baf"} 
+            style={{ marginRight: 8 }}
           />
-          <Text style={[styles.filePickerText, hasFile && styles.filePickedText]}>
-            {hasFile ? files[key].name : `Select File`}
+          <Text
+            style={[
+              styles.unifiedUploadText,
+              hasFile ? styles.unifiedUploadTextActive : styles.unifiedUploadTextInactive
+            ]}
+            numberOfLines={1}
+            ellipsizeMode="middle"
+          >
+            {hasFile ? files[key].name : `No file chosen`}
           </Text>
         </TouchableOpacity>
         {hasError && <Text style={styles.errorText}>{fieldErrors[key]}</Text>}
@@ -363,9 +370,11 @@ export default function VocationalCompletionScreen({ navigation, route }) {
           </View>
 
           {/* Documents */}
-          {renderFilePicker('completion_certificate', 'Completion Certificate / Diploma')}
-          {renderFilePicker('transcript_of_records', 'Transcript of Records (TOR)', true)}
-          {renderFilePicker('other', 'Other Supporting Document', true)}
+          <View style={styles.uploadsGridContainer}>
+            {renderFilePicker('completion_certificate', 'Completion Certificate / Diploma', false, true)}
+            {renderFilePicker('transcript_of_records', 'Transcript of Records (TOR)', true, true)}
+            {renderFilePicker('other', 'Other Supporting Document', true, true)}
+          </View>
 
           {error ? (
             <View style={styles.errorBox}>
@@ -456,17 +465,44 @@ const styles = StyleSheet.create({
   hintText: { fontSize: 11, color: '#94a3b8', marginTop: 6, fontWeight: '500' },
   errorText: { color: '#ef4444', fontSize: 11, marginTop: 4, fontWeight: '600' },
 
-  // Document Pickers
-  filePickerContainer: { marginBottom: 16 },
-  filePicker: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc',
-    borderRadius: 10, padding: 16, borderWidth: 1, borderColor: '#cbd5e1',
-    borderStyle: 'dashed'
+  uploadsGridContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    width: "100%",
   },
-  filePicked: { borderColor: '#16a34a', borderStyle: 'solid', backgroundColor: '#f0fdf4' },
-  filePickerError: { borderColor: '#fca5a5', backgroundColor: '#fef2f2' },
-  filePickerText: { marginLeft: 10, fontSize: 14, color: '#5b5f97', fontWeight: '700', flex: 1 },
-  filePickedText: { color: '#15803d' },
+  uploadRowItemHalf: {
+    width: "48.5%",
+    marginBottom: 16,
+  },
+  uploadRowItemFull: {
+    width: "100%",
+    marginBottom: 16,
+  },
+  unifiedUploadContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    height: 48,
+    paddingHorizontal: 12,
+  },
+  unifiedUploadText: {
+    fontSize: 14,
+    flex: 1,
+  },
+  unifiedUploadTextActive: {
+    color: "#5b5f97",
+    fontWeight: "700",
+  },
+  unifiedUploadTextInactive: {
+    color: "#848baf",
+    fontWeight: "500",
+  },
+  errorInput: { borderColor: "#ef4444", borderWidth: 1.5 },
 
   // Buttons
   submitBtn: {

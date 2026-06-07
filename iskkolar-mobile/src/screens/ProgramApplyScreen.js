@@ -82,6 +82,28 @@ const infoFields = {
   guardianIncome: "",
 };
 
+const isFatherEmpty = (vals) => {
+  return (
+    (!vals.fatherName || vals.fatherName.trim() === "") &&
+    (!vals.fatherBirthday || vals.fatherBirthday.trim() === "") &&
+    (!vals.fatherStatus || vals.fatherStatus === "--" || vals.fatherStatus.trim() === "") &&
+    (!vals.fatherContact || vals.fatherContact.trim() === "" || vals.fatherContact === "09") &&
+    (!vals.fatherOccupation || vals.fatherOccupation.trim() === "") &&
+    (!vals.fatherIncome || vals.fatherIncome.trim() === "")
+  );
+};
+
+const isMotherEmpty = (vals) => {
+  return (
+    (!vals.motherName || vals.motherName.trim() === "") &&
+    (!vals.motherBirthday || vals.motherBirthday.trim() === "") &&
+    (!vals.motherStatus || vals.motherStatus === "--" || vals.motherStatus.trim() === "") &&
+    (!vals.motherContact || vals.motherContact.trim() === "" || vals.motherContact === "09") &&
+    (!vals.motherOccupation || vals.motherOccupation.trim() === "") &&
+    (!vals.motherIncome || vals.motherIncome.trim() === "")
+  );
+};
+
 export default function ProgramApplyScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const selectedProgram = route?.params?.program || "tertiary";
@@ -133,6 +155,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const [formAccess, setFormAccess] = useState({ allowed: true, reason: null, message: "", blockedApplication: null });
   const [isApplicationsClosed, setIsApplicationsClosed] = useState(false);
   const [closedYear, setClosedYear] = useState(new Date().getFullYear());
+  const [examplesModalVisible, setExamplesModalVisible] = useState(false);
 
   const {
     submitting: tertiarySubmitting,
@@ -276,7 +299,6 @@ export default function ProgramApplyScreen({ navigation, route }) {
         }
       } catch (err) {
         if (!mounted) return;
-        setOngoingApplication(null);
       } finally {
         if (mounted) setIsCheckingApplication(false);
       }
@@ -291,7 +313,10 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
   // tertiary: 4 steps (0=Academic, 1=Family, 2=Docs, 3=Review)
   // others:   3 steps (0, 1, 2=Review)
-  const maxStep = selectedProgram === "employeeChild" ? 2 : 3;
+  const maxStep =
+    selectedProgram === "employeeChild" && !isChildDesignation
+      ? 2
+      : 3;
   const requiresIncomeProof = (status) => ["Employed", "Self-Employed"].includes(status);
 
   const parseStringToDate = (str) => {
@@ -743,21 +768,29 @@ export default function ProgramApplyScreen({ navigation, route }) {
     </View>
   );
 
-  const renderUpload = (label, key) => (
-    <View style={styles.row}>
+  const renderUpload = (label, key, isHalfWidth = true) => (
+    <View style={isHalfWidth ? styles.uploadRowItemHalf : styles.uploadRowItemFull}>
       <Text style={styles.label}>{label}</Text>
       <TouchableOpacity
         onPress={() => pickFile(key)}
-        style={[styles.newUploadContainer, fieldErrors[key] && styles.errorInput]}
+        style={[styles.unifiedUploadContainer, fieldErrors[key] && styles.errorInput]}
       >
-        <View style={styles.chooseFileBtn}>
-          <Text style={styles.chooseFileText}>Choose File</Text>
-        </View>
-        <View style={styles.fileNameBox}>
-          <Text style={styles.fileNameText} numberOfLines={1} ellipsizeMode="middle">
-            {uploadText[key] ? uploadText[key].name || uploadText[key].fileName || "Selected File" : "No file chosen"}
-          </Text>
-        </View>
+        <Ionicons
+          name="share-outline"
+          size={18}
+          color={uploadText[key] ? "#4f5fc5" : "#848baf"}
+          style={{ marginRight: 8 }}
+        />
+        <Text
+          style={[
+            styles.unifiedUploadText,
+            uploadText[key] ? styles.unifiedUploadTextActive : styles.unifiedUploadTextInactive
+          ]}
+          numberOfLines={1}
+          ellipsizeMode="middle"
+        >
+          {uploadText[key] ? uploadText[key].name || uploadText[key].fileName || "Selected File" : "No file chosen"}
+        </Text>
       </TouchableOpacity>
       {fieldErrors[key] && <Text style={styles.errorText}>{fieldErrors[key]}</Text>}
     </View>
@@ -1035,20 +1068,27 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderInput("Secondary GWA (General Weighted Average)", "secondaryGwa", "e.g. 88.50", { keyboardType: "numeric" })}
           <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide your final general average from your high school report card.</Text>
           {values.incomingFreshman === "Yes" && (
-            <>
-              {renderUpload("Grade Report", "gradeReport")}
-              <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
-                Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
-              </Text>
-            </>
+            <View style={styles.uploadsGridContainer}>
+              {renderUpload("Grade Report", "gradeReport", false)}
+              <View style={{ width: "100%" }}>
+                <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -6, marginBottom: 16, fontStyle: 'italic' }}>
+                  Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
+                </Text>
+              </View>
+            </View>
           )}
 
           <Text style={styles.sectionHeader}>| Current Tertiary Education</Text>
           {renderInput("University / College Name", "tertiarySchool", "Enter School Name")}
           {renderInput("Program", "program", "Enter Program")}
           {renderSelect("Term Type", "termType", ["Semester", "Trimester", "Quarter System"])}
-          {renderSelect("Grade Scale", "gradeScale", ["1.0 - 5.00 Grading System", "4.00 GPA System", "Percentage System", "Letter Grade System"])}
-          <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Note: Choose the grading system used by your school records to avoid incorrect evaluation.</Text>
+          {renderSelect("Grade Scale", "gradeScale", ["1.0 - 5.00 Grading System", "4.00 GPA System"])}
+          <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 4 }}>{"Note: Choose the grading system used by your school records to avoid incorrect evaluation."}</Text>
+          <TouchableOpacity onPress={() => setExamplesModalVisible(true)} style={{ marginTop: 0, marginBottom: 16 }}>
+            <Text style={{ color: "#4f5fc5", fontSize: 13, fontWeight: "600", textDecorationLine: "underline" }}>
+              View grading scale examples
+            </Text>
+          </TouchableOpacity>
           {renderSelect("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th"])}
           {renderSelect("Term", "term",
             values.termType === "Quarter System" ? ["1st", "2nd", "3rd", "4th"] :
@@ -1074,13 +1114,22 @@ export default function ProgramApplyScreen({ navigation, route }) {
             <>
               {renderInput("Current Tertiary GWA", "tertiaryGwa", "e.g. 1.75 or 88.00", { keyboardType: "numeric" })}
               <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide your GWA from your most recent semester/term.</Text>
-              {renderUpload("Current Term Report Card", "currentTermGradeReport")}
-              <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
-                Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
-              </Text>
             </>
           )}
-          {renderUpload("Certificate of Registration", "cor")}
+
+          <View style={styles.uploadsGridContainer}>
+            {values.incomingFreshman === "No" && (
+              <>
+                {renderUpload("Current Term Report Card", "currentTermGradeReport", true)}
+                <View style={{ width: "100%" }}>
+                  <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -6, marginBottom: 16, fontStyle: 'italic' }}>
+                    Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
+                  </Text>
+                </View>
+              </>
+            )}
+            {renderUpload("Certificate of Registration", "cor", values.incomingFreshman === "No")}
+          </View>
         </View>
       );
     }
@@ -1111,7 +1160,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
           {values.hasGuardian && (
             <View>
-              <Text style={styles.sectionHeader}>| Guardian's Information</Text>
+              <Text style={styles.sectionHeader}>{"| Guardian's Information"}</Text>
               {renderInput("Guardian's Name", "guardianName", "Enter Guardian's Name")}
               {renderDatePicker("Birthday", "guardianBirthday")}
               {renderSelect("Employment Status", "guardianStatus", ["--", "Employed", "Unemployed", "Self-Employed"])}
@@ -1125,7 +1174,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </View>
           )}
 
-          <Text style={styles.sectionHeader}>| Father's Information{values.hasGuardian ? " (Optional)" : ""}</Text>
+          <Text style={styles.sectionHeader}>{"| Father's Information"}{values.hasGuardian ? " (Optional)" : ""}</Text>
           {renderInput("Father's Name", "fatherName", "Enter Father's Name")}
           {renderDatePicker("Birthday", "fatherBirthday")}
           {renderSelect("Employment Status", "fatherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
@@ -1137,7 +1186,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </>
           )}
 
-          <Text style={styles.sectionHeader}>| Mother's Information{values.hasGuardian ? " (Optional)" : ""}</Text>
+          <Text style={styles.sectionHeader}>{"| Mother's Information"}{values.hasGuardian ? " (Optional)" : ""}</Text>
           {renderInput("Mother's Name", "motherName", "Enter Mother's Name")}
           {renderDatePicker("Birthday", "motherBirthday")}
           {renderSelect("Employment Status", "motherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
@@ -1164,52 +1213,57 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </Text>
           </View>
 
-          {renderUpload("Birth Certificate (Applicant)", "birthCert")}
+          <View style={styles.uploadsGridContainer}>
+            {renderUpload("Birth Certificate (Applicant)", "birthCert")}
+            {renderUpload("Letter of Intent (Applicant)", "letterOfIntentApplicant")}
+            {renderUpload("Letter of Intent (Parent)", "letterOfIntentParent")}
+            {renderUpload("Recommendation Letter Form (Optional)", "recommendation")}
+            {renderUpload("Essay", "essay")}
 
-          {values.hasGuardian && (
-            <>
-              {requiresIncomeProof(values.guardianStatus)
-                ? renderUpload("Income Certificate (Guardian)", "incomeGuardian")
-                : values.guardianStatus === "Unemployed"
-                  ? renderUpload("Certificate of Indigency (Guardian)", "indigencyGuardian")
-                  : <Text style={styles.skippedDoc}>Income/indigency document not required for Guardian ({values.guardianStatus}).</Text>}
-            </>
-          )}
+            {values.hasGuardian && (
+              <>
+                {requiresIncomeProof(values.guardianStatus)
+                  ? renderUpload("Income Certificate (Guardian)", "incomeGuardian")
+                  : values.guardianStatus === "Unemployed"
+                    ? renderUpload("Certificate of Indigency (Guardian)", "indigencyGuardian")
+                    : <View style={{ width: "100%" }}><Text style={styles.skippedDoc}>{"Income/indigency document not required for Guardian (" + values.guardianStatus + ")."}</Text></View>}
+              </>
+            )}
 
-          {requiresIncomeProof(values.fatherStatus)
-            ? renderUpload("Income Certificate (Father)", "incomeFather")
-            : values.fatherStatus === "Unemployed"
-              ? renderUpload("Certificate of Indigency (Father)", "indigencyFather")
-              : <Text style={styles.skippedDoc}>Income/indigency document not required for Father ({values.fatherStatus}).</Text>}
+            {!isFatherEmpty(values) && (
+              requiresIncomeProof(values.fatherStatus)
+                ? renderUpload("Income Certificate (Father)", "incomeFather")
+                : values.fatherStatus === "Unemployed"
+                  ? renderUpload("Certificate of Indigency (Father)", "indigencyFather")
+                  : <View style={{ width: "100%" }}><Text style={styles.skippedDoc}>{"Income/indigency document not required for Father (" + values.fatherStatus + ")."}</Text></View>
+            )}
 
-          {requiresIncomeProof(values.motherStatus)
-            ? renderUpload("Income Certificate (Mother)", "incomeMother")
-            : values.motherStatus === "Unemployed"
-              ? renderUpload("Certificate of Indigency (Mother)", "indigencyMother")
-              : <Text style={styles.skippedDoc}>Income/indigency document not required for Mother ({values.motherStatus}).</Text>}
+            {!isMotherEmpty(values) && (
+              requiresIncomeProof(values.motherStatus)
+                ? renderUpload("Income Certificate (Mother)", "incomeMother")
+                : values.motherStatus === "Unemployed"
+                  ? renderUpload("Certificate of Indigency (Mother)", "indigencyMother")
+                  : <View style={{ width: "100%" }}><Text style={styles.skippedDoc}>{"Income/indigency document not required for Mother (" + values.motherStatus + ")."}</Text></View>
+            )}
 
-          {familyMembers.map((member, idx) => {
-            if (requiresIncomeProof(member.status)) {
-              return (
-                <View key={"member-doc-inc-" + idx}>
-                  {renderUpload("Income Certificate (" + (member.name || "Family Member " + (idx + 1)) + ")", "incomeMember_" + idx)}
-                </View>
-              );
-            }
-            if (member.status === "Unemployed") {
-              return (
-                <View key={"member-doc-ind-" + idx}>
-                  {renderUpload("Certificate of Indigency (" + (member.name || "Family Member " + (idx + 1)) + ")", "indigencyMember_" + idx)}
-                </View>
-              );
-            }
-            return null;
-          })}
-
-          {renderUpload("Recommendation Letter Form (Optional)", "recommendation")}
-          {renderUpload("Essay", "essay")}
-          {renderUpload("Letter of Intent (Applicant)", "letterOfIntentApplicant")}
-          {renderUpload("Letter of Intent (Parent)", "letterOfIntentParent")}
+            {familyMembers.map((member, idx) => {
+              if (requiresIncomeProof(member.status)) {
+                return (
+                  <View key={"member-doc-inc-" + idx} style={{ width: "48.5%" }}>
+                    {renderUpload("Income Certificate (" + (member.name || "Family Member " + (idx + 1)) + ")", "incomeMember_" + idx, false)}
+                  </View>
+                );
+              }
+              if (member.status === "Unemployed") {
+                return (
+                  <View key={"member-doc-ind-" + idx} style={{ width: "48.5%" }}>
+                    {renderUpload("Certificate of Indigency (" + (member.name || "Family Member " + (idx + 1)) + ")", "indigencyMember_" + idx, false)}
+                  </View>
+                );
+              }
+              return null;
+            })}
+          </View>
         </View>
       );
     }
@@ -1242,17 +1296,23 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderYearInput("Year Graduated", "yearGraduated")}
           {renderInput("Secondary GWA (General Weighted Average)", "secondaryGwa", "e.g. 88.50", { keyboardType: "numeric" })}
           <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide your final general average from your high school report card.</Text>
-          {renderUpload("Grade Report", "gradeReport")}
-          <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
-            Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
-          </Text>
+          <View style={styles.uploadsGridContainer}>
+            {renderUpload("Grade Report", "gradeReport", false)}
+            <View style={{ width: "100%" }}>
+              <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -6, marginBottom: 16, fontStyle: 'italic' }}>
+                Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
+              </Text>
+            </View>
+          </View>
 
           <Text style={styles.sectionHeader}>| Vocational/Technical Education</Text>
           {renderInput("School Name", "vocationalSchoolName", "Enter School Name")}
           {renderInput("Program", "vocationalProgram", "Enter Program")}
           {renderSelect("Course Duration", "courseDuration", ["3 months", "6 months", "9 months", "12 months", "18 months", "24 months"])}
           {renderDatePicker("Completion Date", "completionDate")}
-          {renderUpload("Certificate of Registration", "cor")}
+          <View style={styles.uploadsGridContainer}>
+            {renderUpload("Certificate of Registration", "cor", false)}
+          </View>
         </View>
       );
     }
@@ -1283,7 +1343,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
           {values.hasGuardian && (
             <View>
-              <Text style={styles.sectionHeader}>| Guardian's Information</Text>
+              <Text style={styles.sectionHeader}>{"| Guardian's Information"}</Text>
               {renderInput("Guardian's Name", "guardianName", "Enter Guardian's Name")}
               {renderDatePicker("Birthday", "guardianBirthday")}
               {renderSelect("Employment Status", "guardianStatus", ["--", "Employed", "Unemployed", "Self-Employed"])}
@@ -1297,7 +1357,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </View>
           )}
 
-          <Text style={styles.sectionHeader}>| Father's Information{values.hasGuardian ? " (Optional)" : ""}</Text>
+          <Text style={styles.sectionHeader}>{"| Father's Information"}{values.hasGuardian ? " (Optional)" : ""}</Text>
           {renderInput("Father's Name", "fatherName", "Enter Father's Name")}
           {renderDatePicker("Birthday", "fatherBirthday")}
           {renderSelect("Employment Status", "fatherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
@@ -1309,7 +1369,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </>
           )}
 
-          <Text style={styles.sectionHeader}>| Mother's Information{values.hasGuardian ? " (Optional)" : ""}</Text>
+          <Text style={styles.sectionHeader}>{"| Mother's Information"}{values.hasGuardian ? " (Optional)" : ""}</Text>
           {renderInput("Mother's Name", "motherName", "Enter Mother's Name")}
           {renderDatePicker("Birthday", "motherBirthday")}
           {renderSelect("Employment Status", "motherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
@@ -1336,52 +1396,57 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </Text>
           </View>
 
-          {renderUpload("Birth Certificate (Applicant)", "birthCert")}
+          <View style={styles.uploadsGridContainer}>
+            {renderUpload("Birth Certificate (Applicant)", "birthCert")}
+            {renderUpload("Letter of Intent (Applicant)", "letterOfIntentApplicant")}
+            {renderUpload("Letter of Intent (Parent)", "letterOfIntentParent")}
+            {renderUpload("Recommendation Letter Form (Optional)", "recommendation")}
+            {renderUpload("Essay", "essay")}
 
-          {values.hasGuardian && (
-            <>
-              {requiresIncomeProof(values.guardianStatus)
-                ? renderUpload("Income Certificate (Guardian)", "incomeGuardian")
-                : values.guardianStatus === "Unemployed"
-                  ? renderUpload("Certificate of Indigency (Guardian)", "indigencyGuardian")
-                  : <Text style={styles.skippedDoc}>Income/indigency document not required for Guardian ({values.guardianStatus}).</Text>}
-            </>
-          )}
+            {values.hasGuardian && (
+              <>
+                {requiresIncomeProof(values.guardianStatus)
+                  ? renderUpload("Income Certificate (Guardian)", "incomeGuardian")
+                  : values.guardianStatus === "Unemployed"
+                    ? renderUpload("Certificate of Indigency (Guardian)", "indigencyGuardian")
+                    : <View style={{ width: "100%" }}><Text style={styles.skippedDoc}>{"Income/indigency document not required for Guardian (" + values.guardianStatus + ")."}</Text></View>}
+              </>
+            )}
 
-          {requiresIncomeProof(values.fatherStatus)
-            ? renderUpload("Income Certificate (Father)", "incomeFather")
-            : values.fatherStatus === "Unemployed"
-              ? renderUpload("Certificate of Indigency (Father)", "indigencyFather")
-              : <Text style={styles.skippedDoc}>Income/indigency document not required for Father ({values.fatherStatus}).</Text>}
+            {!isFatherEmpty(values) && (
+              requiresIncomeProof(values.fatherStatus)
+                ? renderUpload("Income Certificate (Father)", "incomeFather")
+                : values.fatherStatus === "Unemployed"
+                  ? renderUpload("Certificate of Indigency (Father)", "indigencyFather")
+                  : <View style={{ width: "100%" }}><Text style={styles.skippedDoc}>{"Income/indigency document not required for Father (" + values.fatherStatus + ")."}</Text></View>
+            )}
 
-          {requiresIncomeProof(values.motherStatus)
-            ? renderUpload("Income Certificate (Mother)", "incomeMother")
-            : values.motherStatus === "Unemployed"
-              ? renderUpload("Certificate of Indigency (Mother)", "indigencyMother")
-              : <Text style={styles.skippedDoc}>Income/indigency document not required for Mother ({values.motherStatus}).</Text>}
+            {!isMotherEmpty(values) && (
+              requiresIncomeProof(values.motherStatus)
+                ? renderUpload("Income Certificate (Mother)", "incomeMother")
+                : values.motherStatus === "Unemployed"
+                  ? renderUpload("Certificate of Indigency (Mother)", "indigencyMother")
+                  : <View style={{ width: "100%" }}><Text style={styles.skippedDoc}>{"Income/indigency document not required for Mother (" + values.motherStatus + ")."}</Text></View>
+            )}
 
-          {familyMembers.map((member, idx) => {
-            if (requiresIncomeProof(member.status)) {
-              return (
-                <View key={"member-doc-inc-" + idx}>
-                  {renderUpload("Income Certificate (" + (member.name || "Family Member " + (idx + 1)) + ")", "incomeMember_" + idx)}
-                </View>
-              );
-            }
-            if (member.status === "Unemployed") {
-              return (
-                <View key={"member-doc-ind-" + idx}>
-                  {renderUpload("Certificate of Indigency (" + (member.name || "Family Member " + (idx + 1)) + ")", "indigencyMember_" + idx)}
-                </View>
-              );
-            }
-            return null;
-          })}
-
-          {renderUpload("Recommendation Letter Form (Optional)", "recommendation")}
-          {renderUpload("Essay", "essay")}
-          {renderUpload("Letter of Intent (Applicant)", "letterOfIntentApplicant")}
-          {renderUpload("Letter of Intent (Parent)", "letterOfIntentParent")}
+            {familyMembers.map((member, idx) => {
+              if (requiresIncomeProof(member.status)) {
+                return (
+                  <View key={"member-doc-inc-" + idx} style={{ width: "48.5%" }}>
+                    {renderUpload("Income Certificate (" + (member.name || "Family Member " + (idx + 1)) + ")", "incomeMember_" + idx, false)}
+                  </View>
+                );
+              }
+              if (member.status === "Unemployed") {
+                return (
+                  <View key={"member-doc-ind-" + idx} style={{ width: "48.5%" }}>
+                    {renderUpload("Certificate of Indigency (" + (member.name || "Family Member " + (idx + 1)) + ")", "indigencyMember_" + idx, false)}
+                  </View>
+                );
+              }
+              return null;
+            })}
+          </View>
         </View>
       );
     }
@@ -1392,6 +1457,8 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const renderEmployeeChildFlow = () => {
     if (step === 0) {
       const isMasters = !isChildDesignation && values.educPath === "Masters Education";
+      const isTertiaryFreshman = (values.educPath === "Tertiary Education" || values.educPath === "Masters Education") && values.incomingFreshman === "Yes";
+      const isStaffTertiaryNonFreshman = (values.educPath === "Tertiary Education" || values.educPath === "Masters Education") && values.incomingFreshman === "No";
 
       return (
         <View>
@@ -1436,7 +1503,12 @@ export default function ProgramApplyScreen({ navigation, route }) {
               <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide the GWA from your previous tertiary transcript.</Text>
               {values.incomingFreshman === "Yes" && (
                 <>
-                  {renderSelect("Grade Scale", "prevGradeScale", ["1.0 - 5.00 Grading System", "4.00 GPA System", "Percentage System", "Letter Grade System"])}
+                  {renderSelect("Grade Scale", "prevGradeScale", ["1.0 - 5.00 Grading System", "4.00 GPA System"])}
+                  <TouchableOpacity onPress={() => setExamplesModalVisible(true)} style={{ marginTop: -10, marginBottom: 14 }}>
+                    <Text style={{ color: "#4f5fc5", fontSize: 13, fontWeight: "600", textDecorationLine: "underline" }}>
+                      View grading scale examples
+                    </Text>
+                  </TouchableOpacity>
                   {renderUpload("Grade Report", "gradeReport")}
                   <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
                     Guide: Please upload your final grade report for the previous tertiary program.
@@ -1452,8 +1524,13 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderInput("University / College Name", "tertiarySchool", "Enter School Name")}
           {renderInput("Program", "program", "Enter Program")}
           {renderSelect("Term Type", "termType", ["Semester", "Trimester", "Quarter System"])}
-          {renderSelect("Grade Scale", "gradeScale", ["1.0 - 5.00 Grading System", "4.00 GPA System", "Percentage System", "Letter Grade System"])}
-          <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Note: Choose the grading system used by your school records to avoid incorrect evaluation.</Text>
+          {renderSelect("Grade Scale", "gradeScale", ["1.0 - 5.00 Grading System", "4.00 GPA System"])}
+          <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 4 }}>{"Note: Choose the grading system used by your school records to avoid incorrect evaluation."}</Text>
+          <TouchableOpacity onPress={() => setExamplesModalVisible(true)} style={{ marginTop: 0, marginBottom: 16 }}>
+            <Text style={{ color: "#4f5fc5", fontSize: 13, fontWeight: "600", textDecorationLine: "underline" }}>
+              View grading scale examples
+            </Text>
+          </TouchableOpacity>
           {renderSelect("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th"])}
           {renderSelect("Term", "term",
             values.termType === "Quarter System" ? ["1st", "2nd", "3rd", "4th"] :
@@ -1484,35 +1561,45 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </>
           )}
 
-          {renderUpload("Certificate of Registration", "cor")}
-          {renderUpload("Birth Certificate (Applicant)", "birthCert")}
-
-          {isChildDesignation && values.incomingFreshman === "No" && (
-            <>
-              {renderUpload("Current Term Report Card", "currentTermGradeReport")}
-              <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
-                Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
-              </Text>
-            </>
-          )}
-
           {isChildDesignation && (
-            <>
-              {renderUpload("Letter of Intent (Applicant)", "letterOfIntentApplicant")}
-              {renderUpload("Letter of Intent (Parent)", "letterOfIntentParent")}
-            </>
+            <View style={styles.uploadsGridContainer}>
+              {renderUpload("Certificate of Registration", "cor")}
+              {values.incomingFreshman === "No" && (
+                <>
+                  {renderUpload("Current Term Report Card", "currentTermGradeReport")}
+                  <View style={{ width: "100%" }}>
+                    <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -6, marginBottom: 16, fontStyle: 'italic' }}>
+                      Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
+                    </Text>
+                  </View>
+                </>
+              )}
+            </View>
           )}
 
-          {!isChildDesignation && values.incomingFreshman === "No" && (
-            <>
-              {renderUpload("Current Term Report Card", "currentTermGradeReport")}
-              <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
-                Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
-              </Text>
-            </>
-          )}
+          {!isChildDesignation && (
+            <View style={styles.uploadsGridContainer}>
+              {renderUpload("Certificate of Registration", "cor")}
+              {!isStaffTertiaryNonFreshman && !isTertiaryFreshman && (
+                renderUpload("Birth Certificate (Applicant)", "birthCert")
+              )}
 
-          {!isChildDesignation && renderUpload("Letter of Intent", "letterOfIntentApplicant")}
+              {values.incomingFreshman === "No" && (
+                <>
+                  {renderUpload("Current Term Report Card", "currentTermGradeReport")}
+                  <View style={{ width: "100%" }}>
+                    <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -6, marginBottom: 16, fontStyle: 'italic' }}>
+                      Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
+                    </Text>
+                  </View>
+                </>
+              )}
+
+              {!isStaffTertiaryNonFreshman && !isTertiaryFreshman && (
+                renderUpload("Letter of Intent", "letterOfIntentApplicant")
+              )}
+            </View>
+          )}
         </View>
       );
     }
@@ -1536,6 +1623,36 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderReadonlyValue("Last Name", values.lastName)}
           {renderReadonlyValue("Suffix", values.suffix)}
           {renderReadonlyValue("Position", values.position)}
+        </View>
+      );
+    }
+
+    if (step === 2 && isChildDesignation) {
+      return (
+        <View>
+          <Text style={styles.sectionHeader}>| Supporting Documents</Text>
+          <View style={{ backgroundColor: "#eaf2fe", padding: 13, borderRadius: 8, marginBottom: 18 }}>
+            <Text style={{ color: "#305fce", fontSize: 13 }}>
+              Upload clear and readable files only. Accepted formats: PDF, DOC, DOCX. Max file size: 10MB each.
+            </Text>
+          </View>
+
+          <View style={styles.uploadsGridContainer}>
+            {renderUpload("Certificate of Registration", "cor")}
+            {renderUpload("Birth Certificate (Applicant)", "birthCert")}
+            {values.incomingFreshman === "No" && (
+              <>
+                {renderUpload("Current Term Report Card", "currentTermGradeReport")}
+                <View style={{ width: "100%" }}>
+                  <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -6, marginBottom: 16, fontStyle: 'italic' }}>
+                    Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
+                  </Text>
+                </View>
+              </>
+            )}
+            {renderUpload("Letter of Intent (Applicant)", "letterOfIntentApplicant")}
+            {renderUpload("Letter of Intent (Parent)", "letterOfIntentParent")}
+          </View>
         </View>
       );
     }
@@ -1757,6 +1874,8 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
       {selectedProgram === "employeeChild" && (() => {
         const isMasters = !isChildDesignation && values.educPath === "Masters Education";
+        const isTertiaryOrMastersFreshman = (values.educPath === "Tertiary Education" || values.educPath === "Masters Education") && values.incomingFreshman === "Yes";
+        const isStaffTertiaryNonFreshman = (values.educPath === "Tertiary Education" || values.educPath === "Masters Education") && values.incomingFreshman === "No";
         return (
           <>
             {renderReviewSection("Academic Information", "school-outline", [
@@ -1804,6 +1923,9 @@ export default function ProgramApplyScreen({ navigation, route }) {
                 }
               ] : []),
               { label: "Certificate of Registration", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
+              ...(((isChildDesignation && values.incomingFreshman === "Yes") || (!isChildDesignation && !isStaffTertiaryNonFreshman && !isTertiaryOrMastersFreshman)) ? [
+                { label: "Birth Certificate (Applicant)", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" }
+              ] : []),
               ...(values.incomingFreshman === "No" ? [
                 {
                   label: "Current Term Report Card",
@@ -1811,10 +1933,10 @@ export default function ProgramApplyScreen({ navigation, route }) {
                   icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle"
                 }
               ] : []),
-              ...(isChildDesignation ? [
+              ...(isChildDesignation && values.incomingFreshman === "Yes" ? [
                 { label: "Letter of Intent (Applicant)", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" },
                 { label: "Letter of Intent (Parent)", value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle" }
-              ] : [
+              ] : isChildDesignation && values.incomingFreshman === "No" ? [] : (isStaffTertiaryNonFreshman || isTertiaryOrMastersFreshman) ? [] : [
                 { label: "Letter of Intent", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" }
               ]),
             ])}
@@ -2184,7 +2306,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
         </View>
       </Modal>
 
-
+      <ExamplesModal visible={examplesModalVisible} onClose={() => setExamplesModalVisible(false)} />
     </View>
   );
 }
@@ -2287,36 +2409,41 @@ const styles = StyleSheet.create({
   lookupStatusOk: { color: "#1a9e6a" },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: "#4f5fc5", alignItems: "center", justifyContent: "center", marginRight: 10, marginTop: 1, backgroundColor: "#fff", flexShrink: 0 },
   checkboxChecked: { backgroundColor: "#4f5fc5", borderColor: "#4f5fc5" },
-  newUploadContainer: {
+  uploadsGridContainer: {
     flexDirection: "row",
-    borderWidth: 1,
-    borderColor: "#d7def8",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    width: "100%",
+  },
+  uploadRowItemHalf: {
+    width: "48.5%",
+    marginBottom: 14,
+  },
+  uploadRowItemFull: {
+    width: "100%",
+    marginBottom: 14,
+  },
+  unifiedUploadContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
     borderRadius: 8,
     backgroundColor: "#fff",
     height: 48,
-    overflow: "hidden",
+    paddingHorizontal: 12,
   },
-  chooseFileBtn: {
-    backgroundColor: "#f1f3f9",
-    borderRightWidth: 1,
-    borderRightColor: "#d7def8",
-    paddingHorizontal: 16,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  chooseFileText: {
-    color: "#5b6095",
+  unifiedUploadText: {
     fontSize: 14,
+    flex: 1,
+  },
+  unifiedUploadTextActive: {
+    color: "#4f5fc5",
     fontWeight: "700",
   },
-  fileNameBox: {
-    flex: 1,
-    paddingHorizontal: 12,
-    justifyContent: "center",
-  },
-  fileNameText: {
+  unifiedUploadTextInactive: {
     color: "#848baf",
-    fontSize: 14,
     fontWeight: "500",
   },
   predictionsContainer: {
@@ -2495,3 +2622,132 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
 });
+
+const ExamplesModal = ({ visible, onClose }) => {
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={{
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.6)",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 24,
+      }}>
+        <View style={{
+          width: "100%",
+          backgroundColor: "#fff",
+          borderRadius: 20,
+          padding: 20,
+          maxHeight: "85%",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.2,
+          shadowRadius: 12,
+          elevation: 5,
+        }}>
+          {/* Header */}
+          <View style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingBottom: 12,
+            borderBottomWidth: 1,
+            borderBottomColor: "#e5e7eb",
+            marginBottom: 16,
+          }}>
+            <Text style={{ fontSize: 18, fontWeight: "900", color: "#1f2937" }}>
+              Grading Scale Examples
+            </Text>
+            <TouchableOpacity onPress={onClose} style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: "#f3f4f6",
+              justifyContent: "center",
+              alignItems: "center",
+            }}>
+              <Ionicons name="close" size={20} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Body */}
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* 1.0 - 5.00 System */}
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: "#4f5fc5", marginBottom: 10 }}>
+                {"1.0 - 5.00 Grading System"}
+              </Text>
+              
+              <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>1.00 - 1.75</Text>
+                  <Text style={{ fontWeight: "600", color: "#16a34a", fontSize: 13 }}>Excellent</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>2.00 - 2.50</Text>
+                  <Text style={{ fontWeight: "600", color: "#2563eb", fontSize: 13 }}>Very Good</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>2.75 - 3.00</Text>
+                  <Text style={{ fontWeight: "600", color: "#4f46e5", fontSize: 13 }}>Satisfactory</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10 }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>5.00</Text>
+                  <Text style={{ fontWeight: "700", color: "#dc2626", fontSize: 13 }}>Failed</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* 4.00 GPA System */}
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: "#4f5fc5", marginBottom: 10 }}>
+                {"4.00 GPA System"}
+              </Text>
+              
+              <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>4.00</Text>
+                  <Text style={{ fontWeight: "700", color: "#16a34a", fontSize: 13 }}>A</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>3.00</Text>
+                  <Text style={{ fontWeight: "600", color: "#2563eb", fontSize: 13 }}>B</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>2.00</Text>
+                  <Text style={{ fontWeight: "600", color: "#475569", fontSize: 13 }}>C</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>1.00</Text>
+                  <Text style={{ fontWeight: "600", color: "#b45309", fontSize: 13 }}>D</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10 }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>0.00</Text>
+                  <Text style={{ fontWeight: "700", color: "#dc2626", fontSize: 13 }}>F</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Footer note */}
+            <Text style={{
+              fontSize: 12,
+              color: "#64748b",
+              textAlign: "center",
+              fontStyle: "italic",
+              lineHeight: 18,
+              marginTop: 4,
+              marginBottom: 10,
+            }}>
+              {"Examples may vary by school. Follow your official transcript format."}
+            </Text>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+};

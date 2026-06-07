@@ -40,6 +40,9 @@ const FIELD_MAP = {
   cor: "cor",
   grade_report: "gradeReport",
   current_term_report: "currentTermGradeReport",
+  birth_certificate: "birthCert",
+  letter_intent_applicant: "letterOfIntentApplicant",
+  letter_intent_parent: "letterOfIntentParent",
   letter_of_intent: "letterOfIntentApplicant",
   letter_of_intent_applicant: "letterOfIntentApplicant",
   letter_of_intent_parent: "letterOfIntentParent",
@@ -156,8 +159,8 @@ const buildFiles = (uploads = {}) => {
   if (uploads.currentTermGradeReport) files.current_term_report = uploads.currentTermGradeReport;
   if (uploads.birthCert) files.birth_certificate = uploads.birthCert;
   if (uploads.essay) files.essay = uploads.essay;
-  if (uploads.letterOfIntentApplicant) files.letter_of_intent = uploads.letterOfIntentApplicant;
-  if (uploads.letterOfIntentParent) files.letter_of_intent_parent = uploads.letterOfIntentParent;
+  if (uploads.letterOfIntentApplicant) files.letter_intent_applicant = uploads.letterOfIntentApplicant;
+  if (uploads.letterOfIntentParent) files.letter_intent_parent = uploads.letterOfIntentParent;
   if (uploads.incomeGuardian) files.income_cert_guardian = uploads.incomeGuardian;
   if (uploads.indigencyGuardian) files.indigency_cert_guardian = uploads.indigencyGuardian;
   if (uploads.incomeFather) files.income_cert_father = uploads.incomeFather;
@@ -383,25 +386,38 @@ export const useStaffApplication = (isChildDesignation) => {
         checkYear(values.prevYearGraduated, "prevYearGraduated", "Previous Year Graduated");
         checkYear(values.expectedGradYear, "expectedGradYear", "Expected Graduation Year", true);
 
-        if (!uploads.cor) {
-          preflightErrors.cor = "Certificate of Registration is required.";
-        }
-        if (!uploads.birthCert) {
-          preflightErrors.birthCert = "Birth Certificate is required.";
-        }
-        if (values.incomingFreshman === "No" && !uploads.currentTermGradeReport) {
-          preflightErrors.currentTermGradeReport = "Current Term Report Card is required.";
-        }
-        if (isChildDesignation) {
-          if (!uploads.letterOfIntentApplicant) {
-            preflightErrors.letterOfIntentApplicant = "Letter of Intent (Applicant) is required.";
+        if ((values.educPath === "Tertiary Education" || values.educPath === "Masters Education") && values.incomingFreshman === "No") {
+          if (!uploads.cor) {
+            preflightErrors.cor = "Certificate of Registration is required.";
           }
-          if (!uploads.letterOfIntentParent) {
-            preflightErrors.letterOfIntentParent = "Letter of Intent (Parent) is required.";
+          if (!uploads.currentTermGradeReport) {
+            preflightErrors.currentTermGradeReport = "Current Term Report Card is required.";
+          }
+        } else if ((values.educPath === "Tertiary Education" || values.educPath === "Masters Education") && values.incomingFreshman === "Yes") {
+          if (!uploads.cor) {
+            preflightErrors.cor = "Certificate of Registration is required.";
           }
         } else {
-          if (!uploads.letterOfIntentApplicant) {
-            preflightErrors.letterOfIntentApplicant = "Letter of Intent is required.";
+          // This is for Child Designation
+          if (isChildDesignation) {
+            if (!uploads.cor) {
+              preflightErrors.cor = "Certificate of Registration is required.";
+            }
+            if (values.incomingFreshman === "No") {
+              if (!uploads.currentTermGradeReport) {
+                preflightErrors.currentTermGradeReport = "Current Term Report Card is required.";
+              }
+            } else {
+              // Freshman
+              if (!uploads.gradeReport) {
+                preflightErrors.gradeReport = "Grade Report is required.";
+              }
+            }
+          } else {
+            // Fallback
+            if (!uploads.cor) {
+              preflightErrors.cor = "Certificate of Registration is required.";
+            }
           }
         }
 
@@ -411,11 +427,33 @@ export const useStaffApplication = (isChildDesignation) => {
         }
       }
 
+      if (uiStep === 2 && isChildDesignation) {
+        if (values.incomingFreshman === "Yes") {
+          const preflightErrors = {};
+          if (!uploads.birthCert) {
+            preflightErrors.birthCert = "Birth Certificate is required.";
+          }
+          if (!uploads.letterOfIntentApplicant) {
+            preflightErrors.letterOfIntentApplicant = "Letter of Intent (Applicant) is required.";
+          }
+          if (!uploads.letterOfIntentParent) {
+            preflightErrors.letterOfIntentParent = "Letter of Intent (Parent) is required.";
+          }
+          if (Object.keys(preflightErrors).length > 0) {
+            setFieldErrors(preflightErrors);
+            return false;
+          }
+        }
+      }
+
       try {
         const payload = buildPayload(values, isChildDesignation);
         const files = buildFiles(uploads);
 
         // Backend KKFI step numbering is 1-based.
+        if (uiStep === 2 && isChildDesignation) {
+          return true;
+        }
         await stepValidator(uiStep + 1, payload, files);
         return true;
       } catch (err) {

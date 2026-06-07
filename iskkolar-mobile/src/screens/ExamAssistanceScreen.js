@@ -212,11 +212,27 @@ export default function ExamAssistanceScreen({ navigation }) {
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
       <TouchableOpacity
-        style={styles.uploadBtn}
+        style={[styles.unifiedUploadContainer, fieldErrors[key] && styles.errorInput]}
         onPress={() => handleFileUpload(key)}
       >
-        <Text style={styles.uploadText}>{uploadText[key] || "File Upload"}</Text>
+        <Ionicons
+          name="share-outline"
+          size={18}
+          color={uploadText[key] ? "#4f5fc5" : "#848baf"}
+          style={{ marginRight: 8 }}
+        />
+        <Text
+          style={[
+            styles.unifiedUploadText,
+            uploadText[key] ? styles.unifiedUploadTextActive : styles.unifiedUploadTextInactive
+          ]}
+          numberOfLines={1}
+          ellipsizeMode="middle"
+        >
+          {uploadText[key] || "No file chosen"}
+        </Text>
       </TouchableOpacity>
+      {fieldErrors[key] ? <Text style={styles.errorText}>{fieldErrors[key]}</Text> : null}
     </View>
   );
 
@@ -284,12 +300,25 @@ export default function ExamAssistanceScreen({ navigation }) {
   const renderFileUploadBox = (label, subtext, key) => (
     <View style={[styles.uploadRow, fieldErrors[key] && styles.rowWithError]}>
       <Text style={styles.label}>{label}</Text>
-      <TouchableOpacity style={styles.uploadBoxDashed} onPress={() => handleFileUpload(key)}>
-        <Text style={[styles.uploadBoxTitle, uploadText[key] && { color: "#2cae57" }]}>
-          {uploadText[key] ? "File selected ✓" : "Tap to upload"}
-        </Text>
-        <Text style={styles.uploadBoxSubtext} numberOfLines={1} ellipsizeMode="middle">
-          {uploadText[key] || subtext}
+      <TouchableOpacity
+        style={[styles.unifiedUploadContainer, fieldErrors[key] && styles.errorInput]}
+        onPress={() => handleFileUpload(key)}
+      >
+        <Ionicons
+          name="share-outline"
+          size={18}
+          color={uploadText[key] ? "#4f5fc5" : "#848baf"}
+          style={{ marginRight: 8 }}
+        />
+        <Text
+          style={[
+            styles.unifiedUploadText,
+            uploadText[key] ? styles.unifiedUploadTextActive : styles.unifiedUploadTextInactive
+          ]}
+          numberOfLines={1}
+          ellipsizeMode="middle"
+        >
+          {uploadText[key] || subtext || "No file chosen"}
         </Text>
       </TouchableOpacity>
       {fieldErrors[key] ? <Text style={styles.errorText}>{fieldErrors[key]}</Text> : null}
@@ -714,8 +743,29 @@ const styles = StyleSheet.create({
   rowWithError: { marginBottom: 3 },
   label: { fontWeight: "600", color: "#1c2131", fontSize: 13, marginBottom: 6 },
   input: { borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, paddingHorizontal: 16, paddingVertical: Platform.OS === "ios" ? 13 : 11, minHeight: 48, backgroundColor: "#ffffff", color: "#555", fontSize: 15 },
-  uploadBtn: { borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, height: 48, justifyContent: "center", paddingHorizontal: 16, backgroundColor: "#ffffff" },
-  uploadText: { color: "#777", fontSize: 15, alignSelf: "center" },
+  unifiedUploadContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    height: 48,
+    paddingHorizontal: 12,
+  },
+  unifiedUploadText: {
+    fontSize: 14,
+    flex: 1,
+  },
+  unifiedUploadTextActive: {
+    color: "#4f5fc5",
+    fontWeight: "700",
+  },
+  unifiedUploadTextInactive: {
+    color: "#848baf",
+    fontWeight: "500",
+  },
+  errorInput: { borderColor: "#dc2626", borderWidth: 2 },
   reviewCard: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#dbe2f6", borderRadius: 10, padding: 16, marginBottom: 16, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
   reviewCardTitle: { fontSize: 17, fontWeight: "900", color: "#4f5fc5", marginBottom: 4 },
   reviewRowCardItem: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8, alignItems: "center" },

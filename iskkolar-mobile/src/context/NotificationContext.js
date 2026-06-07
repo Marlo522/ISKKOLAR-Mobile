@@ -98,6 +98,16 @@ export const NotificationProvider = ({ children }) => {
   // Fetch announcements from server
   const fetchAnnouncements = useCallback(async () => {
     if (!user) return;
+
+    // Guard: ensure we actually have a token before hitting the API
+    try {
+      const storedUser = await AsyncStorage.getItem('user');
+      const parsed = storedUser ? JSON.parse(storedUser) : null;
+      if (!parsed?.token) return; // No token yet — silently skip
+    } catch (_) {
+      return; // AsyncStorage error — skip this cycle
+    }
+
     try {
       setLoading(true);
       setError(null);

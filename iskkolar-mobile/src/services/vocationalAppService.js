@@ -13,6 +13,28 @@ const mapRelationshipToBackendRole = (rel) => {
   return "Other";
 };
 
+const isFatherEmpty = (vals) => {
+  return (
+    (!vals.fatherName || vals.fatherName.trim() === "") &&
+    (!vals.fatherBirthday || vals.fatherBirthday.trim() === "") &&
+    (!vals.fatherStatus || vals.fatherStatus === "--" || vals.fatherStatus.trim() === "") &&
+    (!vals.fatherContact || vals.fatherContact.trim() === "" || vals.fatherContact === "09") &&
+    (!vals.fatherOccupation || vals.fatherOccupation.trim() === "") &&
+    (!vals.fatherIncome || vals.fatherIncome.trim() === "")
+  );
+};
+
+const isMotherEmpty = (vals) => {
+  return (
+    (!vals.motherName || vals.motherName.trim() === "") &&
+    (!vals.motherBirthday || vals.motherBirthday.trim() === "") &&
+    (!vals.motherStatus || vals.motherStatus === "--" || vals.motherStatus.trim() === "") &&
+    (!vals.motherContact || vals.motherContact.trim() === "" || vals.motherContact === "09") &&
+    (!vals.motherOccupation || vals.motherOccupation.trim() === "") &&
+    (!vals.motherIncome || vals.motherIncome.trim() === "")
+  );
+};
+
 // Builds the family_members array that the backend expects.
 // Index 0 = father, index 1 = mother, index 2+ = dynamic members.
 const buildFamilyMembers = (values, dynamicFamilyMembers) => {
@@ -26,7 +48,7 @@ const buildFamilyMembers = (values, dynamicFamilyMembers) => {
 
   const family = [];
 
-  if (!values.hasGuardian || values.fatherName) {
+  if (!isFatherEmpty(values)) {
     family.push(cleanMember({
       role: "father",
       full_name: values.fatherName || "",
@@ -38,7 +60,7 @@ const buildFamilyMembers = (values, dynamicFamilyMembers) => {
     }));
   }
 
-  if (!values.hasGuardian || values.motherName) {
+  if (!isMotherEmpty(values)) {
     family.push(cleanMember({
       role: "mother",
       full_name: values.motherName || "",

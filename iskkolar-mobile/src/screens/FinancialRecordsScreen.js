@@ -867,16 +867,25 @@ export default function FinancialRecordsScreen({ navigation }) {
             
             <Text style={styles.label}>Supporting Document (Optional)</Text>
             <TouchableOpacity 
-              style={[styles.receiptUploadBox, { paddingVertical: 20, marginBottom: 32, borderStyle: 'dashed' }]}
+              style={[styles.unifiedUploadContainer, { marginBottom: 24 }]}
               onPress={() => pickDocument(true)}
             >
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#f4f6fc', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
-                 <Ionicons name="push-outline" size={20} color="#4f5fc5" />
-              </View>
-              <Text style={[styles.receiptUploadBoxTitle, { fontSize: 14 }]}>
-                {supportingDocument ? supportingDocument.name : "Upload PDF or Image"}
+              <Ionicons 
+                name="share-outline" 
+                size={18} 
+                color={supportingDocument ? "#4f5fc5" : "#848baf"} 
+                style={{ marginRight: 8 }}
+              />
+              <Text 
+                style={[
+                  styles.unifiedUploadText, 
+                  supportingDocument ? styles.unifiedUploadTextActive : styles.unifiedUploadTextInactive
+                ]}
+                numberOfLines={1}
+                ellipsizeMode="middle"
+              >
+                {supportingDocument ? supportingDocument.name : "Upload PDF or Image (price quote, syllabus, etc.)"}
               </Text>
-              {!supportingDocument && <Text style={styles.receiptUploadBoxSub}>Attach price quote, syllabus, or approval memo</Text>}
             </TouchableOpacity>
 
             <Text style={[styles.sectionTitleHeader, { marginBottom: 16 }]}>| Upload Official Receipt</Text>
@@ -900,16 +909,29 @@ export default function FinancialRecordsScreen({ navigation }) {
                 
                 <View style={[fieldErrors[`receipt_file_${idx}`] && styles.rowWithError]}>
                   <TouchableOpacity 
-                    style={[styles.receiptUploadBox, { marginBottom: 16, borderStyle: 'dashed' }, fieldErrors[`receipt_file_${idx}`] && { borderColor: '#dc2626', backgroundColor: '#fff3f3' }]}
+                    style={[
+                      styles.unifiedUploadContainer, 
+                      { marginBottom: 16 }, 
+                      fieldErrors[`receipt_file_${idx}`] && styles.errorInput
+                    ]}
                     onPress={() => pickReceipt(idx)}
                   >
-                    <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: fieldErrors[`receipt_file_${idx}`] ? '#ffe5e5' : '#f2f4fc', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
-                      <Ionicons name="push-outline" size={20} color={fieldErrors[`receipt_file_${idx}`] ? '#dc2626' : '#4f5fc5'} />
-                    </View>
-                    <Text style={styles.receiptUploadBoxTitle}>
-                      {item.file ? item.file.name : "Tap to Upload Receipt"}
+                    <Ionicons 
+                      name="share-outline" 
+                      size={18} 
+                      color={item.file ? "#4f5fc5" : "#848baf"} 
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text 
+                      style={[
+                        styles.unifiedUploadText, 
+                        item.file ? styles.unifiedUploadTextActive : styles.unifiedUploadTextInactive
+                      ]}
+                      numberOfLines={1}
+                      ellipsizeMode="middle"
+                    >
+                      {item.file ? item.file.name : "Tap to Upload Receipt (photo or PDF)"}
                     </Text>
-                    {!item.file && <Text style={[styles.receiptUploadBoxSub, fieldErrors[`receipt_file_${idx}`] && { color: '#dc2626' }]}>Clear photo or PDF with amount and date</Text>}
                   </TouchableOpacity>
                   {fieldErrors[`receipt_file_${idx}`] && <Text style={[styles.errorText, { marginTop: -12, marginBottom: 16 }]}>{fieldErrors[`receipt_file_${idx}`]}</Text>}
                 </View>
@@ -1109,13 +1131,29 @@ const styles = StyleSheet.create({
   row: { marginBottom: 16 },
   label: { fontWeight: "600", color: "#1c2131", fontSize: 13, marginBottom: 8 },
   input: { borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, paddingHorizontal: 16, backgroundColor: "#ffffff", color: "#555", fontSize: 15, height: 50 },
-  uploadBtn: { borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, height: 50, justifyContent: "center", paddingHorizontal: 16, backgroundColor: "#ffffff" },
-  uploadText: { color: "#777", fontSize: 15, alignSelf: "center" },
-  
-  receiptUploadBox: { borderWidth: 1, borderColor: "#bcc4da", backgroundColor: "#fff", borderRadius: 12, paddingVertical: 24, alignItems: "center", justifyContent: "center" },
-  receiptUploadBoxTitle: { color: "#5b6095", fontSize: 16, fontWeight: "800", marginBottom: 8 },
-  receiptUploadBoxSub: { color: "#8a94b5", fontSize: 12, fontWeight: "500", textAlign: "center" },
-  
+  unifiedUploadContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    height: 48,
+    paddingHorizontal: 12,
+  },
+  unifiedUploadText: {
+    fontSize: 14,
+    flex: 1,
+  },
+  unifiedUploadTextActive: {
+    color: "#4f5fc5",
+    fontWeight: "700",
+  },
+  unifiedUploadTextInactive: {
+    color: "#848baf",
+    fontWeight: "500",
+  },
+  errorInput: { borderColor: "#dc2626", borderWidth: 1.5 },
   addAnotherBtn: { flexDirection: "row", alignItems: "center", marginBottom: 24 },
   addAnotherText: { color: "#4f5fc5", fontSize: 14, fontWeight: "800" },
   

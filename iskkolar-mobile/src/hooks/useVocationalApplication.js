@@ -198,7 +198,27 @@ const normalizeApiErrorShape = (err) => ({
 const FRIENDLY_NETWORK_VALIDATION_MESSAGE =
   "We could not verify your application right now because the connection was interrupted. Please check your internet connection and try again.";
 
-// ─── HOOK ────────────────────────────────────────────────────
+const isFatherEmpty = (vals) => {
+  return (
+    (!vals.fatherName || vals.fatherName.trim() === "") &&
+    (!vals.fatherBirthday || vals.fatherBirthday.trim() === "") &&
+    (!vals.fatherStatus || vals.fatherStatus === "--" || vals.fatherStatus.trim() === "") &&
+    (!vals.fatherContact || vals.fatherContact.trim() === "" || vals.fatherContact === "09") &&
+    (!vals.fatherOccupation || vals.fatherOccupation.trim() === "") &&
+    (!vals.fatherIncome || vals.fatherIncome.trim() === "")
+  );
+};
+
+const isMotherEmpty = (vals) => {
+  return (
+    (!vals.motherName || vals.motherName.trim() === "") &&
+    (!vals.motherBirthday || vals.motherBirthday.trim() === "") &&
+    (!vals.motherStatus || vals.motherStatus === "--" || vals.motherStatus.trim() === "") &&
+    (!vals.motherContact || vals.motherContact.trim() === "" || vals.motherContact === "09") &&
+    (!vals.motherOccupation || vals.motherOccupation.trim() === "") &&
+    (!vals.motherIncome || vals.motherIncome.trim() === "")
+  );
+};
 
 export const useVocationalApplication = () => {
   const { user } = useContext(AuthContext);
@@ -382,11 +402,8 @@ export const useVocationalApplication = () => {
         }
       };
 
-      if (values.fatherStatus === "Deceased" && values.motherStatus === "Deceased") {
-        if (!values.hasGuardian) {
-          preFlightErrors.hasGuardian = "Guardian is required because both parents are deceased.";
-        }
-      }
+      const isFatherStarted = !isFatherEmpty(values);
+      const isMotherStarted = !isMotherEmpty(values);
 
       if (values.hasGuardian) {
         if (values.guardianStatus !== "Deceased") {
@@ -395,16 +412,31 @@ export const useVocationalApplication = () => {
         }
 
         // Only allow either Father or Mother information, not both
-        const hasFather = values.fatherName && values.fatherName.trim() !== "";
-        const hasMother = values.motherName && values.motherName.trim() !== "";
-        if (hasFather && hasMother) {
+        if (isFatherStarted && isMotherStarted) {
           preFlightErrors.fatherName = "If you have a guardian, you can only provide either Father's or Mother's information, not both.";
           preFlightErrors.motherName = "If you have a guardian, you can only provide either Father's or Mother's information, not both.";
         }
+      } else {
+        // If they do not have a guardian, both parent sections cannot be empty
+        if (!isFatherStarted && !isMotherStarted) {
+          preFlightErrors.fatherName = "You must fill out either Father's or Mother's information.";
+          preFlightErrors.motherName = "You must fill out either Father's or Mother's information.";
+        }
+
+        // Also check if both parents are deceased and no guardian is set
+        const fatherIsDeceased = isFatherStarted && values.fatherStatus === "Deceased";
+        const motherIsDeceased = isMotherStarted && values.motherStatus === "Deceased";
+
+        if (fatherIsDeceased && motherIsDeceased) {
+          preFlightErrors.hasGuardian = "Guardian is required because both parents are deceased.";
+        } else if (fatherIsDeceased && !isMotherStarted) {
+          preFlightErrors.hasGuardian = "Guardian is required because Father is deceased and Mother's information is not provided.";
+        } else if (motherIsDeceased && !isFatherStarted) {
+          preFlightErrors.hasGuardian = "Guardian is required because Mother is deceased and Father's information is not provided.";
+        }
       }
 
-      const hasFather = values.fatherName && values.fatherName.trim() !== "";
-      if (hasFather && values.fatherStatus !== "Deceased") {
+      if (isFatherStarted && values.fatherStatus !== "Deceased") {
         checkMember(
           values.fatherName, values.fatherStatus,
           values.fatherOccupation, values.fatherIncome,
@@ -412,10 +444,13 @@ export const useVocationalApplication = () => {
         );
         if (!values.fatherContact || values.fatherContact.length < 11)
           preFlightErrors.fatherContact = "Contact Number must be 11 digits.";
+      } else if (isFatherStarted && values.fatherStatus === "Deceased") {
+        if (!values.fatherName || values.fatherName.trim() === "") {
+          preFlightErrors.fatherName = "Father's Name is required.";
+        }
       }
 
-      const hasMother = values.motherName && values.motherName.trim() !== "";
-      if (hasMother && values.motherStatus !== "Deceased") {
+      if (isMotherStarted && values.motherStatus !== "Deceased") {
         checkMember(
           values.motherName, values.motherStatus,
           values.motherOccupation, values.motherIncome,
@@ -423,6 +458,10 @@ export const useVocationalApplication = () => {
         );
         if (!values.motherContact || values.motherContact.length < 11)
           preFlightErrors.motherContact = "Contact Number must be 11 digits.";
+      } else if (isMotherStarted && values.motherStatus === "Deceased") {
+        if (!values.motherName || values.motherName.trim() === "") {
+          preFlightErrors.motherName = "Mother's Name is required.";
+        }
       }
 
       // Validate each dynamically added family member
@@ -470,7 +509,7 @@ export const useVocationalApplication = () => {
         if (requiresIndigency(values.guardianStatus) && !uploads.indigencyGuardian) preFlightErrors.indigencyGuardian = "Certificate of indigency required.";
       }
 
-      const hasFatherDoc = values.fatherName && values.fatherName.trim() !== "";
+      const hasFatherDoc = !isFatherEmpty(values);
       if (hasFatherDoc) {
         if (requiresProof(values.fatherStatus) && !uploads.incomeFather)
           preFlightErrors.incomeFather = "Income certificate required.";
@@ -478,7 +517,7 @@ export const useVocationalApplication = () => {
           preFlightErrors.indigencyFather = "Certificate of indigency required.";
       }
 
-      const hasMotherDoc = values.motherName && values.motherName.trim() !== "";
+      const hasMotherDoc = !isMotherEmpty(values);
       if (hasMotherDoc) {
         if (requiresProof(values.motherStatus) && !uploads.incomeMother)
           preFlightErrors.incomeMother = "Income certificate required.";
@@ -509,8 +548,8 @@ export const useVocationalApplication = () => {
       return true;
     } catch (err) {
       const rolesArray = [];
-      if (!values.hasGuardian || values.fatherName) rolesArray.push("father");
-      if (!values.hasGuardian || values.motherName) rolesArray.push("mother");
+      if (!isFatherEmpty(values)) rolesArray.push("father");
+      if (!isMotherEmpty(values)) rolesArray.push("mother");
       if (values.hasGuardian) rolesArray.push("guardian");
       (dynamicFamilyMembers || []).forEach(m => rolesArray.push(m.relationship));
 
@@ -534,8 +573,8 @@ export const useVocationalApplication = () => {
       return response;
     } catch (err) {
       const rolesArray = [];
-      if (!values.hasGuardian || values.fatherName) rolesArray.push("father");
-      if (!values.hasGuardian || values.motherName) rolesArray.push("mother");
+      if (!isFatherEmpty(values)) rolesArray.push("father");
+      if (!isMotherEmpty(values)) rolesArray.push("mother");
       if (values.hasGuardian) rolesArray.push("guardian");
       (dynamicFamilyMembers || []).forEach(m => rolesArray.push(m.relationship));
 
