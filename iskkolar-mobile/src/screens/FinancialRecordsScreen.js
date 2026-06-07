@@ -639,14 +639,16 @@ export default function FinancialRecordsScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={[styles.actionBlock, { backgroundColor: '#29d0a5', marginTop: 0, marginBottom: 20 }]} onPress={() => setStep(20)}>
-              <Ionicons name="receipt-outline" size={30} color="#fff" />
-              <View style={styles.actionBlockTextCol}>
-                <Text style={styles.actionBlockTitle}>Submit Proof of Expense</Text>
-                <Text style={styles.actionBlockSub}>Upload receipts and details</Text>
-              </View>
-              <Ionicons name="arrow-forward" size={24} color="#fff" />
-            </TouchableOpacity>
+            {activeTab === 'proofs' && (
+              <TouchableOpacity style={[styles.actionBlock, { backgroundColor: '#29d0a5', marginTop: 0, marginBottom: 20 }]} onPress={() => setStep(20)}>
+                <Ionicons name="receipt-outline" size={30} color="#fff" />
+                <View style={styles.actionBlockTextCol}>
+                  <Text style={styles.actionBlockTitle}>Submit Proof of Expense</Text>
+                  <Text style={styles.actionBlockSub}>Upload receipts and details</Text>
+                </View>
+                <Ionicons name="arrow-forward" size={24} color="#fff" />
+              </TouchableOpacity>
+            )}
 
             {activeTab === 'disbursements' ? (
               <>

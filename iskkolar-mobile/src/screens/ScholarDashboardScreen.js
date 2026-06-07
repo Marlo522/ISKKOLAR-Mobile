@@ -69,7 +69,7 @@ export default function ScholarDashboardScreen({ navigation }) {
   );
 
   const quickLinks = [
-    { title: "COR & Grade Compliance", route: "GradeCompliance", icon: "clipboard-outline", iconBg: "#e7f6ea", iconColor: "#39a751" },
+    { title: "Certificate of Registration & Grade Compliance", route: "GradeCompliance", icon: "clipboard-outline", iconBg: "#e7f6ea", iconColor: "#39a751" },
     { title: "Financial Records", route: "FinancialRecords", icon: "receipt-outline", iconBg: "#fcefe9", iconColor: "#e96e5e" },
     { title: "My Profile", route: "Profile", icon: "person-outline", iconBg: "#f4effe", iconColor: "#7e52d8" },
     { title: "Activities", route: "Activities", icon: "calendar-outline", iconBg: "#eefafc", iconColor: "#41b5bd" }
@@ -78,6 +78,12 @@ export default function ScholarDashboardScreen({ navigation }) {
   const baseAcademicYear = dashboardSummary?.currentAcademicYear || user?.academicYear || '';
   const nextAcademicYear = getNextAcademicYear(baseAcademicYear);
 
+  const resolvedIsGraduate =
+    user?.is_graduate ||
+    user?.isGraduate ||
+    dashboardSummary?.academicStatus?.isGraduate ||
+    dashboardSummary?.academicStatus?.is_graduate ||
+    false;
 
   const services = [
     {
@@ -88,8 +94,16 @@ export default function ScholarDashboardScreen({ navigation }) {
       iconBg: '#f4effe',
       iconColor: '#7e52d8',
     },
-    { title: 'Transfer School', sub: 'Update your school or program', route: 'TransferSchool', icon: 'swap-horizontal', iconBg: '#fff0f0', iconColor: '#e96e5e' },
-    { title: 'Board Exam/Certification Assistance', sub: 'Up to P12,000 support', route: 'ExamAssistance', icon: 'checkmark-circle-outline', iconBg: '#eefafc', iconColor: '#41b5bd' }
+    {
+      title: 'Exam Financial Assistance',
+      sub: 'Apply for board exam financial assistance.',
+      route: 'ExamAssistance',
+      icon: 'shield-checkmark-outline',
+      iconBg: '#e8f4fd',
+      iconColor: '#2196f3',
+      isLocked: !resolvedIsGraduate,
+      lockMessage: 'Locked (Graduates Only)',
+    }
   ];
 
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -223,23 +237,37 @@ export default function ScholarDashboardScreen({ navigation }) {
         {/* Scholar Services */}
         <Text style={styles.sectionHeader}>Scholar Services</Text>
         <View style={styles.servicesContainer}>
-          {services.map((svc, idx) => (
-            <TouchableOpacity
-              key={idx}
-              style={styles.serviceCard}
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate(svc.route)}
-            >
-              <View style={[styles.svcIconBox, { backgroundColor: svc.iconBg }]}>
-                <Ionicons name={svc.icon} size={28} color={svc.iconColor} />
-              </View>
-              <View style={styles.svcTextCol}>
-                <Text style={styles.svcTitle}>{svc.title}</Text>
-                <Text style={styles.svcSub}>{svc.sub}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#d4dae8" />
-            </TouchableOpacity>
-          ))}
+          {services.map((svc, idx) => {
+            const isLocked = svc.isLocked;
+            return (
+              <TouchableOpacity
+                key={idx}
+                style={styles.serviceCard}
+                activeOpacity={isLocked ? 1 : 0.8}
+                onPress={() => {
+                  if (isLocked) return;
+                  navigation.navigate(svc.route);
+                }}
+                disabled={isLocked}
+              >
+                <View style={[styles.svcIconBox, { backgroundColor: svc.iconBg }]}>
+                  <Ionicons name={svc.icon} size={28} color={svc.iconColor} />
+                </View>
+                <View style={styles.svcTextCol}>
+                  <View style={styles.titleContainer}>
+                    <Text style={[styles.svcTitle, isLocked && styles.disabledSvcTitle]}>{svc.title}</Text>
+                    {isLocked && svc.lockMessage && (
+                      <View style={styles.lockBadge}>
+                        <Text style={styles.lockBadgeText}>{svc.lockMessage}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[styles.svcSub, isLocked && styles.disabledSvcSub]}>{svc.sub}</Text>
+                </View>
+                {!isLocked && <Ionicons name="chevron-forward" size={24} color="#d4dae8" />}
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
       </Animated.ScrollView>
@@ -472,11 +500,37 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     color: '#111',
+    flexShrink: 1,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
     marginBottom: 4,
+  },
+  disabledSvcTitle: {
+    color: '#8e94a6',
+  },
+  lockBadge: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  lockBadgeText: {
+    fontSize: 10,
+    color: '#8e94a6',
+    fontWeight: '600',
   },
   svcSub: {
     fontSize: 12,
     color: '#848baf',
     fontWeight: '500',
+  },
+  disabledSvcSub: {
+    color: '#b2b9c9',
   }
 });

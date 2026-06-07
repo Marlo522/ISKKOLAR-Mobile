@@ -47,6 +47,12 @@ const getCurrentAcademicYear = () => {
   return `${startYear}-${startYear + 1}`;
 };
 
+// Helper to count words in a string
+const countWords = (str) => {
+  if (!str) return 0;
+  return str.trim().split(/\s+/).filter(Boolean).length;
+};
+
 export default function ScholarshipRenewalScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
@@ -73,6 +79,9 @@ export default function ScholarshipRenewalScreen({ navigation }) {
     school: autoSchool,
     program: autoProgram,
     remarks: '',
+    challenge_response: '',
+    accomplishment_response: '',
+    eap_reflection_response: '',
   });
 
   // State for the final confirmation checkbox
@@ -258,6 +267,25 @@ export default function ScholarshipRenewalScreen({ navigation }) {
       if (!form.gwa.trim() || Number.isNaN(gwaValue) || gwaValue <= 0 || gwaValue > 5) {
         nextErrors.gwa = 'Auto-filled from grade compliance. Submit grade compliance to proceed.';
       }
+
+      // EAP Reflection Questions Validation
+      if (!form.challenge_response || !form.challenge_response.trim()) {
+        nextErrors.challenge_response = 'This question is required.';
+      } else if (countWords(form.challenge_response) > 250) {
+        nextErrors.challenge_response = 'Answer must not exceed 250 words.';
+      }
+
+      if (!form.accomplishment_response || !form.accomplishment_response.trim()) {
+        nextErrors.accomplishment_response = 'This question is required.';
+      } else if (countWords(form.accomplishment_response) > 250) {
+        nextErrors.accomplishment_response = 'Answer must not exceed 250 words.';
+      }
+
+      if (!form.eap_reflection_response || !form.eap_reflection_response.trim()) {
+        nextErrors.eap_reflection_response = 'This question is required.';
+      } else if (countWords(form.eap_reflection_response) > 250) {
+        nextErrors.eap_reflection_response = 'Answer must not exceed 250 words.';
+      }
     }
     if (step === 2 && !agree) {
       nextErrors.agree = 'Please confirm the certification.';
@@ -279,7 +307,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
 
   // Final submission handler
   const handleSubmit = async () => {
-    const nextErrors = validate(2);
+    const nextErrors = { ...validate(1), ...validate(2) };
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
@@ -294,6 +322,9 @@ export default function ScholarshipRenewalScreen({ navigation }) {
         program: form.program,
         gwa: form.gwa,
         remarks: form.remarks,
+        challenge_response: form.challenge_response,
+        accomplishment_response: form.accomplishment_response,
+        eap_reflection_response: form.eap_reflection_response,
       };
 
       // Call the API service to submit the form (JSON payload)
@@ -644,6 +675,111 @@ export default function ScholarshipRenewalScreen({ navigation }) {
                   />
                   {errors.gwa && <Text style={styles.errorText}>{errors.gwa}</Text>}
                 </View>
+
+                {/* EAP Reflection Questions */}
+                <View style={[styles.sectionHeaderRow, { marginTop: 24, marginBottom: 8 }]}>
+                  <View style={styles.verticalPill} />
+                  <Text style={styles.sectionHeader}>Educational Assistance Program (EAP) Reflection Questions</Text>
+                </View>
+                <Text style={styles.eapSectionSubtitle}>
+                  All questions are required. Maximum of 250 words per answer.
+                </Text>
+
+                <View style={styles.eapQuestionCard}>
+                  <Text style={styles.eapLabel}>
+                    1. What is the most challenging aspect of the previous semester for you? What did you do to overcome the challenge?*
+                  </Text>
+                  <SafeTextInput
+                    style={[
+                      styles.input,
+                      styles.textArea,
+                      errors.challenge_response && { borderColor: '#ef4444' }
+                    ]}
+                    placeholder="Type your answer here..."
+                    placeholderTextColor="#848baf"
+                    multiline
+                    numberOfLines={4}
+                    value={form.challenge_response}
+                    onChangeText={(text) => setField('challenge_response', text)}
+                  />
+                  <View style={styles.eapFooterRow}>
+                    {errors.challenge_response ? (
+                      <Text style={[styles.errorText, { marginTop: 0, flex: 1, marginRight: 12 }]}>{errors.challenge_response}</Text>
+                    ) : <View style={{ flex: 1 }} />}
+                    <Text
+                      style={[
+                        styles.wordCountText,
+                        countWords(form.challenge_response) > 250 && styles.wordCountError
+                      ]}
+                    >
+                      {countWords(form.challenge_response)}/250 words
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.eapQuestionCard}>
+                  <Text style={styles.eapLabel}>
+                    2. What have you accomplished? Cite an example or situation and its lesson to you.*
+                  </Text>
+                  <SafeTextInput
+                    style={[
+                      styles.input,
+                      styles.textArea,
+                      errors.accomplishment_response && { borderColor: '#ef4444' }
+                    ]}
+                    placeholder="Type your answer here..."
+                    placeholderTextColor="#848baf"
+                    multiline
+                    numberOfLines={4}
+                    value={form.accomplishment_response}
+                    onChangeText={(text) => setField('accomplishment_response', text)}
+                  />
+                  <View style={styles.eapFooterRow}>
+                    {errors.accomplishment_response ? (
+                      <Text style={[styles.errorText, { marginTop: 0, flex: 1, marginRight: 12 }]}>{errors.accomplishment_response}</Text>
+                    ) : <View style={{ flex: 1 }} />}
+                    <Text
+                      style={[
+                        styles.wordCountText,
+                        countWords(form.accomplishment_response) > 250 && styles.wordCountError
+                      ]}
+                    >
+                      {countWords(form.accomplishment_response)}/250 words
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.eapQuestionCard}>
+                  <Text style={styles.eapLabel}>
+                    3. What have you learned about yourself through your accomplishments/challenges and how did Educational Assistance Program (EAP) helped you achieve it?*
+                  </Text>
+                  <SafeTextInput
+                    style={[
+                      styles.input,
+                      styles.textArea,
+                      errors.eap_reflection_response && { borderColor: '#ef4444' }
+                    ]}
+                    placeholder="Type your answer here..."
+                    placeholderTextColor="#848baf"
+                    multiline
+                    numberOfLines={4}
+                    value={form.eap_reflection_response}
+                    onChangeText={(text) => setField('eap_reflection_response', text)}
+                  />
+                  <View style={styles.eapFooterRow}>
+                    {errors.eap_reflection_response ? (
+                      <Text style={[styles.errorText, { marginTop: 0, flex: 1, marginRight: 12 }]}>{errors.eap_reflection_response}</Text>
+                    ) : <View style={{ flex: 1 }} />}
+                    <Text
+                      style={[
+                        styles.wordCountText,
+                        countWords(form.eap_reflection_response) > 250 && styles.wordCountError
+                      ]}
+                    >
+                      {countWords(form.eap_reflection_response)}/250 words
+                    </Text>
+                  </View>
+                </View>
               </Animated.View>
             )}
 
@@ -684,6 +820,24 @@ export default function ScholarshipRenewalScreen({ navigation }) {
                     <Text style={styles.reviewLabel}>GWA</Text>
                     <Text style={styles.reviewValue}>{form.gwa || '--'}</Text>
                   </View>
+                  {form.challenge_response ? (
+                    <View style={styles.remarksReviewSection}>
+                      <Text style={styles.reviewLabel}>Challenge Response</Text>
+                      <Text style={styles.remarksText}>{form.challenge_response}</Text>
+                    </View>
+                  ) : null}
+                  {form.accomplishment_response ? (
+                    <View style={styles.remarksReviewSection}>
+                      <Text style={styles.reviewLabel}>Accomplishment Response</Text>
+                      <Text style={styles.remarksText}>{form.accomplishment_response}</Text>
+                    </View>
+                  ) : null}
+                  {form.eap_reflection_response ? (
+                    <View style={styles.remarksReviewSection}>
+                      <Text style={styles.reviewLabel}>EAP Reflection Response</Text>
+                      <Text style={styles.remarksText}>{form.eap_reflection_response}</Text>
+                    </View>
+                  ) : null}
                   {form.remarks ? (
                     <View style={styles.remarksReviewSection}>
                       <Text style={styles.remarksText}>{form.remarks}</Text>
@@ -810,6 +964,46 @@ const styles = StyleSheet.create({
   },
   textArea: { height: 100, textAlignVertical: 'top' },
   errorText: { color: '#ef4444', fontSize: 12, marginTop: 4 },
+  eapLabel: {
+    fontSize: 13,
+    color: '#3d4076',
+    fontWeight: '700',
+    marginBottom: 8,
+    lineHeight: 18,
+  },
+  eapSectionSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 16,
+    fontWeight: '500',
+  },
+  eapFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginTop: 4,
+  },
+  wordCountText: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  wordCountError: {
+    color: '#ef4444',
+  },
+  eapQuestionCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 1,
+  },
 
   // Evaluation Card Styles
   evalCard: { borderRadius: 12, borderWidth: 1, overflow: 'hidden', marginBottom: 8 },

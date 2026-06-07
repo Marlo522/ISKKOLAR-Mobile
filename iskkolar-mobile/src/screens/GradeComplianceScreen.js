@@ -531,7 +531,7 @@ export default function GradeComplianceScreen({ navigation }) {
     if (!selectedTermId) {
       return (
         <View style={styles.landingContainer}>
-          <Text style={[styles.landingHeader, { marginBottom: 4 }]}>COR & Grade Compliance</Text>
+          <Text style={[styles.landingHeader, { marginBottom: 4 }]}>Certificate of Registration & Grade Compliance</Text>
           {resolvedIsGraduate ? null : (
             <Text style={{ fontSize: 13, color: '#6870a3', marginBottom: 20, marginLeft: 2, fontWeight: '500' }}>
               Academic Year: {academicYear || "2025-2026"}
@@ -752,7 +752,7 @@ export default function GradeComplianceScreen({ navigation }) {
           </TouchableOpacity>
 
           <View style={{ flex: 1, marginLeft: 16 }}>
-            <Text style={styles.titleLanding}>COR & Grade Compliance</Text>
+            <Text style={styles.titleLanding}>Certificate of Registration & Grade Compliance</Text>
             <Text style={styles.subtitleLanding} numberOfLines={1}>
               {selectedTerm ? `Submit grades for ${selectedTerm.termLabel}` : "Track your academic standing"}
             </Text>
@@ -766,7 +766,7 @@ export default function GradeComplianceScreen({ navigation }) {
 
       {selectedTermId && step === 2 && completeStage === "none" && (
         <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
-          <Text style={styles.titleLanding}>COR & Grade Compliance</Text>
+          <Text style={styles.titleLanding}>Certificate of Registration & Grade Compliance</Text>
         </View>
       )}
 
