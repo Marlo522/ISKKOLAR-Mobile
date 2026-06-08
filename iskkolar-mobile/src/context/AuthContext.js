@@ -94,8 +94,27 @@ export const AuthProvider = ({ children }) => {
     await AsyncStorage.setItem("remember_me", "false");
   };
 
+  const refreshSession = async () => {
+    try {
+      const response = await api.get("/auth/me");
+      const latestUser = response.data?.data || response.data;
+      if (latestUser) {
+        const storedRememberMe = await AsyncStorage.getItem("remember_me");
+        const rememberMe = storedRememberMe === "true";
+        const normalized = normalizeUser(latestUser);
+        setUser(normalized);
+        await AsyncStorage.setItem("user", JSON.stringify(normalized));
+        await AsyncStorage.setItem("remember_me", rememberMe ? "true" : "false");
+        return normalized;
+      }
+    } catch (error) {
+      console.warn("AuthContext: Failed to refresh user session:", error);
+    }
+    return null;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isHydrated, loginUser, logoutUser }}>
+    <AuthContext.Provider value={{ user, isHydrated, loginUser, logoutUser, refreshSession }}>
       {children}
     </AuthContext.Provider>
   );
