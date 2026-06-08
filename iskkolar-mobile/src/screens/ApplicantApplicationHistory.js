@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useContext } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground, Animated, ActivityIndicator, Linking, RefreshControl, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,6 +6,7 @@ import { getApplicantHistory } from "../services/applicationGuardService";
 import { useIsFocused } from "@react-navigation/native";
 import { getApplicationSettings } from "../services/settingsService";
 import ApplicationsClosedGuard from "../components/ApplicationsClosedGuard";
+import { AuthContext } from "../context/AuthContext";
 
 const APPLICATION_STEPS = [
   { key: "under_review", label: "Under Review" },
@@ -489,6 +490,7 @@ const EvaluationModal = ({ visible, onClose, evaluation }) => {
 export default function ApplicantApplicationHistory({ navigation }) {
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
+  const { refreshSession } = useContext(AuthContext);
 
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -497,25 +499,22 @@ export default function ApplicantApplicationHistory({ navigation }) {
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(true);
 
-  useEffect(() => {
-    if (!isFocused) return;
-    let cancelled = false;
-    const checkSettings = async () => {
-      setSettingsLoading(true);
-      const settings = await getApplicationSettings();
-      if (!cancelled) {
-        setIsOpen(settings.is_open && !settings.is_limit_reached);
-        setSettingsLoading(false);
-      }
-    };
-    checkSettings();
-    return () => { cancelled = true; };
-  }, [isFocused]);
-
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+
+  const syncRole = useCallback(async () => {
+    const updatedUser = await refreshSession().catch(err => {
+      console.warn("ApplicantHistory: Failed to refresh session:", err);
+      return null;
+    });
+    if (updatedUser && updatedUser.role === "scholar") {
+      navigation.replace("ScholarTabs");
+      return true;
+    }
+    return false;
+  }, [refreshSession, navigation]);
 
   const loadApplications = async () => {
     try {
@@ -532,14 +531,50 @@ export default function ApplicantApplicationHistory({ navigation }) {
   };
 
   useEffect(() => {
-    loadApplications();
-  }, []);
+    if (!isFocused) return;
+    let cancelled = false;
+
+    const initScreen = async () => {
+      const isScholar = await syncRole();
+      if (isScholar) return;
+
+      setSettingsLoading(true);
+      setLoading(true);
+      setError("");
+      try {
+        const [settings, data] = await Promise.all([
+          getApplicationSettings(),
+          getApplicantHistory()
+        ]);
+        if (!cancelled) {
+          setIsOpen(settings.is_open && !settings.is_limit_reached);
+          setApplications(data);
+        }
+      } catch (err) {
+        console.error("Failed to initialize applications history screen:", err);
+        if (!cancelled) {
+          setError(err?.message || "Failed to load applications.");
+        }
+      } finally {
+        if (!cancelled) {
+          setSettingsLoading(false);
+          setLoading(false);
+        }
+      }
+    };
+
+    initScreen();
+    return () => { cancelled = true; };
+  }, [isFocused, syncRole]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadApplications();
+    const isScholar = await syncRole();
+    if (!isScholar) {
+      await loadApplications();
+    }
     setRefreshing(false);
-  }, []);
+  }, [syncRole]);
 
   const parseAiEvaluation = (rawEval, rawStatus) => {
     let parsed = null;

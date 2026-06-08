@@ -2,10 +2,12 @@ import React, { useEffect, useRef, useContext, useState, useMemo, useCallback } 
 import { View, Text, StyleSheet, TouchableOpacity, Animated, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useIsFocused } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { NotificationContext } from '../context/NotificationContext';
 import { getScholarDashboardSummary, getScholarApplicationHistory } from '../services/scholarDashboardService';
 import { getGradeComplianceTerms } from '../services/gradeComplianceService';
+import { getApplicationSettings } from '../services/settingsService';
 
 const getNextAcademicYear = (value) => {
   const match = /^(\d{4})-(\d{4})$/.exec((value || '').trim());
@@ -20,13 +22,15 @@ const getNextAcademicYear = (value) => {
 };
 
 export default function ScholarDashboardScreen({ navigation }) {
-  const { user } = useContext(AuthContext);
+  const { user, refreshSession } = useContext(AuthContext);
   const { unreadCount, fetchAnnouncements } = useContext(NotificationContext);
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const [dashboardSummary, setDashboardSummary] = useState(null);
   const [applicationHistory, setApplicationHistory] = useState([]);
   const [gradeComplianceSummary, setGradeComplianceSummary] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [renewalsOpen, setRenewalsOpen] = useState(true);
 
   const currentYearLevel = dashboardSummary?.academicStatus?.yearLevel || user?.yearLevel || 'Not set';
   const currentProgram = dashboardSummary?.academicStatus?.program || user?.program || user?.scholarshipType || '--';
@@ -39,14 +43,14 @@ export default function ScholarDashboardScreen({ navigation }) {
   // Exclude empty placeholders from count if they exist
   const actualApplications = historyItems.filter(item => item.id && !item.id.includes('_empty') && item.status !== 'not_started');
   
-  // Total applications submitted (Renewal, Tertiary, Vocational, KKFI, Exam Assistance, etc.)
+  // Total applications submitted (Renewal, Tertiary, Vocational, KKFI, Exam Assistance, Financial Assistance, etc.)
   const submittedApplicationsCount = (sourceSummary ? (
     (sourceSummary.renewalsCount || 0) +
     (sourceSummary.tertiaryApplicationsCount || 0) +
     (sourceSummary.vocationalApplicationsCount || 0) +
     (sourceSummary.kkfiChildApplicationsCount || 0) +
     (sourceSummary.kkfiStaffApplicationsCount || 0)
-  ) : 0) + actualApplications.filter(a => ['exam_assistance', 'transfer_school'].includes(a.category)).length;
+  ) : 0) + actualApplications.filter(a => ['exam_assistance', 'receipt_submission'].includes(a.category)).length;
 
   const applicationsSubmitted = String(submittedApplicationsCount);
   
@@ -103,11 +107,15 @@ export default function ScholarDashboardScreen({ navigation }) {
   const services = [
     {
       title: 'Scholarship Renewal',
-      sub: nextAcademicYear ? `Renew for AY ${nextAcademicYear}` : 'Renew for next academic year',
+      sub: renewalsOpen
+        ? (nextAcademicYear ? `Renew for AY ${nextAcademicYear}` : 'Renew for next academic year')
+        : 'Renewals are currently closed by the administrator.',
       route: 'ScholarshipRenewal',
       icon: 'sync',
       iconBg: '#f4effe',
       iconColor: '#7e52d8',
+      isLocked: !renewalsOpen,
+      lockMessage: 'Closed',
     },
     {
       title: 'Exam Financial Assistance',
@@ -143,15 +151,17 @@ export default function ScholarDashboardScreen({ navigation }) {
 
   const loadDashboardMeta = useCallback(async () => {
     try {
-      const [summary, history, gradeCompliance] = await Promise.all([
+      const [summary, history, gradeCompliance, settings] = await Promise.all([
         getScholarDashboardSummary(),
         getScholarApplicationHistory(),
         getGradeComplianceTerms(),
+        getApplicationSettings(),
       ]);
 
       setDashboardSummary(summary?.data || summary || null);
       setApplicationHistory(history?.data?.applicationItems || history?.applicationItems || []);
       setGradeComplianceSummary(gradeCompliance?.data || gradeCompliance || null);
+      setRenewalsOpen(settings?.renewals_open ?? true);
     } catch (error) {
       if (__DEV__) {
         console.warn('Failed to load scholar dashboard data', error?.message || error);
@@ -160,14 +170,36 @@ export default function ScholarDashboardScreen({ navigation }) {
   }, []);
 
   useEffect(() => {
-    void loadDashboardMeta();
-  }, [loadDashboardMeta]);
+    if (!isFocused) return;
+
+    const checkRoleAndLoad = async () => {
+      const updatedUser = await refreshSession().catch(err => {
+        console.warn("ScholarDashboard: Failed to refresh session on focus:", err);
+        return null;
+      });
+
+      if (updatedUser && updatedUser.role !== "scholar") {
+        navigation.replace("Main");
+        return;
+      }
+
+      void loadDashboardMeta();
+    };
+
+    checkRoleAndLoad();
+  }, [isFocused, loadDashboardMeta, refreshSession, navigation]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    const updatedUser = await refreshSession().catch(() => null);
+    if (updatedUser && updatedUser.role !== "scholar") {
+      navigation.replace("Main");
+      setRefreshing(false);
+      return;
+    }
     await Promise.all([loadDashboardMeta(), fetchAnnouncements()]);
     setRefreshing(false);
-  }, [loadDashboardMeta, fetchAnnouncements]);
+  }, [loadDashboardMeta, fetchAnnouncements, refreshSession, navigation]);
 
   const fullName = [
     user?.firstName || user?.first_name,

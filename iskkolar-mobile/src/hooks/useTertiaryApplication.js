@@ -29,6 +29,8 @@ const FIELD_MAP = {
   recommendation_letter: "recommendation",
   letter_of_intent_applicant: "letterOfIntentApplicant",
   letter_of_intent_parent: "letterOfIntentParent",
+  letter_intent_applicant: "letterOfIntentApplicant",
+  letter_intent_parent: "letterOfIntentParent",
   income_cert_father: "incomeFather",
   income_cert_mother: "incomeMother",
   indigency_cert_father: "indigencyFather",
@@ -342,26 +344,42 @@ export const useTertiaryApplication = () => {
         preFlightErrors.expectedGradYear = "Year must be exactly 4 digits.";
       }
 
-      if (!values.secondaryGwa || values.secondaryGwa.trim() === "") {
-        preFlightErrors.secondaryGwa = "Secondary GWA is required.";
-      }
-
-      if (values.incomingFreshman === "No") {
+      if (values.incomingFreshman === "Yes") {
+        if (!values.secondaryGwa || values.secondaryGwa.trim() === "") {
+          preFlightErrors.secondaryGwa = "Secondary GWA is required.";
+        } else if (!/^\d{2}(\.\d{1,2})?$/.test(values.secondaryGwa.trim())) {
+          preFlightErrors.secondaryGwa = "Secondary GWA must be in xx.xx format (e.g. 88.50).";
+        }
+        if (!uploads.gradeReport) {
+          preFlightErrors.gradeReport = "Grade report is required.";
+        }
+      } else {
         if (!values.tertiaryGwa || values.tertiaryGwa.trim() === "") {
           preFlightErrors.tertiaryGwa = "Tertiary GWA is required.";
+        } else if (!/^\d(\.\d{1,2})?$/.test(values.tertiaryGwa.trim())) {
+          preFlightErrors.tertiaryGwa = "Tertiary GWA must be in x.xx format (e.g. 1.75).";
         }
+        if (!uploads.currentTermGradeReport) {
+          preFlightErrors.currentTermGradeReport = "Current term report card is required.";
+        }
+      }
+
+      if (!uploads.cor) {
+        preFlightErrors.cor = "Certificate of Registration is required.";
       }
 
       if (!values.termStartDate || values.termStartDate.trim() === "") {
         preFlightErrors.termStartDate = "Term Start Date is required.";
       } else {
         const start = parseDateString(values.termStartDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        if (start && start < today) {
-          preFlightErrors.termStartDate = "Term Start Date cannot be in the past.";
+        const currentYear = new Date().getFullYear();
+        const yearStart = new Date(currentYear, 0, 1);
+        const yearEnd = new Date(currentYear, 11, 31);
+        if (start && (start < yearStart || start > yearEnd)) {
+          preFlightErrors.termStartDate = "Start date must be within the current year.";
         }
       }
+
       if (!values.termEndDate || values.termEndDate.trim() === "") {
         preFlightErrors.termEndDate = "Term End Date is required.";
       }
@@ -370,9 +388,11 @@ export const useTertiaryApplication = () => {
         const start = parseDateString(values.termStartDate);
         const end = parseDateString(values.termEndDate);
         if (start && end) {
-          const limit = new Date(start);
-          limit.setMonth(limit.getMonth() + 1);
-          if (end < limit) {
+          const minEnd = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+          const daysInTargetMonth = new Date(minEnd.getFullYear(), minEnd.getMonth() + 1, 0).getDate();
+          minEnd.setDate(Math.min(start.getDate(), daysInTargetMonth));
+
+          if (end < minEnd) {
             preFlightErrors.termEndDate = "Term End Date must be at least 1 month after Term Start Date.";
           }
         }
@@ -516,9 +536,6 @@ export const useTertiaryApplication = () => {
         if (requiresIndigency(values.motherStatus) && !uploads.indigencyMother) preFlightErrors.indigencyMother = "Certificate of indigency required.";
       }
 
-      if (values.incomingFreshman === "No" && !uploads.currentTermGradeReport) {
-        preFlightErrors.currentTermGradeReport = "Current term report card is required.";
-      }
 
       (dynamicFamilyMembers || []).forEach((mem, idx) => {
         if (requiresProof(mem.status) && !uploads[`incomeMember_${idx}`]) {

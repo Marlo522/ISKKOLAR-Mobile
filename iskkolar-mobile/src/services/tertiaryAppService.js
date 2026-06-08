@@ -142,6 +142,8 @@ const prepareFormData = (values, uploads, dynamicFamilyMembers) => {
     appendFile(formData, "income_cert_mother", uploads.incomeMother);
     appendFile(formData, "indigency_cert_father", uploads.indigencyFather);
     appendFile(formData, "indigency_cert_mother", uploads.indigencyMother);
+    appendFile(formData, "letter_intent_applicant", uploads.letterOfIntentApplicant);
+    appendFile(formData, "letter_intent_parent", uploads.letterOfIntentParent);
 
     if (values.hasGuardian) {
       if (uploads.incomeGuardian) appendFile(formData, "income_cert_guardian", uploads.incomeGuardian);
@@ -176,6 +178,7 @@ export const validateTertiaryStep = async (apiStep, values, uploads, dynamicFami
     headers: {
       'Content-Type': 'multipart/form-data',
     },
+    timeout: 120000,
   });
   return true;
 };
@@ -186,6 +189,7 @@ export const submitTertiaryApplication = async (values, uploads, dynamicFamilyMe
     headers: {
       'Content-Type': 'multipart/form-data',
     },
+    timeout: 120000,
   });
   if (response.data && response.data.success === false) {
     throw response.data;

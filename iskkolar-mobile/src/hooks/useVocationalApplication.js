@@ -28,6 +28,8 @@ const FIELD_MAP = {
   recommendation_letter: "recommendation",
   letter_of_intent_applicant: "letterOfIntentApplicant",
   letter_of_intent_parent: "letterOfIntentParent",
+  letter_intent_applicant: "letterOfIntentApplicant",
+  letter_intent_parent: "letterOfIntentParent",
   income_cert_father: "incomeFather",
   income_cert_mother: "incomeMother",
   indigency_cert_father: "indigencyFather",

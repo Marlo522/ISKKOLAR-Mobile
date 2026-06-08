@@ -56,6 +56,7 @@ const createKkfiStepValidator = (basePath, fallbackMessage) => async (step, payl
 
 		const response = await api.post(`/scholarships/${basePath}/validate-step?step=${step}`, formData, {
 			headers: { 'Content-Type': 'multipart/form-data' },
+			timeout: 120000,
 		});
 
 		return response.data;
@@ -72,6 +73,7 @@ const createKkfiSubmitter = (basePath, fallbackMessage) => async (payload, files
 
 		const response = await api.post(`/scholarships/${basePath}/apply`, formData, {
 			headers: { 'Content-Type': 'multipart/form-data' },
+			timeout: 120000,
 		});
 
 		if (!response.data?.success) {

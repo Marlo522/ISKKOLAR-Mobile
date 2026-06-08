@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  
+
   TouchableOpacity,
   ScrollView,
   Platform,
@@ -29,7 +29,7 @@ import ApplicationResultState from "../components/ApplicationResultState";
 import { getScholarshipFormAccess } from "../services/applicationGuardService";
 
 const infoFields = {
-  educPath: "tertiary",
+  educPath: "Tertiary Education",
   scholarshipType: "", // set dynamically below based on the selected program
   incomingFreshman: "No",
   secondarySchool: "",
@@ -57,7 +57,7 @@ const infoFields = {
   middleName: "",
   lastName: "",
   suffix: "--",
-  position: "Human Resource",
+  position: "--",
   fatherName: "",
   fatherBirthday: "",
   fatherStatus: "--",
@@ -464,7 +464,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
       position:
         valueOf("position", "job_position", "jobPosition", "designation") ||
         prev.position ||
-        "Human Resource",
+        "--",
     }));
   };
 
@@ -630,8 +630,8 @@ export default function ProgramApplyScreen({ navigation, route }) {
       key === "vocationalProgram"
         ? vocationalProgramOptions
         : ["tertiarySchool", "prevSchoolName"].includes(key)
-        ? heiSchoolNames
-        : programOptions;
+          ? heiSchoolNames
+          : programOptions;
     const suggestions = isPredictive && query.trim().length >= 1
       ? optionsSource.filter(opt => opt.toLowerCase().includes(query.toLowerCase()))
       : [];
@@ -1655,7 +1655,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
   const renderReview = () => {
     const familyItems = [];
-    
+
     // Guardian (highest priority, only if hasGuardian is true and guardianName is entered)
     if (values.hasGuardian && values.guardianName && values.guardianName.trim() !== "") {
       familyItems.push(
@@ -1690,7 +1690,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
     }
 
     // Dynamic family members
-    const hasCoreFamilyData = 
+    const hasCoreFamilyData =
       (values.hasGuardian && values.guardianName && values.guardianName.trim() !== "") ||
       (values.fatherName && values.fatherName.trim() !== "") ||
       (values.motherName && values.motherName.trim() !== "");
@@ -1737,285 +1737,285 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
             {familyItems.length > 0 && renderReviewSection("Family / Guardian Information", "people-outline", familyItems)}
 
-          {renderReviewSection("Supporting Documents", "document-text-outline", [
-            ...(values.incomingFreshman === "Yes" ? [
-              { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" }
-            ] : []),
-            { label: "Certificate of Registration", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
-            ...(values.incomingFreshman === "No" ? [
-              { label: "Current Term Report Card", value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached", icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle" }
-            ] : []),
-            { label: "Certificate of Indigency", value: uploadText.indigency ? "Attached" : "Not Attached", icon: uploadText.indigency ? "checkmark-circle" : "close-circle" },
-            { label: "Birth Certificate", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
-            ...(values.hasGuardian ? [
-              ...(requiresIncomeProof(values.guardianStatus) ? [
-                { label: "Income Certificate (Guardian)", value: uploadText.incomeGuardian ? "Attached" : "Not Attached", icon: uploadText.incomeGuardian ? "checkmark-circle" : "close-circle" }
-              ] : values.guardianStatus === "Unemployed" ? [
-                { label: "Certificate of Indigency (Guardian)", value: uploadText.indigencyGuardian ? "Attached" : "Not Attached", icon: uploadText.indigencyGuardian ? "checkmark-circle" : "close-circle" }
-              ] : [])
-            ] : []),
-            ...(requiresIncomeProof(values.fatherStatus) ? [
-              { label: "Income Certificate (Father)", value: uploadText.incomeFather ? "Attached" : "Not Attached", icon: uploadText.incomeFather ? "checkmark-circle" : "close-circle" }
-            ] : values.fatherStatus === "Unemployed" ? [
-              { label: "Indigency (Father)", value: uploadText.indigencyFather ? "Attached" : "Not Attached", icon: uploadText.indigencyFather ? "checkmark-circle" : "close-circle" }
-            ] : []),
-            ...(requiresIncomeProof(values.motherStatus) ? [
-              { label: "Income Certificate (Mother)", value: uploadText.incomeMother ? "Attached" : "Not Attached", icon: uploadText.incomeMother ? "checkmark-circle" : "close-circle" }
-            ] : values.motherStatus === "Unemployed" ? [
-              { label: "Indigency (Mother)", value: uploadText.indigencyMother ? "Attached" : "Not Attached", icon: uploadText.indigencyMother ? "checkmark-circle" : "close-circle" }
-            ] : []),
-            ...familyMembers.filter(m => requiresIncomeProof(m.status) || m.status === "Unemployed").map((member, idx) => {
-              const isUnemp = member.status === "Unemployed";
-              const key = isUnemp ? `indigencyMember_${idx}` : `incomeMember_${idx}`;
-              const label = isUnemp ? `Indigency Certificate (${member.name || `Member ${idx + 1}`})` : `Income Certificate (${member.name || `Member ${idx + 1}`})`;
-              return {
-                label,
-                value: uploadText[key] ? "Attached" : "Not Attached",
-                icon: uploadText[key] ? "checkmark-circle" : "close-circle"
-              };
-            }),
-            { label: "Recommendation Letter Form (Optional)", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
-            { label: "Personal Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
-            { label: "Letter of Intent (Applicant)", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" },
-            { label: "Letter of Intent (Parent)", value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle" },
-          ])}
-        </>
-      )}
-
-      {selectedProgram === "vocational" && (
-        <>
-          {renderReviewSection("Program Assignment", "construct-outline", [
-            { label: "Scholarship Type", value: values.scholarshipType, icon: "ribbon-outline" },
-            { label: "Incoming Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
-          ])}
-          {renderReviewSection("Educational History", "school-outline", [
-            { label: "HS School Name", value: values.secondarySchool, icon: "business-outline" },
-            { label: "Strand / Track", value: values.strand, icon: "bookmarks-outline" },
-            { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
-          ])}
-          {renderReviewSection("Vocational Details", "flask-outline", [
-            { label: "Technical School", value: values.vocationalSchoolName, icon: "business-outline" },
-            { label: "Technical Program", value: values.vocationalProgram, icon: "list-outline" },
-            { label: "Course Duration", value: values.courseDuration, icon: "time-outline" },
-            { label: "Completion Date", value: values.completionDate, icon: "calendar-outline" },
-          ])}
-          {familyItems.length > 0 && renderReviewSection("Family / Guardian Information", "people-outline", familyItems)}
-
-          {renderReviewSection("Supporting Documents", "document-text-outline", [
-            ...(values.incomingFreshman === "Yes" ? [
-              { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" }
-            ] : []),
-            { label: "Certificate of Registration", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
-            { label: "Certificate of Indigency", value: uploadText.indigency ? "Attached" : "Not Attached", icon: uploadText.indigency ? "checkmark-circle" : "close-circle" },
-            { label: "Birth Certificate", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
-            ...(requiresIncomeProof(values.fatherStatus) ? [
-              { label: "Income Certificate (Father)", value: uploadText.incomeFather ? "Attached" : "Not Attached", icon: uploadText.incomeFather ? "checkmark-circle" : "close-circle" }
-            ] : values.fatherStatus === "Unemployed" ? [
-              { label: "Indigency (Father)", value: uploadText.indigencyFather ? "Attached" : "Not Attached", icon: uploadText.indigencyFather ? "checkmark-circle" : "close-circle" }
-            ] : []),
-            ...(requiresIncomeProof(values.motherStatus) ? [
-              { label: "Income Certificate (Mother)", value: uploadText.incomeMother ? "Attached" : "Not Attached", icon: uploadText.incomeMother ? "checkmark-circle" : "close-circle" }
-            ] : values.motherStatus === "Unemployed" ? [
-              { label: "Indigency (Mother)", value: uploadText.indigencyMother ? "Attached" : "Not Attached", icon: uploadText.indigencyMother ? "checkmark-circle" : "close-circle" }
-            ] : []),
-            ...familyMembers.filter(m => requiresIncomeProof(m.status) || m.status === "Unemployed").map((member, idx) => {
-              const isUnemp = member.status === "Unemployed";
-              const key = isUnemp ? `indigencyMember_${idx}` : `incomeMember_${idx}`;
-              const label = isUnemp ? `Indigency Certificate (${member.name || `Member ${idx + 1}`})` : `Income Certificate (${member.name || `Member ${idx + 1}`})`;
-              return {
-                label,
-                value: uploadText[key] ? "Attached" : "Not Attached",
-                icon: uploadText[key] ? "checkmark-circle" : "close-circle"
-              };
-            }),
-            { label: "Recommendation Letter Form (Optional)", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
-            { label: "Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
-            { label: "Letter of Intent (Applicant)", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" },
-            { label: "Letter of Intent (Parent)", value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle" },
-          ])}
-        </>
-      )}
-
-      {selectedProgram === "employeeChild" && (() => {
-        const isMasters = !isChildDesignation && String(values.educPath).toLowerCase().includes("masters");
-        return (
-          <>
-            {renderReviewSection("Academic Information", "school-outline", [
-              ...(!isChildDesignation ? [{ label: "Education Path", value: values.educPath, icon: "map-outline" }] : []),
-              { label: "Incoming Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
-              ...(isMasters ? [
-                { label: "Previous School Name", value: values.prevSchoolName, icon: "business-outline" },
-                { label: "Previous Program", value: values.prevProgram, icon: "school-outline" },
-                { label: "Previous Year Graduated", value: values.prevYearGraduated, icon: "calendar-outline" },
-                { label: "Previous Tertiary GWA", value: values.prevGwa, icon: "analytics-outline" },
-                ...(values.incomingFreshman === "Yes" ? [
-                  { label: "Grade Scale", value: values.prevGradeScale, icon: "ribbon-outline" },
-                ] : []),
-              ] : [
-                { label: "Secondary School", value: values.secondarySchool, icon: "business-outline" },
-                { label: "Strand", value: values.strand, icon: "bookmarks-outline" },
-                { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
-                ...(values.incomingFreshman === "Yes" ? [{ label: "Secondary GWA", value: values.secondaryGwa, icon: "analytics-outline" }] : []),
-              ]),
-              { label: isMasters ? "University / College Name" : "Tertiary School", value: values.tertiarySchool, icon: "location-outline" },
-              { label: "Program", value: values.program, icon: "school-outline" },
-              { label: "Term Type", value: values.termType, icon: "receipt-outline" },
-              { label: "Grade Scale", value: values.gradeScale, icon: "ribbon-outline" },
-              { label: "Year Level", value: values.yearLevel, icon: "ribbon-outline" },
-              { label: "Term", value: values.term, icon: "time-outline" },
-              { label: "Term Start Date", value: values.termStartDate, icon: "calendar-outline" },
-              { label: "Term End Date", value: values.termEndDate, icon: "calendar-outline" },
-              { label: "Expected Graduation Year", value: values.expectedGradYear, icon: "calendar-outline" },
-              ...(values.incomingFreshman === "No" ? [{ label: isMasters ? "Current Masters GWA" : "Current GWA", value: values.tertiaryGwa, icon: "analytics-outline" }] : []),
-            ])}
-             {renderReviewSection("Staff Information", "id-card-outline", [
-              { label: "Staff ID", value: values.staffId, icon: "barcode-outline" },
-              { label: "First Name", value: values.firstName, icon: "person-outline" },
-              { label: "Middle Name", value: values.middleName || "--", icon: "person-outline" },
-              { label: "Last Name", value: values.lastName, icon: "person-outline" },
-              { label: "Suffix", value: values.suffix || "--", icon: "person-outline" },
-              { label: "Position", value: values.position, icon: "briefcase-outline" },
-            ])}
             {renderReviewSection("Supporting Documents", "document-text-outline", [
               ...(values.incomingFreshman === "Yes" ? [
-                {
-                  label: isMasters ? "Previous Tertiary Grade Report" : "Grade Report",
-                  value: uploadText.gradeReport ? "Attached" : "Not Attached",
-                  icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle"
-                }
+                { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" }
               ] : []),
               { label: "Certificate of Registration", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
-              { label: "Birth Certificate (Applicant)", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
               ...(values.incomingFreshman === "No" ? [
-                {
-                  label: "Current Term Report Card",
-                  value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached",
-                  icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle"
-                }
+                { label: "Current Term Report Card", value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached", icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle" }
               ] : []),
-              {
-                label: isChildDesignation ? "Letter of Intent (Applicant)" : "Letter of Intent",
-                value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached",
-                icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle"
-              },
-              ...(isChildDesignation ? [
-                {
-                  label: "Letter of Intent (Parent)",
-                  value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached",
-                  icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle"
-                }
+              { label: "Certificate of Indigency", value: uploadText.indigency ? "Attached" : "Not Attached", icon: uploadText.indigency ? "checkmark-circle" : "close-circle" },
+              { label: "Birth Certificate", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
+              ...(values.hasGuardian ? [
+                ...(requiresIncomeProof(values.guardianStatus) ? [
+                  { label: "Income Certificate (Guardian)", value: uploadText.incomeGuardian ? "Attached" : "Not Attached", icon: uploadText.incomeGuardian ? "checkmark-circle" : "close-circle" }
+                ] : values.guardianStatus === "Unemployed" ? [
+                  { label: "Certificate of Indigency (Guardian)", value: uploadText.indigencyGuardian ? "Attached" : "Not Attached", icon: uploadText.indigencyGuardian ? "checkmark-circle" : "close-circle" }
+                ] : [])
               ] : []),
+              ...(requiresIncomeProof(values.fatherStatus) ? [
+                { label: "Income Certificate (Father)", value: uploadText.incomeFather ? "Attached" : "Not Attached", icon: uploadText.incomeFather ? "checkmark-circle" : "close-circle" }
+              ] : values.fatherStatus === "Unemployed" ? [
+                { label: "Indigency (Father)", value: uploadText.indigencyFather ? "Attached" : "Not Attached", icon: uploadText.indigencyFather ? "checkmark-circle" : "close-circle" }
+              ] : []),
+              ...(requiresIncomeProof(values.motherStatus) ? [
+                { label: "Income Certificate (Mother)", value: uploadText.incomeMother ? "Attached" : "Not Attached", icon: uploadText.incomeMother ? "checkmark-circle" : "close-circle" }
+              ] : values.motherStatus === "Unemployed" ? [
+                { label: "Indigency (Mother)", value: uploadText.indigencyMother ? "Attached" : "Not Attached", icon: uploadText.indigencyMother ? "checkmark-circle" : "close-circle" }
+              ] : []),
+              ...familyMembers.filter(m => requiresIncomeProof(m.status) || m.status === "Unemployed").map((member, idx) => {
+                const isUnemp = member.status === "Unemployed";
+                const key = isUnemp ? `indigencyMember_${idx}` : `incomeMember_${idx}`;
+                const label = isUnemp ? `Indigency Certificate (${member.name || `Member ${idx + 1}`})` : `Income Certificate (${member.name || `Member ${idx + 1}`})`;
+                return {
+                  label,
+                  value: uploadText[key] ? "Attached" : "Not Attached",
+                  icon: uploadText[key] ? "checkmark-circle" : "close-circle"
+                };
+              }),
+              { label: "Recommendation Letter Form (Optional)", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
+              { label: "Personal Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
+              { label: "Letter of Intent (Applicant)", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" },
+              { label: "Letter of Intent (Parent)", value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle" },
             ])}
           </>
-        );
-      })()}
+        )}
 
-      <View style={styles.premiumReviewCard}>
-        <View style={styles.declarationHeader}>
-          <Ionicons name="document-text-outline" size={20} color="#3d4fa0" />
-          <Text style={styles.declarationTitle}>Declaration & Agreement</Text>
-        </View>
+        {selectedProgram === "vocational" && (
+          <>
+            {renderReviewSection("Program Assignment", "construct-outline", [
+              { label: "Scholarship Type", value: values.scholarshipType, icon: "ribbon-outline" },
+              { label: "Incoming Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
+            ])}
+            {renderReviewSection("Educational History", "school-outline", [
+              { label: "HS School Name", value: values.secondarySchool, icon: "business-outline" },
+              { label: "Strand / Track", value: values.strand, icon: "bookmarks-outline" },
+              { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
+            ])}
+            {renderReviewSection("Vocational Details", "flask-outline", [
+              { label: "Technical School", value: values.vocationalSchoolName, icon: "business-outline" },
+              { label: "Technical Program", value: values.vocationalProgram, icon: "list-outline" },
+              { label: "Course Duration", value: values.courseDuration, icon: "time-outline" },
+              { label: "Completion Date", value: values.completionDate, icon: "calendar-outline" },
+            ])}
+            {familyItems.length > 0 && renderReviewSection("Family / Guardian Information", "people-outline", familyItems)}
 
-        <View style={styles.declarationItems}>
-          <View style={styles.declRow}>
-            <TouchableOpacity 
-              activeOpacity={0.7} 
-              onPress={() => setDeclarations((d) => {
-                const nextVal = !d.agree1;
-                return { agree1: nextVal, agree2: nextVal, agree3: nextVal };
-              })}
-              style={[styles.modernCheckbox, declarations.agree1 && styles.modernCheckboxChecked, { marginTop: 2 }]}
-            >
-              {declarations.agree1 && <Ionicons name="checkmark" size={14} color="#fff" />}
-            </TouchableOpacity>
-            
-            <Text style={[styles.declarationText, { marginLeft: 10 }]}>
-              <Text onPress={() => setDeclarations((d) => {
-                const nextVal = !d.agree1;
-                return { agree1: nextVal, agree2: nextVal, agree3: nextVal };
-              })}>
-                By ticking, you are confirming that you have read, understood and agree to KKFI{" "}
-              </Text>
-              <Text 
-                style={{ color: "#3d4fa0", fontWeight: "700", textDecorationLine: "underline" }}
-                onPress={() => setTermsModalVisible(true)}
+            {renderReviewSection("Supporting Documents", "document-text-outline", [
+              ...(values.incomingFreshman === "Yes" ? [
+                { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" }
+              ] : []),
+              { label: "Certificate of Registration", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
+              { label: "Certificate of Indigency", value: uploadText.indigency ? "Attached" : "Not Attached", icon: uploadText.indigency ? "checkmark-circle" : "close-circle" },
+              { label: "Birth Certificate", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
+              ...(requiresIncomeProof(values.fatherStatus) ? [
+                { label: "Income Certificate (Father)", value: uploadText.incomeFather ? "Attached" : "Not Attached", icon: uploadText.incomeFather ? "checkmark-circle" : "close-circle" }
+              ] : values.fatherStatus === "Unemployed" ? [
+                { label: "Indigency (Father)", value: uploadText.indigencyFather ? "Attached" : "Not Attached", icon: uploadText.indigencyFather ? "checkmark-circle" : "close-circle" }
+              ] : []),
+              ...(requiresIncomeProof(values.motherStatus) ? [
+                { label: "Income Certificate (Mother)", value: uploadText.incomeMother ? "Attached" : "Not Attached", icon: uploadText.incomeMother ? "checkmark-circle" : "close-circle" }
+              ] : values.motherStatus === "Unemployed" ? [
+                { label: "Indigency (Mother)", value: uploadText.indigencyMother ? "Attached" : "Not Attached", icon: uploadText.indigencyMother ? "checkmark-circle" : "close-circle" }
+              ] : []),
+              ...familyMembers.filter(m => requiresIncomeProof(m.status) || m.status === "Unemployed").map((member, idx) => {
+                const isUnemp = member.status === "Unemployed";
+                const key = isUnemp ? `indigencyMember_${idx}` : `incomeMember_${idx}`;
+                const label = isUnemp ? `Indigency Certificate (${member.name || `Member ${idx + 1}`})` : `Income Certificate (${member.name || `Member ${idx + 1}`})`;
+                return {
+                  label,
+                  value: uploadText[key] ? "Attached" : "Not Attached",
+                  icon: uploadText[key] ? "checkmark-circle" : "close-circle"
+                };
+              }),
+              { label: "Recommendation Letter Form (Optional)", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
+              { label: "Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
+              { label: "Letter of Intent (Applicant)", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" },
+              { label: "Letter of Intent (Parent)", value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle" },
+            ])}
+          </>
+        )}
+
+        {selectedProgram === "employeeChild" && (() => {
+          const isMasters = !isChildDesignation && String(values.educPath).toLowerCase().includes("masters");
+          return (
+            <>
+              {renderReviewSection("Academic Information", "school-outline", [
+                ...(!isChildDesignation ? [{ label: "Education Path", value: values.educPath, icon: "map-outline" }] : []),
+                { label: "Incoming Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
+                ...(isMasters ? [
+                  { label: "Previous School Name", value: values.prevSchoolName, icon: "business-outline" },
+                  { label: "Previous Program", value: values.prevProgram, icon: "school-outline" },
+                  { label: "Previous Year Graduated", value: values.prevYearGraduated, icon: "calendar-outline" },
+                  { label: "Previous Tertiary GWA", value: values.prevGwa, icon: "analytics-outline" },
+                  ...(values.incomingFreshman === "Yes" ? [
+                    { label: "Grade Scale", value: values.prevGradeScale, icon: "ribbon-outline" },
+                  ] : []),
+                ] : [
+                  { label: "Secondary School", value: values.secondarySchool, icon: "business-outline" },
+                  { label: "Strand", value: values.strand, icon: "bookmarks-outline" },
+                  { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
+                  ...(values.incomingFreshman === "Yes" ? [{ label: "Secondary GWA", value: values.secondaryGwa, icon: "analytics-outline" }] : []),
+                ]),
+                { label: isMasters ? "University / College Name" : "Tertiary School", value: values.tertiarySchool, icon: "location-outline" },
+                { label: "Program", value: values.program, icon: "school-outline" },
+                { label: "Term Type", value: values.termType, icon: "receipt-outline" },
+                { label: "Grade Scale", value: values.gradeScale, icon: "ribbon-outline" },
+                { label: "Year Level", value: values.yearLevel, icon: "ribbon-outline" },
+                { label: "Term", value: values.term, icon: "time-outline" },
+                { label: "Term Start Date", value: values.termStartDate, icon: "calendar-outline" },
+                { label: "Term End Date", value: values.termEndDate, icon: "calendar-outline" },
+                { label: "Expected Graduation Year", value: values.expectedGradYear, icon: "calendar-outline" },
+                ...(values.incomingFreshman === "No" ? [{ label: isMasters ? "Current Masters GWA" : "Current GWA", value: values.tertiaryGwa, icon: "analytics-outline" }] : []),
+              ])}
+              {renderReviewSection("Staff Information", "id-card-outline", [
+                { label: "Staff ID", value: values.staffId, icon: "barcode-outline" },
+                { label: "First Name", value: values.firstName, icon: "person-outline" },
+                { label: "Middle Name", value: values.middleName || "--", icon: "person-outline" },
+                { label: "Last Name", value: values.lastName, icon: "person-outline" },
+                { label: "Suffix", value: values.suffix || "--", icon: "person-outline" },
+                { label: "Position", value: values.position, icon: "briefcase-outline" },
+              ])}
+              {renderReviewSection("Supporting Documents", "document-text-outline", [
+                ...(values.incomingFreshman === "Yes" ? [
+                  {
+                    label: isMasters ? "Previous Tertiary Grade Report" : "Grade Report",
+                    value: uploadText.gradeReport ? "Attached" : "Not Attached",
+                    icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle"
+                  }
+                ] : []),
+                { label: "Certificate of Registration", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
+                { label: "Birth Certificate (Applicant)", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
+                ...(values.incomingFreshman === "No" ? [
+                  {
+                    label: "Current Term Report Card",
+                    value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached",
+                    icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle"
+                  }
+                ] : []),
+                {
+                  label: isChildDesignation ? "Letter of Intent (Applicant)" : "Letter of Intent",
+                  value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached",
+                  icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle"
+                },
+                ...(isChildDesignation ? [
+                  {
+                    label: "Letter of Intent (Parent)",
+                    value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached",
+                    icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle"
+                  }
+                ] : []),
+              ])}
+            </>
+          );
+        })()}
+
+        <View style={styles.premiumReviewCard}>
+          <View style={styles.declarationHeader}>
+            <Ionicons name="document-text-outline" size={20} color="#3d4fa0" />
+            <Text style={styles.declarationTitle}>Declaration & Agreement</Text>
+          </View>
+
+          <View style={styles.declarationItems}>
+            <View style={styles.declRow}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setDeclarations((d) => {
+                  const nextVal = !d.agree1;
+                  return { agree1: nextVal, agree2: nextVal, agree3: nextVal };
+                })}
+                style={[styles.modernCheckbox, declarations.agree1 && styles.modernCheckboxChecked, { marginTop: 2 }]}
               >
-                declaration and agreement terms.
+                {declarations.agree1 && <Ionicons name="checkmark" size={14} color="#fff" />}
+              </TouchableOpacity>
+
+              <Text style={[styles.declarationText, { marginLeft: 10 }]}>
+                <Text onPress={() => setDeclarations((d) => {
+                  const nextVal = !d.agree1;
+                  return { agree1: nextVal, agree2: nextVal, agree3: nextVal };
+                })}>
+                  By ticking, you are confirming that you have read, understood and agree to KKFI{" "}
+                </Text>
+                <Text
+                  style={{ color: "#3d4fa0", fontWeight: "700", textDecorationLine: "underline" }}
+                  onPress={() => setTermsModalVisible(true)}
+                >
+                  declaration and agreement terms.
+                </Text>
               </Text>
-            </Text>
+            </View>
           </View>
         </View>
-      </View>
 
-      <Modal
-        visible={termsModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setTermsModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContentCard}>
-            {/* Modal Header */}
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitleText}>Declaration and Agreement Terms</Text>
-              <TouchableOpacity onPress={() => setTermsModalVisible(false)} style={styles.modalCloseBtn}>
-                <Ionicons name="close" size={20} color="#6b7280" />
+        <Modal
+          visible={termsModalVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setTermsModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContentCard}>
+              {/* Modal Header */}
+              <View style={styles.modalHeaderRow}>
+                <Text style={styles.modalTitleText}>Declaration and Agreement Terms</Text>
+                <TouchableOpacity onPress={() => setTermsModalVisible(false)} style={styles.modalCloseBtn}>
+                  <Ionicons name="close" size={20} color="#6b7280" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Separator line */}
+              <View style={styles.modalDivider} />
+
+              {/* Modal Body */}
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalBodyContainer}>
+                {/* Term 1 */}
+                <View style={styles.modalTermRow}>
+                  <View style={styles.modalNumberCircle}>
+                    <Text style={styles.modalNumberText}>1</Text>
+                  </View>
+                  <Text style={styles.modalTermText}>
+                    I certify that all information provided in this application is true and correct to the best of my knowledge. I understand that any false or misleading information may result in the denial or revocation of any scholarship granted.
+                  </Text>
+                </View>
+
+                {/* Term 2 */}
+                <View style={styles.modalTermRow}>
+                  <View style={styles.modalNumberCircle}>
+                    <Text style={styles.modalNumberText}>2</Text>
+                  </View>
+                  <Text style={styles.modalTermText}>
+                    I agree to provide any additional documentation requested by KKFI and to comply with all scholarship terms and conditions.
+                  </Text>
+                </View>
+
+                {/* Term 3 */}
+                <View style={styles.modalTermRow}>
+                  <View style={styles.modalNumberCircle}>
+                    <Text style={styles.modalNumberText}>3</Text>
+                  </View>
+                  <Text style={styles.modalTermText}>
+                    I have read and agree to the Data Privacy Notice. I consent to the collection, processing, and storage of my personal data for scholarship evaluation and related program administration.
+                  </Text>
+                </View>
+              </ScrollView>
+
+              {/* Modal Footer Button */}
+              <TouchableOpacity
+                style={styles.modalAgreeBtn}
+                activeOpacity={0.85}
+                onPress={() => {
+                  setDeclarations({ agree1: true, agree2: true, agree3: true });
+                  setTermsModalVisible(false);
+                }}
+              >
+                <Text style={styles.modalAgreeBtnText}>I Agree</Text>
               </TouchableOpacity>
             </View>
-
-            {/* Separator line */}
-            <View style={styles.modalDivider} />
-
-            {/* Modal Body */}
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalBodyContainer}>
-              {/* Term 1 */}
-              <View style={styles.modalTermRow}>
-                <View style={styles.modalNumberCircle}>
-                  <Text style={styles.modalNumberText}>1</Text>
-                </View>
-                <Text style={styles.modalTermText}>
-                  I certify that all information provided in this application is true and correct to the best of my knowledge. I understand that any false or misleading information may result in the denial or revocation of any scholarship granted.
-                </Text>
-              </View>
-
-              {/* Term 2 */}
-              <View style={styles.modalTermRow}>
-                <View style={styles.modalNumberCircle}>
-                  <Text style={styles.modalNumberText}>2</Text>
-                </View>
-                <Text style={styles.modalTermText}>
-                  I agree to provide any additional documentation requested by KKFI and to comply with all scholarship terms and conditions.
-                </Text>
-              </View>
-
-              {/* Term 3 */}
-              <View style={styles.modalTermRow}>
-                <View style={styles.modalNumberCircle}>
-                  <Text style={styles.modalNumberText}>3</Text>
-                </View>
-                <Text style={styles.modalTermText}>
-                  I have read and agree to the Data Privacy Notice. I consent to the collection, processing, and storage of my personal data for scholarship evaluation and related program administration.
-                </Text>
-              </View>
-            </ScrollView>
-
-            {/* Modal Footer Button */}
-            <TouchableOpacity 
-              style={styles.modalAgreeBtn}
-              activeOpacity={0.85}
-              onPress={() => {
-                setDeclarations({ agree1: true, agree2: true, agree3: true });
-                setTermsModalVisible(false);
-              }}
-            >
-              <Text style={styles.modalAgreeBtnText}>I Agree</Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
-    </View>
-  );
-};
+        </Modal>
+      </View>
+    );
+  };
 
   const renderQualification = () => {
     const aiCheckingEnabled = qualificationOutcome?.ai_checking_enabled ?? true;
@@ -2648,7 +2648,7 @@ const ExamplesModal = ({ visible, onClose }) => {
               <Text style={{ fontSize: 15, fontWeight: "800", color: "#4f5fc5", marginBottom: 10 }}>
                 {"1.0 - 5.00 Grading System"}
               </Text>
-              
+
               <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4 }}>
                 <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
                   <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>1.00 - 1.75</Text>
@@ -2674,7 +2674,7 @@ const ExamplesModal = ({ visible, onClose }) => {
               <Text style={{ fontSize: 15, fontWeight: "800", color: "#4f5fc5", marginBottom: 10 }}>
                 {"4.00 GPA System"}
               </Text>
-              
+
               <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4 }}>
                 <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
                   <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>4.00</Text>
