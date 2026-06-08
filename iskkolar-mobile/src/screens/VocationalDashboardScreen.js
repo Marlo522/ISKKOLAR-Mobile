@@ -172,17 +172,17 @@ export default function VocationalDashboardScreen({ navigation }) {
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
           {[
-            { label: 'PROGRAM', value: vocProgram, icon: 'book' },
-            { label: 'SCHOOL / CENTER', value: vocSchool, icon: 'school' },
-            { label: 'DURATION', value: vocDuration, icon: 'time' },
-            { label: 'END DATE', value: vocEndDateFormatted, icon: 'calendar' }
+            { label: 'PROGRAM', value: vocProgram, icon: 'book', fullWidth: true },
+            { label: 'SCHOOL / CENTER', value: vocSchool, icon: 'school', fullWidth: true },
+            { label: 'DURATION', value: vocDuration, icon: 'time', fullWidth: false },
+            { label: 'END DATE', value: vocEndDateFormatted, icon: 'calendar', fullWidth: false }
           ].map((item, idx) => (
-            <View key={idx} style={styles.statCard}>
+            <View key={idx} style={[styles.statCard, item.fullWidth ? { width: '100%' } : { width: '48%' }]}>
               <View style={styles.statIconHeader}>
                 <Ionicons name={item.icon} size={16} color="#727ab6" />
                 <Text style={styles.statLabel}>{item.label}</Text>
               </View>
-              <Text style={styles.statValue} numberOfLines={2}>{item.value}</Text>
+              <Text style={styles.statValue}>{item.value}</Text>
             </View>
           ))}
         </View>

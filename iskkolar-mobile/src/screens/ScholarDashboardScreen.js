@@ -58,14 +58,29 @@ export default function ScholarDashboardScreen({ navigation }) {
   
   const currentTerm = nextPendingGradeComplianceTerm || gradeComplianceLatest?.term || dashboardSummary?.academicStatus?.term || user?.term || '--';
 
+  const latestApp = actualApplications[0];
+  const appsSubText = latestApp
+    ? `Latest: ${latestApp.title || latestApp.category || 'Application'} (${latestApp.status ? latestApp.status.split(/[_ -]+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ") : 'Under Review'})`
+    : 'View and track your submitted applications';
+
   const stats = useMemo(
     () => [
-      { title: currentYearLevel, sub: currentProgram, icon: 'book-outline', iconBg: '#f4effe', iconColor: '#7e52d8' },
-      { title: currentGwa, sub: 'Current GWA', icon: 'checkmark-circle-outline', iconBg: '#e7f6ea', iconColor: '#39a751' },
-      { title: applicationsSubmitted, sub: 'Applications Submitted', icon: 'calendar-outline', iconBg: '#eefafc', iconColor: '#41b5bd' },
-      { title: currentTerm, sub: 'Current Term', icon: 'book-outline', iconBg: '#f4effe', iconColor: '#7e52d8' },
+      { title: currentYearLevel, sub: currentProgram, icon: 'book-outline', iconBg: '#f4effe', iconColor: '#7e52d8', fullWidth: true },
+      { title: currentGwa, sub: 'Current GWA', icon: 'checkmark-circle-outline', iconBg: '#e7f6ea', iconColor: '#39a751', fullWidth: false },
+      { title: currentTerm, sub: 'Current Term', icon: 'book-outline', iconBg: '#f4effe', iconColor: '#7e52d8', fullWidth: false },
+      {
+        title: applicationsSubmitted,
+        sub: 'Applications Submitted',
+        desc: appsSubText,
+        icon: 'calendar-outline',
+        iconBg: '#eefafc',
+        iconColor: '#41b5bd',
+        fullWidth: true,
+        interactive: true,
+        onPress: () => navigation.navigate('Application')
+      },
     ],
-    [applicationsSubmitted, currentGwa, currentProgram, currentTerm, currentYearLevel]
+    [applicationsSubmitted, currentGwa, currentProgram, currentTerm, currentYearLevel, appsSubText, navigation]
   );
 
   const quickLinks = [
@@ -203,17 +218,31 @@ export default function ScholarDashboardScreen({ navigation }) {
 
         {/* Stats Row */}
         <View style={styles.statsContainer}>
-          {stats.map((stat, idx) => (
-            <View key={idx} style={styles.statCard}>
-              <View style={[styles.statIconBox, { backgroundColor: stat.iconBg }]}>
-                <Ionicons name={stat.icon} size={20} color={stat.iconColor} />
-              </View>
-              <View style={styles.statTextCol}>
-                <Text style={styles.statTitle}>{stat.title}</Text>
-                <Text style={styles.statSub}>{stat.sub}</Text>
-              </View>
-            </View>
-          ))}
+          {stats.map((stat, idx) => {
+            const CardComponent = stat.interactive ? TouchableOpacity : View;
+            return (
+              <CardComponent
+                key={idx}
+                style={[styles.statCard, stat.fullWidth ? { width: '100%' } : { width: '48%' }]}
+                onPress={stat.interactive ? stat.onPress : undefined}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.statIconBox, { backgroundColor: stat.iconBg }]}>
+                  <Ionicons name={stat.icon} size={20} color={stat.iconColor} />
+                </View>
+                <View style={styles.statTextCol}>
+                  <Text style={styles.statTitle}>{stat.title}</Text>
+                  <Text style={styles.statSub}>{stat.sub}</Text>
+                  {stat.desc ? (
+                    <Text style={styles.statDesc} numberOfLines={1}>{stat.desc}</Text>
+                  ) : null}
+                </View>
+                {stat.interactive && (
+                  <Ionicons name="chevron-forward" size={18} color="#b2b9c9" style={{ marginLeft: 8 }} />
+                )}
+              </CardComponent>
+            );
+          })}
         </View>
 
         {/* Quick Links */}
@@ -416,6 +445,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#848baf',
     fontWeight: '500',
+  },
+  statDesc: {
+    fontSize: 12,
+    color: '#727ab6',
+    fontWeight: '600',
+    marginTop: 4,
   },
 
   // Sections

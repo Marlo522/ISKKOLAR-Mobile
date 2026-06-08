@@ -640,56 +640,41 @@ export default function ScholarshipRenewalScreen({ navigation }) {
 
                 <View style={styles.readOnlyField}>
                   <Text style={styles.label}>Academic Year</Text>
-                  <SafeTextInput
-                    style={styles.inputReadOnly}
-                    value={form.academicYear}
-                    editable={false}
-                    placeholder="Auto-filled from current academic year"
-                  />
+                  <View style={styles.inputReadOnlyContainer}>
+                    <Text style={styles.textReadOnly}>{form.academicYear || '--'}</Text>
+                  </View>
                   {errors.academicYear && <Text style={styles.errorText}>{errors.academicYear}</Text>}
                 </View>
 
                 <View style={styles.readOnlyField}>
                   <Text style={styles.label}>Term</Text>
-                  <SafeTextInput
-                    style={styles.inputReadOnly}
-                    value={form.term}
-                    editable={false}
-                    placeholder="Auto-filled from latest term"
-                  />
+                  <View style={styles.inputReadOnlyContainer}>
+                    <Text style={styles.textReadOnly}>{form.term || '--'}</Text>
+                  </View>
                   {errors.term && <Text style={styles.errorText}>{errors.term}</Text>}
                 </View>
 
                 <View style={styles.readOnlyField}>
                   <Text style={styles.label}>School</Text>
-                  <SafeTextInput
-                    style={styles.inputReadOnly}
-                    value={form.school}
-                    editable={false}
-                    placeholder="Auto-filled from application"
-                  />
+                  <View style={styles.inputReadOnlyContainer}>
+                    <Text style={styles.textReadOnly}>{form.school || '--'}</Text>
+                  </View>
                   {errors.school && <Text style={styles.errorText}>{errors.school}</Text>}
                 </View>
 
                 <View style={styles.readOnlyField}>
                   <Text style={styles.label}>Program / Course</Text>
-                  <SafeTextInput
-                    style={styles.inputReadOnly}
-                    value={form.program}
-                    editable={false}
-                    placeholder="Auto-filled from application"
-                  />
+                  <View style={styles.inputReadOnlyContainer}>
+                    <Text style={styles.textReadOnly}>{form.program || '--'}</Text>
+                  </View>
                   {errors.program && <Text style={styles.errorText}>{errors.program}</Text>}
                 </View>
 
                 <View style={styles.readOnlyField}>
                   <Text style={styles.label}>Current GWA</Text>
-                  <SafeTextInput
-                    style={styles.inputReadOnly}
-                    value={form.gwa}
-                    editable={false}
-                    placeholder="Auto-filled from grade compliance"
-                  />
+                  <View style={styles.inputReadOnlyContainer}>
+                    <Text style={styles.textReadOnly}>{form.gwa || '--'}</Text>
+                  </View>
                   {errors.gwa && <Text style={styles.errorText}>{errors.gwa}</Text>}
                 </View>
 
@@ -958,15 +943,20 @@ const styles = StyleSheet.create({
   sectionHeader: { fontSize: 16, fontWeight: '800', color: '#3d4076' },
   label: { fontSize: 13, fontWeight: '600', color: '#3d4076', marginBottom: 6 },
   readOnlyField: { marginBottom: 16 },
-  inputReadOnly: {
+  inputReadOnlyContainer: {
     backgroundColor: '#f1f5f9',
     borderWidth: 1,
     borderColor: '#e2e8f0',
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  textReadOnly: {
     color: '#64748b',
     fontSize: 14,
+    lineHeight: 20,
   },
   field: { marginBottom: 16 },
   input: {
@@ -1073,8 +1063,8 @@ const styles = StyleSheet.create({
   reviewCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   reviewCardTitle: { fontSize: 14, fontWeight: '700', color: '#3d4076', marginBottom: 12 },
   reviewRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  reviewLabel: { fontSize: 12, fontWeight: '600', color: '#64748b' },
-  reviewValue: { fontSize: 12, fontWeight: '700', color: '#1e293b' },
+  reviewLabel: { fontSize: 12, fontWeight: '600', color: '#64748b', marginRight: 8 },
+  reviewValue: { fontSize: 12, fontWeight: '700', color: '#1e293b', flex: 1, textAlign: 'right', marginLeft: 16 },
   remarksReviewSection: { marginTop: 8, borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 8 },
   remarksText: { fontSize: 12, color: '#475569', marginTop: 4, lineHeight: 16 },
   checkboxContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },

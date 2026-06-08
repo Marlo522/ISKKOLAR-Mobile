@@ -51,12 +51,16 @@ const linking = {
   }
 };
 
-function NavigationWrapper() {
+function PushNotificationManager() {
   // Call hook inside the provider context
   usePushNotifications();
+  return null;
+}
 
+function NavigationWrapper() {
   return (
     <NavigationContainer ref={navigationRef} theme={DefaultTheme} linking={linking}>
+      <PushNotificationManager />
       <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />

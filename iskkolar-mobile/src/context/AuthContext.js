@@ -12,8 +12,11 @@ export const AuthProvider = ({ children }) => {
 
   const normalizeUser = (value) => {
     if (!value || typeof value !== "object") return null;
+    const role = value.role || value.userType || "";
     return {
       ...value,
+      role,
+      userType: role,
       firstName: value.firstName || value.first_name || "",
       middleName: value.middleName || value.middle_name || "",
       lastName: value.lastName || value.last_name || "",

@@ -221,62 +221,76 @@ export default function ApplicationScreen({ navigation }) {
 
     const isApproved = currentStep === 1 && !isRejected;
 
+    // Define the states for step 1 and step 2
+    let step1State = "active";
+    let step2State = "pending";
+
+    if (isRejected) {
+      step1State = "rejected";
+      step2State = "rejected";
+    } else if (isApproved) {
+      step1State = "completed";
+      step2State = "completed";
+    }
+
     return (
       <View style={styles.stepperContainer}>
-        {steps.map((label, idx) => {
-          let state = "pending";
-          if (isRejected) {
-            state = "rejected";
-          } else if (isApproved) {
-            state = "completed";
-          } else {
-            state = idx === 0 ? "active" : "pending";
-          }
-          
-          const isCompleted = state === "completed";
-          const isActive = state === "active";
-          const isRejectedState = state === "rejected";
-          const isLast = idx === steps.length - 1;
+        {/* Step 1 */}
+        <View style={styles.stepItem}>
+          <View style={[
+            styles.stepCircle,
+            step1State === "active" && styles.stepCircleActive,
+            step1State === "completed" && styles.stepCircleCompleted,
+            step1State === "rejected" && styles.stepCircleRejected
+          ]}>
+            {step1State === "completed" || step1State === "rejected" ? (
+              <Ionicons name="checkmark" size={12} color="#fff" />
+            ) : (
+              <Text style={styles.stepCircleText}>1</Text>
+            )}
+          </View>
+          <Text style={[
+            styles.stepLabel,
+            step1State === "active" && styles.stepLabelActive,
+            step1State === "completed" && styles.stepLabelCompleted,
+            step1State === "rejected" && styles.stepLabelRejected
+          ]}>
+            {steps[0]}
+          </Text>
+        </View>
 
-          return (
-            <View key={label} style={[styles.stepRow, !isLast && { flex: 1 }]}>
-              <View style={styles.stepColumn}>
-                <View style={[
-                  styles.stepCircle, 
-                  isActive && styles.stepCircleActive,
-                  isCompleted && styles.stepCircleCompleted,
-                  isRejectedState && styles.stepCircleRejected
-                ]}>
-                  {isCompleted || (isRejectedState && idx === 0) ? (
-                    <Ionicons name="checkmark" size={16} color="#fff" />
-                  ) : isRejectedState && idx === 1 ? (
-                    <Ionicons name="close" size={16} color="#fff" />
-                  ) : (
-                    <Text style={styles.stepCircleText}>
-                      {idx + 1}
-                    </Text>
-                  )}
-                </View>
-                <Text style={[
-                  styles.stepLabel, 
-                  isActive && styles.stepLabelActive,
-                  isCompleted && styles.stepLabelCompleted,
-                  isRejectedState && styles.stepLabelRejected
-                ]}>
-                  {label}
-                </Text>
-              </View>
+        {/* Connecting Line */}
+        <View style={[
+          styles.stepLine,
+          isApproved && styles.stepLineCompleted,
+          isRejected && styles.stepLineRejected
+        ]} />
 
-              {!isLast && (
-                <View style={[
-                  styles.stepLine, 
-                  isApproved && styles.stepLineCompleted,
-                  isRejected && styles.stepLineRejected
-                ]} />
-              )}
-            </View>
-          );
-        })}
+        {/* Step 2 */}
+        <View style={styles.stepItem}>
+          <View style={[
+            styles.stepCircle,
+            step2State === "active" && styles.stepCircleActive,
+            step2State === "completed" && styles.stepCircleCompleted,
+            step2State === "rejected" && styles.stepCircleRejected
+          ]}>
+            {step2State === "completed" ? (
+              <Ionicons name="checkmark" size={12} color="#fff" />
+            ) : step2State === "rejected" ? (
+              <Ionicons name="close" size={12} color="#fff" />
+            ) : (
+              <Text style={styles.stepCircleText}>2</Text>
+            )}
+          </View>
+          <Text style={[
+            styles.stepLabel,
+            step2State === "active" && styles.stepLabelActive,
+            step2State === "completed" && styles.stepLabelCompleted,
+            step2State === "rejected" && styles.stepLabelRejected
+          ]}>
+            {steps[1]}
+          </Text>
+        </View>
       </View>
     );
   };
@@ -492,7 +506,7 @@ export default function ApplicationScreen({ navigation }) {
                       <Ionicons name={theme.icon} size={20} color={theme.color} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+                      <Text style={styles.cardTitle}>{item.title}</Text>
                       {!!item.submittedDate && (
                         <Text style={styles.cardSubtitle}>Submitted {formatDate(item.submittedDate)}</Text>
                       )}
@@ -709,12 +723,21 @@ const styles = StyleSheet.create({
   },
   startBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
-  stepperContainer: { flexDirection: "row", alignItems: "flex-start", marginTop: 10, marginBottom: 12 },
-  stepRow: { flexDirection: "row", alignItems: "flex-start" },
-  stepColumn: { alignItems: "center", width: 70 },
+  stepperContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  stepItem: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   stepCircle: {
-    width: 28, height: 28,
-    borderRadius: 14,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: "#d1d5db",
     justifyContent: "center",
     alignItems: "center",
@@ -722,25 +745,23 @@ const styles = StyleSheet.create({
   stepCircleActive: { backgroundColor: "#5b5f97" },
   stepCircleCompleted: { backgroundColor: "#16a34a" },
   stepCircleRejected: { backgroundColor: "#ef4444" },
-  stepCircleText: { fontSize: 12, fontWeight: "700", color: "#fff" },
+  stepCircleText: { fontSize: 10, fontWeight: "800", color: "#fff" },
 
   stepLine: {
     flex: 1,
-    height: 3,
+    height: 2,
     backgroundColor: "#e5e7eb",
-    marginTop: 12.5,
-    marginHorizontal: 8,
-    borderRadius: 2,
+    marginHorizontal: 12,
+    borderRadius: 1,
   },
   stepLineCompleted: { backgroundColor: "#16a34a" },
   stepLineRejected: { backgroundColor: "#ef4444" },
 
   stepLabel: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "#9ca3af",
-    textAlign: "center",
-    marginTop: 8,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#848baf",
+    marginLeft: 8,
   },
   stepLabelActive: { color: "#5b5f97" },
   stepLabelCompleted: { color: "#16a34a" },

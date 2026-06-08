@@ -48,7 +48,8 @@ export default function FinancialRecordsScreen({ navigation }) {
   const [completeStage, setCompleteStage] = useState("none");
   
   const academicYearStart = parseInt(String(values.academicYear || "").split("-")[0]);
-  const limitYear = isNaN(academicYearStart) ? new Date().getFullYear() : academicYearStart;
+  const currentYear = new Date().getFullYear();
+  const limitYear = isNaN(academicYearStart) ? currentYear : Math.min(academicYearStart, currentYear);
   const minReceiptDate = new Date(limitYear, 0, 1);
   
   useEffect(() => {
@@ -949,11 +950,7 @@ export default function FinancialRecordsScreen({ navigation }) {
                   error={fieldErrors[`receipt_date_${idx}`]}
                   required
                   minimumDate={minReceiptDate}
-                  maximumDate={(() => {
-                    const d = new Date();
-                    d.setDate(d.getDate() + 1);
-                    return d;
-                  })()}
+                  maximumDate={new Date()}
                 />
 
                 <Text style={styles.label}>Amount (Php) <Text style={{color: 'red'}}>*</Text></Text>
