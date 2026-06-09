@@ -8,6 +8,9 @@ import { isMissingUserProfileError } from './serviceErrorHelpers';
 export const submitScholarshipRenewal = async (formData) => {
   try {
     const response = await api.post('/assistance/scholarship-renewal', formData);
+    if (response.data && response.data.success === false) {
+      throw response.data;
+    }
     return response.data;
   } catch (error) {
     throw error;

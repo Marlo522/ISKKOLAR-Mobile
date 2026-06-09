@@ -5,13 +5,15 @@ import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useIsFocused } from "@react-navigation/native";
 import { AuthContext } from "../context/AuthContext";
 import * as profileService from "../services/profileService";
 import { registerPushToken, deletePushToken } from "../services/pushNotificationService";
 
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { user, logoutUser, loginUser } = useContext(AuthContext);
+  const { user, logoutUser, loginUser, refreshSession } = useContext(AuthContext);
+  const isFocused = useIsFocused();
   const [activeTab, setActiveTab] = useState("Profile");
   const [form, setForm] = useState({
     firstName: user?.firstName ?? "Dominic",
@@ -64,27 +66,38 @@ export default function ProfileScreen({ navigation }) {
       }
     };
     loadPushPreference();
-
-    // Fetch latest profile
-    fetchProfile();
   }, []);
+
+  useEffect(() => {
+    if (isFocused) {
+      fetchProfile();
+    }
+  }, [isFocused]);
 
   const fetchProfile = async () => {
     try {
-      const p = await profileService.getProfile();
-      setForm(prev => ({
-        ...prev,
-        firstName: p.firstName || prev.firstName,
-        middleName: p.middleName || prev.middleName,
-        lastName: p.lastName || prev.lastName,
-        suffix: p.suffix || prev.suffix,
-        email: p.email || prev.email,
-        mobileNumber: p.mobileNumber || p.mobile_number || prev.mobileNumber,
-        profilePhoto: p.profilePictureUrl ? { uri: p.profilePictureUrl } : prev.profilePhoto,
-      }));
-      loginUser({ ...user, ...p }); // Update context if possible
+      const p = await refreshSession();
+      if (p) {
+        setForm(prev => ({
+          ...prev,
+          firstName: p.firstName || prev.firstName,
+          middleName: p.middleName || prev.middleName,
+          lastName: p.lastName || prev.lastName,
+          suffix: p.suffix || prev.suffix,
+          email: p.email || prev.email,
+          mobileNumber: p.mobileNumber || p.mobile_number || prev.mobileNumber,
+          profilePhoto: p.profilePictureUrl ? { uri: p.profilePictureUrl } : prev.profilePhoto,
+        }));
+        
+        // Live role redirect
+        if (p.role === "scholar" && user?.role === "applicant") {
+          navigation.replace("ScholarTabs");
+        } else if (p.role === "applicant" && user?.role === "scholar") {
+          navigation.replace("Main");
+        }
+      }
     } catch (err) {
-      console.error(err);
+      console.error("fetchProfile failed:", err);
     }
   };
 

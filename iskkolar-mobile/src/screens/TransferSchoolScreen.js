@@ -19,7 +19,7 @@ import { getScholarDashboardSummary } from "../services/scholarDashboardService"
 
 const YEAR_LEVELS = ["1st", "2nd", "3rd", "4th", "5th"];
 const TERM_TYPES = ["Semester", "Trimester", "Quarter System"];
-const GRADING_SYSTEMS = ["1.0 - 5.0 Grading System", "4.0 GPA System", "Percentage System", "Letter Grade System"];
+const GRADING_SYSTEMS = ["1.0 - 5.0 Grading System", "4.0 GPA System"];
 const TERMS = ["1st Semester", "2nd Semester", "Summer"];
 
 export default function TransferSchoolScreen({ navigation }) {
@@ -50,6 +50,7 @@ export default function TransferSchoolScreen({ navigation }) {
   const [selectorTitle, setSelectorTitle] = useState("");
   const [selectorOptions, setSelectorOptions] = useState([]);
   const [selectorKey, setSelectorKey] = useState("");
+  const [examplesModalVisible, setExamplesModalVisible] = useState(false);
 
   const {
     submitting,
@@ -301,7 +302,11 @@ export default function TransferSchoolScreen({ navigation }) {
       setCompleteStage("success");
     } catch (err) {
       if (!err?.isValidationError) {
-        Alert.alert("Submission Failed", err?.message || "An error occurred.");
+        Alert.alert(
+          "Submission Failed",
+          err?.message || "An error occurred.",
+          [{ text: "OK", style: "default" }]
+        );
       }
     }
   };
@@ -333,7 +338,7 @@ export default function TransferSchoolScreen({ navigation }) {
       : [];
 
     return (
-      <View style={[styles.row, fieldErrors[key] && styles.rowWithError, { zIndex: isPredictive && activePredictiveKey === key && suggestions.length > 0 ? 99 : 1 }]}>
+      <View style={[styles.row, fieldErrors[key] && styles.rowWithError, { position: "relative", zIndex: isPredictive && activePredictiveKey === key && suggestions.length > 0 ? 99 : 1 }]}>
         <Text style={styles.label}>{label} <Text style={{ color: "red" }}>*</Text></Text>
         <SafeTextInput
           style={[styles.input, fieldErrors[key] && { borderColor: "red" }]}
@@ -423,7 +428,7 @@ export default function TransferSchoolScreen({ navigation }) {
             <Ionicons name="checkmark-circle" size={120} color="#29d0a5" />
           </Animated.View>
           <Text style={styles.completeText}>Request Submitted!</Text>
-          <Text style={styles.completeSub}>Your transfer school request has been sent for approval. We will notify you once it's processed.</Text>
+          <Text style={styles.completeSub}>{"Your transfer school request has been sent for approval. We will notify you once it's processed."}</Text>
           <TouchableOpacity style={styles.submitBtnOk} onPress={() => navigation.navigate("ScholarDashboardMain")}>
             <Text style={styles.submitBtnOkText}>Return Home</Text>
           </TouchableOpacity>
@@ -462,7 +467,7 @@ export default function TransferSchoolScreen({ navigation }) {
         </View>
       </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
         <Animated.View style={{ opacity: stepAnim, transform: [{ translateY: stepAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
 
           {/* Global error banner */}
@@ -524,6 +529,11 @@ export default function TransferSchoolScreen({ navigation }) {
                 {renderReadOnly("Effective Academic Year", currentAcademicYear)}
               </View>
             </View>
+            <TouchableOpacity onPress={() => setExamplesModalVisible(true)} style={{ marginTop: -4, marginBottom: 16 }}>
+              <Text style={{ color: "#4f5fc5", fontSize: 13, fontWeight: "600", textDecorationLine: "underline" }}>
+                View grading scale examples
+              </Text>
+            </TouchableOpacity>
 
             <View style={styles.rowTwoCol}>
               <View style={styles.colHalf}>
@@ -546,14 +556,25 @@ export default function TransferSchoolScreen({ navigation }) {
             <Text style={[styles.label, { marginBottom: 4 }]}>Certificate of Registration (New School) <Text style={{ color: "red" }}>*</Text></Text>
             <View style={fieldErrors.corNewSchool && styles.rowWithError}>
               <TouchableOpacity
-                style={[styles.uploadBoxDashed, fieldErrors.corNewSchool && { borderColor: "#dc2626", backgroundColor: "#fff3f3" }]}
+                style={[styles.unifiedUploadContainer, fieldErrors.corNewSchool && styles.errorInput]}
                 onPress={pickCorFile}
               >
-                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: fieldErrors.corNewSchool ? "#ffe5e5" : "#f0f2fb", justifyContent: "center", alignItems: "center", marginBottom: 10 }}>
-                  <Ionicons name="push-outline" size={18} color={fieldErrors.corNewSchool ? "#dc2626" : "#4f5fc5"} />
-                </View>
-                <Text style={styles.uploadBoxTitle}>{corFile ? corFile.name : "Tap to upload"}</Text>
-                <Text style={[styles.uploadBoxSubtext, fieldErrors.corNewSchool && { color: "#dc2626" }]}>Latest COR from the receiving school</Text>
+                <Ionicons
+                  name="share-outline"
+                  size={18}
+                  color={corFile ? "#4f5fc5" : "#848baf"}
+                  style={{ marginRight: 8 }}
+                />
+                <Text
+                  style={[
+                    styles.unifiedUploadText,
+                    corFile ? styles.unifiedUploadTextActive : styles.unifiedUploadTextInactive
+                  ]}
+                  numberOfLines={1}
+                  ellipsizeMode="middle"
+                >
+                  {corFile ? corFile.name : "Latest COR from the receiving school"}
+                </Text>
               </TouchableOpacity>
               {fieldErrors.corNewSchool && <Text style={[styles.errorText, { marginTop: 4 }]}>{fieldErrors.corNewSchool}</Text>}
             </View>
@@ -607,6 +628,8 @@ export default function TransferSchoolScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      <ExamplesModal visible={examplesModalVisible} onClose={() => setExamplesModalVisible(false)} />
     </View>
   );
 }
@@ -644,9 +667,29 @@ const styles = StyleSheet.create({
   pickerInput: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: "#eaecf0", borderRadius: 10, paddingHorizontal: 16, backgroundColor: "#ffffff", height: 50 },
   pickerText: { color: "#1c2131", fontSize: 13 },
 
-  uploadBoxDashed: { borderWidth: 1, borderColor: "#bcc4da", borderStyle: "dashed", borderRadius: 12, paddingVertical: 20, paddingHorizontal: 16, backgroundColor: "#f8f9fc", alignItems: "center" },
-  uploadBoxTitle: { color: "#4f5ec4", fontSize: 14, fontWeight: "700", marginBottom: 4 },
-  uploadBoxSubtext: { color: "#8a94b5", fontSize: 11, fontWeight: "500" },
+  unifiedUploadContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    height: 48,
+    paddingHorizontal: 12,
+  },
+  unifiedUploadText: {
+    fontSize: 14,
+    flex: 1,
+  },
+  unifiedUploadTextActive: {
+    color: "#4f5fc5",
+    fontWeight: "700",
+  },
+  unifiedUploadTextInactive: {
+    color: "#848baf",
+    fontWeight: "500",
+  },
+  errorInput: { borderColor: "#dc2626", borderWidth: 1.5 },
 
   footer: { flexDirection: "row", paddingHorizontal: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: "#f0f2fb", backgroundColor: "#fff" },
   btnSecondary: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, borderWidth: 1, borderColor: "#dce1f0", marginRight: 12, flex: 1, alignItems: "center" },
@@ -704,3 +747,132 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
+
+const ExamplesModal = ({ visible, onClose }) => {
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={{
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.6)",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 24,
+      }}>
+        <View style={{
+          width: "100%",
+          backgroundColor: "#fff",
+          borderRadius: 20,
+          padding: 20,
+          maxHeight: "85%",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.2,
+          shadowRadius: 12,
+          elevation: 5,
+        }}>
+          {/* Header */}
+          <View style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingBottom: 12,
+            borderBottomWidth: 1,
+            borderBottomColor: "#e5e7eb",
+            marginBottom: 16,
+          }}>
+            <Text style={{ fontSize: 18, fontWeight: "900", color: "#1f2937" }}>
+              Grading Scale Examples
+            </Text>
+            <TouchableOpacity onPress={onClose} style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: "#f3f4f6",
+              justifyContent: "center",
+              alignItems: "center",
+            }}>
+              <Ionicons name="close" size={20} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Body */}
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* 1.0 - 5.00 System */}
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: "#4f5fc5", marginBottom: 10 }}>
+                {"1.0 - 5.00 Grading System"}
+              </Text>
+              
+              <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>1.00 - 1.75</Text>
+                  <Text style={{ fontWeight: "600", color: "#16a34a", fontSize: 13 }}>Excellent</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>2.00 - 2.50</Text>
+                  <Text style={{ fontWeight: "600", color: "#2563eb", fontSize: 13 }}>Very Good</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>2.75 - 3.00</Text>
+                  <Text style={{ fontWeight: "600", color: "#4f46e5", fontSize: 13 }}>Satisfactory</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10 }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>5.00</Text>
+                  <Text style={{ fontWeight: "700", color: "#dc2626", fontSize: 13 }}>Failed</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* 4.00 GPA System */}
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: "#4f5fc5", marginBottom: 10 }}>
+                {"4.00 GPA System"}
+              </Text>
+              
+              <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>4.00</Text>
+                  <Text style={{ fontWeight: "700", color: "#16a34a", fontSize: 13 }}>A</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>3.00</Text>
+                  <Text style={{ fontWeight: "600", color: "#2563eb", fontSize: 13 }}>B</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>2.00</Text>
+                  <Text style={{ fontWeight: "600", color: "#475569", fontSize: 13 }}>C</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>1.00</Text>
+                  <Text style={{ fontWeight: "600", color: "#b45309", fontSize: 13 }}>D</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10 }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>0.00</Text>
+                  <Text style={{ fontWeight: "700", color: "#dc2626", fontSize: 13 }}>F</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Footer note */}
+            <Text style={{
+              fontSize: 12,
+              color: "#64748b",
+              textAlign: "center",
+              fontStyle: "italic",
+              lineHeight: 18,
+              marginTop: 4,
+              marginBottom: 10,
+            }}>
+              {"Examples may vary by school. Follow your official transcript format."}
+            </Text>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+};

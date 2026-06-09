@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useRef, useContext, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useEffect, useState, useRef, useContext, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, ActivityIndicator, RefreshControl, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import { getScholarActivities } from '../services/activityService';
+import { getAttachmentDownloadUrl } from '../services/announcementService';
 import { isVocationalScholar } from '../utils/scholarUtils';
 
 const isScholarUser = (user) => {
@@ -45,12 +46,6 @@ const isActivityVisibleToScholar = (activity, user) => {
 };
 
 // Match the web's styling for different statuses
-const statusClasses = {
-  Present: { bg: '#e6f7ef', text: '#0d7c47' },
-  Upcoming: { bg: '#fff8e6', text: '#b5850a' },
-  Missed: { bg: '#ffeaea', text: '#dc2626' },
-};
-
 export default function ActivitiesScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
@@ -61,29 +56,27 @@ export default function ActivitiesScreen({ navigation }) {
 
   // Data states
   const [scholarActivities, setScholarActivities] = useState([]);
+  const [selectedActivity, setSelectedActivity] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch activities from the API
-  const fetchActivities = async () => {
+  const fetchActivities = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await getScholarActivities();
       setScholarActivities(data);
     } catch (err) {
-      setError(typeof err === 'string' ? err : 'Failed to load activities');
+      setError(typeof err === 'string' ? err : (err?.message || 'Failed to load activities'));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    // Initial fetch
     fetchActivities();
     
-    // Header animations
     slideAnim.setValue(20);
     fadeAnim.setValue(0);
     Animated.parallel([
@@ -98,7 +91,7 @@ export default function ActivitiesScreen({ navigation }) {
         useNativeDriver: true,
       })
     ]).start();
-  }, []);
+  }, [fetchActivities, fadeAnim, slideAnim]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -107,30 +100,171 @@ export default function ActivitiesScreen({ navigation }) {
       setScholarActivities(data);
       setError(null);
     } catch (err) {
-      setError(typeof err === 'string' ? err : 'Failed to load activities');
+      setError(typeof err === 'string' ? err : (err?.message || 'Failed to load activities'));
     } finally {
       setRefreshing(false);
     }
   }, []);
 
-  const visibleActivities = scholarActivities.filter((activity) => isActivityVisibleToScholar(activity, user));
-
-  // Process data similarly to the web implementation
-  const groupedByYear = visibleActivities.reduce((acc, activity) => {
-    if (!acc[activity.year]) {
-      acc[activity.year] = [];
+  const openAttachment = useCallback(async (url) => {
+    if (!url) return;
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        console.warn('Unsupported attachment URL:', url);
+      }
+    } catch (err) {
+      console.warn('Failed to open attachment URL:', err);
     }
-    acc[activity.year].push(activity);
-    return acc;
-  }, {});
+  }, []);
 
-  const years = Object.keys(groupedByYear).sort((a, b) => Number(b) - Number(a));
+  const visibleActivities = useMemo(
+    () => scholarActivities.filter((activity) => isActivityVisibleToScholar(activity, user)),
+    [scholarActivities, user]
+  );
+
+  const groupedByYear = useMemo(() => {
+    return visibleActivities.reduce((acc, activity) => {
+      const year = String(activity.year || new Date(activity.dateLabel || activity.createdAt).getFullYear() || 'Unknown');
+      if (!acc[year]) {
+        acc[year] = [];
+      }
+      acc[year].push(activity);
+      return acc;
+    }, {});
+  }, [visibleActivities]);
+
+  const years = useMemo(
+    () => Object.keys(groupedByYear).sort((a, b) => Number(b) - Number(a)),
+    [groupedByYear]
+  );
 
   const totalActivities = visibleActivities.length;
-  const presentCount = visibleActivities.filter((a) => a.status === "Present").length;
-  const upcomingCount = visibleActivities.filter((a) => a.status === "Upcoming").length;
+  const presentCount = visibleActivities.filter((a) => a.status === 'Present').length;
+  const upcomingCount = visibleActivities.filter((a) => a.status === 'Upcoming').length;
+
+  const statusStyles = {
+    Present: { badgeBg: '#e6f7ef', badgeText: '#0d7c47' },
+    Upcoming: { badgeBg: '#fff8e6', badgeText: '#b5850a' },
+    Missed: { badgeBg: '#ffeaea', badgeText: '#dc2626' },
+  };
 
   const isVocational = isVocationalScholar(user);
+
+  if (selectedActivity) {
+    const statusStyle = statusStyles[selectedActivity.status] || { badgeBg: '#f3f4f6', badgeText: '#4b5563' };
+    const accentColor = statusStyle.badgeText;
+
+    return (
+      <View style={styles.container}>
+        <View style={[styles.landingHeaderTop, { paddingTop: insets.top + 16 }]}> 
+          <View style={styles.profileRow}>
+            <View style={styles.userIconWrapper}>
+              <Ionicons name="person-outline" size={24} color="#6472d9" />
+            </View>
+            <View style={styles.headerTextCol}>
+              <Text style={styles.userName}>
+                {user?.firstName ? `${user.firstName} ${user.lastName}` : 'Juan dela Cruz'}
+              </Text>
+              <Text style={styles.userRole}>Active Scholar</Text>
+            </View>
+            {!isVocational && (
+              <TouchableOpacity
+                style={styles.bellBtnLanding}
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('Notifications')}
+              >
+                <Ionicons name="notifications-outline" size={22} color="#6472d9" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.detailContent}>
+          <TouchableOpacity style={styles.detailBackButton} onPress={() => setSelectedActivity(null)}>
+            <Ionicons name="chevron-back" size={20} color="#1a1a2e" />
+            <Text style={styles.detailBackText}>Back to activities</Text>
+          </TouchableOpacity>
+
+          <View style={styles.detailCard}>
+            <View style={[styles.detailAccentBar, { backgroundColor: accentColor }]} />
+            <View style={styles.detailCardBody}>
+              <View style={styles.detailHeaderRow}>
+                <View>
+                  <View style={[styles.detailStatusBadge, { backgroundColor: statusStyle.badgeBg }]}> 
+                    <Text style={[styles.detailStatusText, { color: statusStyle.badgeText }]}>
+                      {selectedActivity.status}
+                    </Text>
+                  </View>
+                  {selectedActivity.attendance_required && (
+                    <View style={styles.detailMandatoryBadge}>
+                      <Ionicons name="alert-circle-outline" size={14} color="#b91c1c" />
+                      <Text style={styles.detailMandatoryText}>Mandatory</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              <Text style={styles.detailTitle}>{selectedActivity.title}</Text>
+
+              <View style={styles.detailMetaGrid}>
+                <View style={styles.detailMetaItem}>
+                  <Text style={styles.detailMetaLabel}>Date</Text>
+                  <Text style={[styles.detailMetaValue, { color: '#1a1a2e' }]}>{selectedActivity.dateLabel}</Text>
+                </View>
+                <View style={styles.detailMetaItem}>
+                  <Text style={styles.detailMetaLabel}>Time</Text>
+                  <Text style={[styles.detailMetaValue, { color: '#1a1a2e' }]}>{selectedActivity.timeLabel}</Text>
+                </View>
+                <View style={styles.detailMetaItem}>
+                  <Text style={styles.detailMetaLabel}>Location</Text>
+                  <Text style={[styles.detailMetaValue, { color: '#1a1a2e' }]} numberOfLines={2}>
+                    {selectedActivity.locationLabel || 'Not specified'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.detailSection}>
+                <Text style={styles.detailSectionTitle}>Activity Description</Text>
+                <Text style={styles.detailParagraph}>
+                  {selectedActivity.description || 'No description provided.'}
+                </Text>
+              </View>
+
+              {selectedActivity.attachments && selectedActivity.attachments.length > 0 && (
+                <View style={styles.detailSection}>
+                  <Text style={styles.detailSectionTitle}>Attachments</Text>
+                  {selectedActivity.attachments.map((file, index) => {
+                    const downloadUrl = getAttachmentDownloadUrl(file.url, file.name);
+                    return (
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.attachmentRow}
+                        activeOpacity={0.8}
+                        onPress={() => openAttachment(downloadUrl)}
+                      >
+                        <View style={styles.attachmentIconBox}>
+                          <Ionicons name="document-text-outline" size={18} color="#4f5ec4" />
+                        </View>
+                        <View style={styles.attachmentMeta}>
+                          <Text style={styles.attachmentName}>{file.name || 'Document'}</Text>
+                          {file.size ? (
+                            <Text style={styles.attachmentMetaText}>{(file.size / 1024).toFixed(1)} KB</Text>
+                          ) : null}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -217,14 +351,19 @@ export default function ActivitiesScreen({ navigation }) {
                 <Text style={styles.yearTitle}>{year}</Text>
 
                 {groupedByYear[year].map((activity) => {
-                  const statusStyle = statusClasses[activity.status] || { bg: '#f3f4f6', text: '#4b5563' };
+                  const statusStyle = statusStyles[activity.status] || { badgeBg: '#f3f4f6', badgeText: '#4b5563' };
                   
                   return (
-                    <View key={activity.id} style={styles.activityCard}>
+                    <TouchableOpacity
+                      key={activity.id}
+                      style={styles.activityCard}
+                      activeOpacity={0.88}
+                      onPress={() => setSelectedActivity(activity)}
+                    >
                       <View style={styles.cardHeaderRow}>
                         <Text style={styles.cardTitle}>{activity.title}</Text>
-                        <View style={[styles.badge, { backgroundColor: statusStyle.bg }]}>
-                          <Text style={[styles.badgeText, { color: statusStyle.text }]}>
+                        <View style={[styles.badge, { backgroundColor: statusStyle.badgeBg }] }>
+                          <Text style={[styles.badgeText, { color: statusStyle.badgeText }]}>
                             {activity.status}
                           </Text>
                         </View>
@@ -254,7 +393,7 @@ export default function ActivitiesScreen({ navigation }) {
                           </Text>
                         </View>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })}
               </View>
@@ -526,6 +665,142 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#1a1a2e',
+  },
+  detailContent: {
+    padding: 24,
+    paddingBottom: 80,
+  },
+  detailBackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 20,
+  },
+  detailBackText: {
+    color: '#1a1a2e',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  detailCard: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  detailAccentBar: {
+    height: 4,
+    width: '100%',
+  },
+  detailCardBody: {
+    padding: 24,
+  },
+  detailHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  detailStatusBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+  },
+  detailStatusText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  detailMandatoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  detailMandatoryText: {
+    color: '#b91c1c',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  detailTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#1a1a2e',
+    marginBottom: 18,
+  },
+  detailMetaGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
+  },
+  detailMetaItem: {
+    flex: 1,
+    minWidth: 120,
+  },
+  detailMetaLabel: {
+    color: '#6b7280',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  detailMetaValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#374151',
+  },
+  detailSection: {
+    marginBottom: 20,
+  },
+  detailSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6b7280',
+    marginBottom: 12,
+  },
+  detailParagraph: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: '#334155',
+    backgroundColor: '#f8fafc',
+    padding: 16,
+    borderRadius: 18,
+  },
+  attachmentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    marginBottom: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 18,
+  },
+  attachmentIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: '#eef2ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  attachmentMeta: {
+    flex: 1,
+  },
+  attachmentName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  attachmentMetaText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#6b7280',
   }
 });
 

@@ -2,10 +2,12 @@ import React, { useEffect, useRef, useContext, useState, useMemo, useCallback } 
 import { View, Text, StyleSheet, TouchableOpacity, Animated, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useIsFocused } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { NotificationContext } from '../context/NotificationContext';
 import { getScholarDashboardSummary, getScholarApplicationHistory } from '../services/scholarDashboardService';
 import { getGradeComplianceTerms } from '../services/gradeComplianceService';
+import { getApplicationSettings } from '../services/settingsService';
 
 const getNextAcademicYear = (value) => {
   const match = /^(\d{4})-(\d{4})$/.exec((value || '').trim());
@@ -20,56 +22,73 @@ const getNextAcademicYear = (value) => {
 };
 
 export default function ScholarDashboardScreen({ navigation }) {
-  const { user } = useContext(AuthContext);
+  const { user, refreshSession } = useContext(AuthContext);
   const { unreadCount, fetchAnnouncements } = useContext(NotificationContext);
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const [dashboardSummary, setDashboardSummary] = useState(null);
   const [applicationHistory, setApplicationHistory] = useState([]);
   const [gradeComplianceSummary, setGradeComplianceSummary] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [renewalsOpen, setRenewalsOpen] = useState(true);
 
-  const currentYearLevel = dashboardSummary?.academicStatus?.yearLevel || user?.yearLevel || 'Not set';
+  const currentYearLevel = dashboardSummary?.academicStatus?.yearLevel || user?.yearLevel + 'Year' || 'Not set';
   const currentProgram = dashboardSummary?.academicStatus?.program || user?.program || user?.scholarshipType || '--';
   const currentGwaValue = dashboardSummary?.academicStatus?.latestGwa;
   const currentGwa = Number.isFinite(Number(currentGwaValue)) ? Number(currentGwaValue).toFixed(2) : '--';
-  
+
   const sourceSummary = dashboardSummary?.sourceSummary;
   const historyItems = applicationHistory || [];
-  
+
   // Exclude empty placeholders from count if they exist
   const actualApplications = historyItems.filter(item => item.id && !item.id.includes('_empty') && item.status !== 'not_started');
-  
-  // Total applications submitted (Renewal, Tertiary, Vocational, KKFI, Exam Assistance, etc.)
+
+  // Total applications submitted (Renewal, Tertiary, Vocational, KKFI, Exam Assistance, Financial Assistance, etc.)
   const submittedApplicationsCount = (sourceSummary ? (
     (sourceSummary.renewalsCount || 0) +
     (sourceSummary.tertiaryApplicationsCount || 0) +
     (sourceSummary.vocationalApplicationsCount || 0) +
     (sourceSummary.kkfiChildApplicationsCount || 0) +
     (sourceSummary.kkfiStaffApplicationsCount || 0)
-  ) : 0) + actualApplications.filter(a => ['exam_assistance', 'transfer_school'].includes(a.category)).length;
+  ) : 0) + actualApplications.filter(a => ['exam_assistance', 'receipt_submission'].includes(a.category)).length;
 
   const applicationsSubmitted = String(submittedApplicationsCount);
-  
+
   const gradeComplianceLatest = gradeComplianceSummary?.latestSubmission || null;
   const gradeComplianceTerms = gradeComplianceSummary?.terms || [];
   const nextPendingGradeComplianceTerm = gradeComplianceTerms.find(
     (item) => String(item?.status || '').toLowerCase() === 'pending'
   )?.term;
-  
+
   const currentTerm = nextPendingGradeComplianceTerm || gradeComplianceLatest?.term || dashboardSummary?.academicStatus?.term || user?.term || '--';
+
+  const latestApp = actualApplications[0];
+  const appsSubText = latestApp
+    ? `Latest: ${latestApp.title || latestApp.category || 'Application'} (${latestApp.status ? latestApp.status.split(/[_ -]+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ") : 'Under Review'})`
+    : 'View and track your submitted applications';
 
   const stats = useMemo(
     () => [
-      { title: currentYearLevel, sub: currentProgram, icon: 'book-outline', iconBg: '#f4effe', iconColor: '#7e52d8' },
-      { title: currentGwa, sub: 'Current GWA', icon: 'checkmark-circle-outline', iconBg: '#e7f6ea', iconColor: '#39a751' },
-      { title: applicationsSubmitted, sub: 'Applications Submitted', icon: 'calendar-outline', iconBg: '#eefafc', iconColor: '#41b5bd' },
-      { title: currentTerm, sub: 'Current Term', icon: 'book-outline', iconBg: '#f4effe', iconColor: '#7e52d8' },
+      { title: currentYearLevel, sub: currentProgram, icon: 'book-outline', iconBg: '#f4effe', iconColor: '#7e52d8', fullWidth: true },
+      { title: currentGwa, sub: 'Current GWA', icon: 'checkmark-circle-outline', iconBg: '#e7f6ea', iconColor: '#39a751', fullWidth: false },
+      { title: currentTerm, sub: 'Current Term', icon: 'book-outline', iconBg: '#f4effe', iconColor: '#7e52d8', fullWidth: false },
+      {
+        title: applicationsSubmitted,
+        sub: 'Applications Submitted',
+        desc: appsSubText,
+        icon: 'calendar-outline',
+        iconBg: '#eefafc',
+        iconColor: '#41b5bd',
+        fullWidth: true,
+        interactive: true,
+        onPress: () => navigation.navigate('Application')
+      },
     ],
-    [applicationsSubmitted, currentGwa, currentProgram, currentTerm, currentYearLevel]
+    [applicationsSubmitted, currentGwa, currentProgram, currentTerm, currentYearLevel, appsSubText, navigation]
   );
 
   const quickLinks = [
-    { title: "COR & Grade Compliance", route: "GradeCompliance", icon: "clipboard-outline", iconBg: "#e7f6ea", iconColor: "#39a751" },
+    { title: "Certificate of Registration & Grade Compliance", route: "GradeCompliance", icon: "clipboard-outline", iconBg: "#e7f6ea", iconColor: "#39a751" },
     { title: "Financial Records", route: "FinancialRecords", icon: "receipt-outline", iconBg: "#fcefe9", iconColor: "#e96e5e" },
     { title: "My Profile", route: "Profile", icon: "person-outline", iconBg: "#f4effe", iconColor: "#7e52d8" },
     { title: "Activities", route: "Activities", icon: "calendar-outline", iconBg: "#eefafc", iconColor: "#41b5bd" }
@@ -78,18 +97,36 @@ export default function ScholarDashboardScreen({ navigation }) {
   const baseAcademicYear = dashboardSummary?.currentAcademicYear || user?.academicYear || '';
   const nextAcademicYear = getNextAcademicYear(baseAcademicYear);
 
+  const resolvedIsGraduate =
+    user?.is_graduate ||
+    user?.isGraduate ||
+    dashboardSummary?.academicStatus?.isGraduate ||
+    dashboardSummary?.academicStatus?.is_graduate ||
+    false;
 
   const services = [
     {
       title: 'Scholarship Renewal',
-      sub: nextAcademicYear ? `Renew for AY ${nextAcademicYear}` : 'Renew for next academic year',
+      sub: renewalsOpen
+        ? (nextAcademicYear ? `Renew for AY ${nextAcademicYear}` : 'Renew for next academic year')
+        : 'Renewals are currently closed by the administrator.',
       route: 'ScholarshipRenewal',
       icon: 'sync',
       iconBg: '#f4effe',
       iconColor: '#7e52d8',
+      isLocked: !renewalsOpen,
+      lockMessage: 'Closed',
     },
-    { title: 'Transfer School', sub: 'Update your school or program', route: 'TransferSchool', icon: 'swap-horizontal', iconBg: '#fff0f0', iconColor: '#e96e5e' },
-    { title: 'Board Exam/Certification Assistance', sub: 'Up to P12,000 support', route: 'ExamAssistance', icon: 'checkmark-circle-outline', iconBg: '#eefafc', iconColor: '#41b5bd' }
+    {
+      title: 'Exam Financial Assistance',
+      sub: 'Apply for board exam financial assistance.',
+      route: 'ExamAssistance',
+      icon: 'shield-checkmark-outline',
+      iconBg: '#e8f4fd',
+      iconColor: '#2196f3',
+      isLocked: !resolvedIsGraduate,
+      lockMessage: 'Locked (Graduates Only)',
+    }
   ];
 
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -114,15 +151,17 @@ export default function ScholarDashboardScreen({ navigation }) {
 
   const loadDashboardMeta = useCallback(async () => {
     try {
-      const [summary, history, gradeCompliance] = await Promise.all([
+      const [summary, history, gradeCompliance, settings] = await Promise.all([
         getScholarDashboardSummary(),
         getScholarApplicationHistory(),
         getGradeComplianceTerms(),
+        getApplicationSettings(),
       ]);
 
       setDashboardSummary(summary?.data || summary || null);
       setApplicationHistory(history?.data?.applicationItems || history?.applicationItems || []);
       setGradeComplianceSummary(gradeCompliance?.data || gradeCompliance || null);
+      setRenewalsOpen(settings?.renewals_open ?? true);
     } catch (error) {
       if (__DEV__) {
         console.warn('Failed to load scholar dashboard data', error?.message || error);
@@ -131,14 +170,36 @@ export default function ScholarDashboardScreen({ navigation }) {
   }, []);
 
   useEffect(() => {
-    void loadDashboardMeta();
-  }, [loadDashboardMeta]);
+    if (!isFocused) return;
+
+    const checkRoleAndLoad = async () => {
+      const updatedUser = await refreshSession().catch(err => {
+        console.warn("ScholarDashboard: Failed to refresh session on focus:", err);
+        return null;
+      });
+
+      if (updatedUser && updatedUser.role !== "scholar") {
+        navigation.replace("Main");
+        return;
+      }
+
+      void loadDashboardMeta();
+    };
+
+    checkRoleAndLoad();
+  }, [isFocused, loadDashboardMeta, refreshSession, navigation]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    const updatedUser = await refreshSession().catch(() => null);
+    if (updatedUser && updatedUser.role !== "scholar") {
+      navigation.replace("Main");
+      setRefreshing(false);
+      return;
+    }
     await Promise.all([loadDashboardMeta(), fetchAnnouncements()]);
     setRefreshing(false);
-  }, [loadDashboardMeta, fetchAnnouncements]);
+  }, [loadDashboardMeta, fetchAnnouncements, refreshSession, navigation]);
 
   const fullName = [
     user?.firstName || user?.first_name,
@@ -169,10 +230,10 @@ export default function ScholarDashboardScreen({ navigation }) {
           <View style={styles.heroIconWatermark}>
             <Ionicons name="school" size={100} color="rgba(255,255,255,0.15)" />
           </View>
-          
+
           {/* Bell Notification Button */}
-          <TouchableOpacity 
-            style={styles.bellButton} 
+          <TouchableOpacity
+            style={styles.bellButton}
             activeOpacity={0.8}
             onPress={() => navigation.navigate('Notifications')}
           >
@@ -189,17 +250,31 @@ export default function ScholarDashboardScreen({ navigation }) {
 
         {/* Stats Row */}
         <View style={styles.statsContainer}>
-          {stats.map((stat, idx) => (
-            <View key={idx} style={styles.statCard}>
-              <View style={[styles.statIconBox, { backgroundColor: stat.iconBg }]}>
-                <Ionicons name={stat.icon} size={20} color={stat.iconColor} />
-              </View>
-              <View style={styles.statTextCol}>
-                <Text style={styles.statTitle}>{stat.title}</Text>
-                <Text style={styles.statSub}>{stat.sub}</Text>
-              </View>
-            </View>
-          ))}
+          {stats.map((stat, idx) => {
+            const CardComponent = stat.interactive ? TouchableOpacity : View;
+            return (
+              <CardComponent
+                key={idx}
+                style={[styles.statCard, stat.fullWidth ? { width: '100%' } : { width: '48%' }]}
+                onPress={stat.interactive ? stat.onPress : undefined}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.statIconBox, { backgroundColor: stat.iconBg }]}>
+                  <Ionicons name={stat.icon} size={20} color={stat.iconColor} />
+                </View>
+                <View style={styles.statTextCol}>
+                  <Text style={styles.statTitle}>{stat.title}</Text>
+                  <Text style={styles.statSub}>{stat.sub}</Text>
+                  {stat.desc ? (
+                    <Text style={styles.statDesc} numberOfLines={1}>{stat.desc}</Text>
+                  ) : null}
+                </View>
+                {stat.interactive && (
+                  <Ionicons name="chevron-forward" size={18} color="#b2b9c9" style={{ marginLeft: 8 }} />
+                )}
+              </CardComponent>
+            );
+          })}
         </View>
 
         {/* Quick Links */}
@@ -223,23 +298,37 @@ export default function ScholarDashboardScreen({ navigation }) {
         {/* Scholar Services */}
         <Text style={styles.sectionHeader}>Scholar Services</Text>
         <View style={styles.servicesContainer}>
-          {services.map((svc, idx) => (
-            <TouchableOpacity
-              key={idx}
-              style={styles.serviceCard}
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate(svc.route)}
-            >
-              <View style={[styles.svcIconBox, { backgroundColor: svc.iconBg }]}>
-                <Ionicons name={svc.icon} size={28} color={svc.iconColor} />
-              </View>
-              <View style={styles.svcTextCol}>
-                <Text style={styles.svcTitle}>{svc.title}</Text>
-                <Text style={styles.svcSub}>{svc.sub}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#d4dae8" />
-            </TouchableOpacity>
-          ))}
+          {services.map((svc, idx) => {
+            const isLocked = svc.isLocked;
+            return (
+              <TouchableOpacity
+                key={idx}
+                style={styles.serviceCard}
+                activeOpacity={isLocked ? 1 : 0.8}
+                onPress={() => {
+                  if (isLocked) return;
+                  navigation.navigate(svc.route);
+                }}
+                disabled={isLocked}
+              >
+                <View style={[styles.svcIconBox, { backgroundColor: svc.iconBg }]}>
+                  <Ionicons name={svc.icon} size={28} color={svc.iconColor} />
+                </View>
+                <View style={styles.svcTextCol}>
+                  <View style={styles.titleContainer}>
+                    <Text style={[styles.svcTitle, isLocked && styles.disabledSvcTitle]}>{svc.title}</Text>
+                    {isLocked && svc.lockMessage && (
+                      <View style={styles.lockBadge}>
+                        <Text style={styles.lockBadgeText}>{svc.lockMessage}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[styles.svcSub, isLocked && styles.disabledSvcSub]}>{svc.sub}</Text>
+                </View>
+                {!isLocked && <Ionicons name="chevron-forward" size={24} color="#d4dae8" />}
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
       </Animated.ScrollView>
@@ -389,6 +478,12 @@ const styles = StyleSheet.create({
     color: '#848baf',
     fontWeight: '500',
   },
+  statDesc: {
+    fontSize: 12,
+    color: '#727ab6',
+    fontWeight: '600',
+    marginTop: 4,
+  },
 
   // Sections
   sectionHeader: {
@@ -472,11 +567,37 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     color: '#111',
+    flexShrink: 1,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
     marginBottom: 4,
+  },
+  disabledSvcTitle: {
+    color: '#8e94a6',
+  },
+  lockBadge: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  lockBadgeText: {
+    fontSize: 10,
+    color: '#8e94a6',
+    fontWeight: '600',
   },
   svcSub: {
     fontSize: 12,
     color: '#848baf',
     fontWeight: '500',
+  },
+  disabledSvcSub: {
+    color: '#b2b9c9',
   }
 });

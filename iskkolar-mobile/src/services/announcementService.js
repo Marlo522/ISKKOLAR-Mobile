@@ -9,8 +9,23 @@ export const getScholarAnnouncements = async () => {
     const response = await api.get('/scholar/announcements');
     return response.data?.data || response.data || [];
   } catch (error) {
-    console.error('Error fetching announcements:', error);
+    console.warn('Error fetching announcements:', error);
     throw error.message || 'Failed to load announcements';
   }
+};
+
+/**
+ * Generates the backend download URL for a given attachment.
+ * Falls back to the direct file URL when already absolute.
+ */
+export const getAttachmentDownloadUrl = (fileUrl, fileName) => {
+  if (!fileUrl) return '';
+
+  if (/^https?:\/\//i.test(fileUrl)) {
+    return fileUrl;
+  }
+
+  const apiBase = (api.defaults.baseURL || 'https://iskkolar-backend.onrender.com/api').replace(/\/+$/, '');
+  return `${apiBase}/files/download?url=${encodeURIComponent(fileUrl)}&name=${encodeURIComponent(fileName || 'attachment')}`;
 };
 

@@ -5,8 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // ─── CONFIG ───────────────────────────────────────────────────
 // Change this to your machine's LAN IP when testing on a real device
 // Android emulator: use 10.0.2.2 instead of localhost
-const expoHost = Constants.expoConfig?.hostUri?.split(':')?.[0];
-const BASE_URL = 'https://iskkolar-backend.onrender.com/api';
+const BASE_URL = 'http://192.168.1.3:5000/api';
 
 
 const api = axios.create({
@@ -61,11 +60,16 @@ api.interceptors.response.use(
     }
 
     // Map axios error to the expected format for the rest of the app
+    let errors = error.response?.data?.errors || [];
+    if (errors && !Array.isArray(errors) && typeof errors === 'object') {
+      errors = Object.entries(errors).map(([field, message]) => ({ field, message }));
+    }
+
     const structuredError = {
       status: error.response?.status || 0,
       code: error.response?.data?.code || 'REQUEST_FAILED',
       message: error.response?.data?.message || error.message || 'An unexpected error occurred.',
-      errors: error.response?.data?.errors || [],
+      errors,
       data: error.response?.data?.data || null,
     };
 

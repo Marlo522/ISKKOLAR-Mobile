@@ -2,6 +2,7 @@ import { useState, useCallback, useContext, useEffect } from "react";
 import { getScholarshipFormAccess } from "../services/applicationGuardService";
 import { AuthContext } from "../context/AuthContext";
 import { getMyApplications as fetchMyApplications, validateTertiaryStep, submitTertiaryApplication } from "../services/tertiaryAppService";
+import { validateGwa, INVALID_GWA_ERROR } from "../utils/gradeValidation";
 
 const FIELD_MAP = {
   scholarship_type: "scholarshipType",
@@ -29,12 +30,17 @@ const FIELD_MAP = {
   recommendation_letter: "recommendation",
   letter_of_intent_applicant: "letterOfIntentApplicant",
   letter_of_intent_parent: "letterOfIntentParent",
+  letter_intent_applicant: "letterOfIntentApplicant",
+  letter_intent_parent: "letterOfIntentParent",
   income_cert_father: "incomeFather",
   income_cert_mother: "incomeMother",
   indigency_cert_father: "indigencyFather",
   indigency_cert_mother: "indigencyMother",
   documents: "documents",
   family_members: "familyMembers",
+  father_birthday: "fatherBirthday",
+  mother_birthday: "motherBirthday",
+  guardian_birthday: "guardianBirthday",
   general: "_general",
 };
 
@@ -52,6 +58,7 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
   if (!rolesArray) {
     if (index === 0) {
       if (prop === "full_name") return "fatherName";
+      if (prop === "birthday") return "fatherBirthday";
       if (prop === "employment_status") return "fatherStatus";
       if (prop === "occupation") return "fatherOccupation";
       if (prop === "monthly_income") return "fatherIncome";
@@ -60,6 +67,7 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
     }
     if (index === 1) {
       if (prop === "full_name") return "motherName";
+      if (prop === "birthday") return "motherBirthday";
       if (prop === "employment_status") return "motherStatus";
       if (prop === "occupation") return "motherOccupation";
       if (prop === "monthly_income") return "motherIncome";
@@ -68,6 +76,7 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
     }
     const dynIndex = index - 2;
     if (prop === "full_name") return "dynFamily_" + dynIndex + "_name";
+    if (prop === "birthday") return "dynFamily_" + dynIndex + "_birthday";
     if (prop === "role") return "dynFamily_" + dynIndex + "_relationship";
     if (prop === "employment_status") return "dynFamily_" + dynIndex + "_status";
     if (prop === "occupation") return "dynFamily_" + dynIndex + "_occupation";
@@ -80,6 +89,7 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
   
   if (role === "father") {
     if (prop === "full_name") return "fatherName";
+    if (prop === "birthday") return "fatherBirthday";
     if (prop === "employment_status") return "fatherStatus";
     if (prop === "occupation") return "fatherOccupation";
     if (prop === "monthly_income") return "fatherIncome";
@@ -89,6 +99,7 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
 
   if (role === "mother") {
     if (prop === "full_name") return "motherName";
+    if (prop === "birthday") return "motherBirthday";
     if (prop === "employment_status") return "motherStatus";
     if (prop === "occupation") return "motherOccupation";
     if (prop === "monthly_income") return "motherIncome";
@@ -98,6 +109,7 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
 
   if (role === "guardian") {
     if (prop === "full_name") return "guardianName";
+    if (prop === "birthday") return "guardianBirthday";
     if (prop === "employment_status") return "guardianStatus";
     if (prop === "occupation") return "guardianOccupation";
     if (prop === "monthly_income") return "guardianIncome";
@@ -114,6 +126,7 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
   }
   
   if (prop === "full_name") return "dynFamily_" + dynCount + "_name";
+  if (prop === "birthday") return "dynFamily_" + dynCount + "_birthday";
   if (prop === "role") return "dynFamily_" + dynCount + "_relationship";
   if (prop === "employment_status") return "dynFamily_" + dynCount + "_status";
   if (prop === "occupation") return "dynFamily_" + dynCount + "_occupation";
@@ -136,6 +149,10 @@ const mapApiFieldToUiKey = (field, rolesArray) => {
   if (normalized.startsWith("indigency_cert_member_")) {
     const idx = normalized.replace("indigency_cert_member_", "");
     return "indigencyMember_" + idx;
+  }
+  if (normalized.startsWith("additional_") && normalized.endsWith("_birthday")) {
+    const idx = normalized.split("_")[1];
+    return `dynFamily_${idx}_birthday`;
   }
   return FIELD_MAP[normalized] || normalized;
 };
@@ -191,6 +208,28 @@ const normalizeApiErrorShape = (err) => {
     message: err?.message || "An unexpected error occurred.",
     errors: Array.isArray(err?.errors) ? err.errors : [],
   };
+};
+
+const isFatherEmpty = (vals) => {
+  return (
+    (!vals.fatherName || vals.fatherName.trim() === "") &&
+    (!vals.fatherBirthday || vals.fatherBirthday.trim() === "") &&
+    (!vals.fatherStatus || vals.fatherStatus === "--" || vals.fatherStatus.trim() === "") &&
+    (!vals.fatherContact || vals.fatherContact.trim() === "" || vals.fatherContact === "09") &&
+    (!vals.fatherOccupation || vals.fatherOccupation.trim() === "") &&
+    (!vals.fatherIncome || vals.fatherIncome.trim() === "")
+  );
+};
+
+const isMotherEmpty = (vals) => {
+  return (
+    (!vals.motherName || vals.motherName.trim() === "") &&
+    (!vals.motherBirthday || vals.motherBirthday.trim() === "") &&
+    (!vals.motherStatus || vals.motherStatus === "--" || vals.motherStatus.trim() === "") &&
+    (!vals.motherContact || vals.motherContact.trim() === "" || vals.motherContact === "09") &&
+    (!vals.motherOccupation || vals.motherOccupation.trim() === "") &&
+    (!vals.motherIncome || vals.motherIncome.trim() === "")
+  );
 };
 
 export const useTertiaryApplication = () => {
@@ -306,26 +345,42 @@ export const useTertiaryApplication = () => {
         preFlightErrors.expectedGradYear = "Year must be exactly 4 digits.";
       }
 
-      if (!values.secondaryGwa || values.secondaryGwa.trim() === "") {
-        preFlightErrors.secondaryGwa = "Secondary GWA is required.";
-      }
-
-      if (values.incomingFreshman === "No") {
+      if (values.incomingFreshman === "Yes") {
+        if (!values.secondaryGwa || values.secondaryGwa.trim() === "") {
+          preFlightErrors.secondaryGwa = "Secondary GWA is required.";
+        } else if (!validateGwa(values.secondaryGwa)) {
+          preFlightErrors.secondaryGwa = INVALID_GWA_ERROR;
+        }
+        if (!uploads.gradeReport) {
+          preFlightErrors.gradeReport = "Grade report is required.";
+        }
+      } else {
         if (!values.tertiaryGwa || values.tertiaryGwa.trim() === "") {
           preFlightErrors.tertiaryGwa = "Tertiary GWA is required.";
+        } else if (!validateGwa(values.tertiaryGwa)) {
+          preFlightErrors.tertiaryGwa = INVALID_GWA_ERROR;
         }
+        if (!uploads.currentTermGradeReport) {
+          preFlightErrors.currentTermGradeReport = "Current term report card is required.";
+        }
+      }
+
+      if (!uploads.cor) {
+        preFlightErrors.cor = "Certificate of Registration is required.";
       }
 
       if (!values.termStartDate || values.termStartDate.trim() === "") {
         preFlightErrors.termStartDate = "Term Start Date is required.";
       } else {
         const start = parseDateString(values.termStartDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        if (start && start < today) {
-          preFlightErrors.termStartDate = "Term Start Date cannot be in the past.";
+        const currentYear = new Date().getFullYear();
+        const yearStart = new Date(currentYear, 0, 1);
+        const yearEnd = new Date(currentYear, 11, 31);
+        if (start && (start < yearStart || start > yearEnd)) {
+          preFlightErrors.termStartDate = "Start date must be within the current year.";
         }
       }
+
       if (!values.termEndDate || values.termEndDate.trim() === "") {
         preFlightErrors.termEndDate = "Term End Date is required.";
       }
@@ -334,9 +389,11 @@ export const useTertiaryApplication = () => {
         const start = parseDateString(values.termStartDate);
         const end = parseDateString(values.termEndDate);
         if (start && end) {
-          const limit = new Date(start);
-          limit.setMonth(limit.getMonth() + 1);
-          if (end < limit) {
+          const minEnd = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+          const daysInTargetMonth = new Date(minEnd.getFullYear(), minEnd.getMonth() + 1, 0).getDate();
+          minEnd.setDate(Math.min(start.getDate(), daysInTargetMonth));
+
+          if (end < minEnd) {
             preFlightErrors.termEndDate = "Term End Date must be at least 1 month after Term Start Date.";
           }
         }
@@ -381,11 +438,8 @@ export const useTertiaryApplication = () => {
         }
       };
 
-      if (values.fatherStatus === "Deceased" && values.motherStatus === "Deceased") {
-        if (!values.hasGuardian) {
-          preFlightErrors.hasGuardian = "Guardian is required because both parents are deceased.";
-        }
-      }
+      const isFatherStarted = !isFatherEmpty(values);
+      const isMotherStarted = !isMotherEmpty(values);
 
       if (values.hasGuardian) {
         if (values.guardianStatus !== "Deceased") {
@@ -394,24 +448,46 @@ export const useTertiaryApplication = () => {
         }
 
         // Only allow either Father or Mother information, not both
-        const hasFather = values.fatherName && values.fatherName.trim() !== "";
-        const hasMother = values.motherName && values.motherName.trim() !== "";
-        if (hasFather && hasMother) {
+        if (isFatherStarted && isMotherStarted) {
           preFlightErrors.fatherName = "If you have a guardian, you can only provide either Father's or Mother's information, not both.";
           preFlightErrors.motherName = "If you have a guardian, you can only provide either Father's or Mother's information, not both.";
         }
+      } else {
+        // If they do not have a guardian, both parent sections cannot be empty
+        if (!isFatherStarted && !isMotherStarted) {
+          preFlightErrors.fatherName = "You must fill out either Father's or Mother's information.";
+          preFlightErrors.motherName = "You must fill out either Father's or Mother's information.";
+        }
+
+        // Also check if both parents are deceased and no guardian is set
+        const fatherIsDeceased = isFatherStarted && values.fatherStatus === "Deceased";
+        const motherIsDeceased = isMotherStarted && values.motherStatus === "Deceased";
+
+        if (fatherIsDeceased && motherIsDeceased) {
+          preFlightErrors.hasGuardian = "Guardian is required because both parents are deceased.";
+        } else if (fatherIsDeceased && !isMotherStarted) {
+          preFlightErrors.hasGuardian = "Guardian is required because Father is deceased and Mother's information is not provided.";
+        } else if (motherIsDeceased && !isFatherStarted) {
+          preFlightErrors.hasGuardian = "Guardian is required because Mother is deceased and Father's information is not provided.";
+        }
       }
 
-      const hasFather = values.fatherName && values.fatherName.trim() !== "";
-      if (hasFather && values.fatherStatus !== "Deceased") {
+      if (isFatherStarted && values.fatherStatus !== "Deceased") {
         checkMember(values.fatherName, values.fatherStatus, values.fatherOccupation, values.fatherIncome, "father", "Father's");
         if (!values.fatherContact || values.fatherContact.length < 11) preFlightErrors.fatherContact = "Contact Number must be 11 digits.";
+      } else if (isFatherStarted && values.fatherStatus === "Deceased") {
+        if (!values.fatherName || values.fatherName.trim() === "") {
+          preFlightErrors.fatherName = "Father's Name is required.";
+        }
       }
-      
-      const hasMother = values.motherName && values.motherName.trim() !== "";
-      if (hasMother && values.motherStatus !== "Deceased") {
+
+      if (isMotherStarted && values.motherStatus !== "Deceased") {
         checkMember(values.motherName, values.motherStatus, values.motherOccupation, values.motherIncome, "mother", "Mother's");
         if (!values.motherContact || values.motherContact.length < 11) preFlightErrors.motherContact = "Contact Number must be 11 digits.";
+      } else if (isMotherStarted && values.motherStatus === "Deceased") {
+        if (!values.motherName || values.motherName.trim() === "") {
+          preFlightErrors.motherName = "Mother's Name is required.";
+        }
       }
 
       // Automatically validate all dynamically injected family members
@@ -449,21 +525,18 @@ export const useTertiaryApplication = () => {
         if (requiresIndigency(values.guardianStatus) && !uploads.indigencyGuardian) preFlightErrors.indigencyGuardian = "Certificate of indigency required.";
       }
 
-      const hasFatherDoc = values.fatherName && values.fatherName.trim() !== "";
+      const hasFatherDoc = !isFatherEmpty(values);
       if (hasFatherDoc) {
         if (requiresProof(values.fatherStatus) && !uploads.incomeFather) preFlightErrors.incomeFather = "Income certificate required.";
         if (requiresIndigency(values.fatherStatus) && !uploads.indigencyFather) preFlightErrors.indigencyFather = "Certificate of indigency required.";
       }
 
-      const hasMotherDoc = values.motherName && values.motherName.trim() !== "";
+      const hasMotherDoc = !isMotherEmpty(values);
       if (hasMotherDoc) {
         if (requiresProof(values.motherStatus) && !uploads.incomeMother) preFlightErrors.incomeMother = "Income certificate required.";
         if (requiresIndigency(values.motherStatus) && !uploads.indigencyMother) preFlightErrors.indigencyMother = "Certificate of indigency required.";
       }
 
-      if (values.incomingFreshman === "No" && !uploads.currentTermGradeReport) {
-        preFlightErrors.currentTermGradeReport = "Current term report card is required.";
-      }
 
       (dynamicFamilyMembers || []).forEach((mem, idx) => {
         if (requiresProof(mem.status) && !uploads[`incomeMember_${idx}`]) {
@@ -487,8 +560,8 @@ export const useTertiaryApplication = () => {
       return true;
     } catch (err) {
       const rolesArray = [];
-      if (!values.hasGuardian || values.fatherName) rolesArray.push("father");
-      if (!values.hasGuardian || values.motherName) rolesArray.push("mother");
+      if (!isFatherEmpty(values)) rolesArray.push("father");
+      if (!isMotherEmpty(values)) rolesArray.push("mother");
       if (values.hasGuardian) rolesArray.push("guardian");
       (dynamicFamilyMembers || []).forEach(m => rolesArray.push(m.relationship));
 
@@ -511,8 +584,8 @@ export const useTertiaryApplication = () => {
       return response;
     } catch (err) {
       const rolesArray = [];
-      if (!values.hasGuardian || values.fatherName) rolesArray.push("father");
-      if (!values.hasGuardian || values.motherName) rolesArray.push("mother");
+      if (!isFatherEmpty(values)) rolesArray.push("father");
+      if (!isMotherEmpty(values)) rolesArray.push("mother");
       if (values.hasGuardian) rolesArray.push("guardian");
       (dynamicFamilyMembers || []).forEach(m => rolesArray.push(m.relationship));
 

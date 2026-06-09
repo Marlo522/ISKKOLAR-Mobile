@@ -33,7 +33,7 @@ const programs = [
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { user } = useContext(AuthContext);
+  const { user, refreshSession } = useContext(AuthContext);
   const [refreshing, setRefreshing] = useState(false);
 
   const isFocused = useIsFocused();
@@ -46,15 +46,31 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     if (!isFocused) return;
 
-    const checkSettings = async () => {
+    const checkSettingsAndRole = async () => {
+      // Sync user session/role in background
+      const updatedUser = await refreshSession().catch(err => {
+        console.warn("HomeScreen: Failed to refresh session on focus:", err);
+        return null;
+      });
+
+      if (updatedUser && updatedUser.role === "scholar") {
+        navigation.replace("ScholarTabs");
+        return;
+      }
+
       setLoading(true);
-      const settings = await getApplicationSettings();
-      const open = settings.is_open && !settings.is_limit_reached;
-      setIsOpen(open);
-      setLoading(false);
+      try {
+        const settings = await getApplicationSettings();
+        const open = settings.is_open && !settings.is_limit_reached;
+        setIsOpen(open);
+      } catch (err) {
+        console.warn("HomeScreen: Failed to get application settings:", err);
+      } finally {
+        setLoading(false);
+      }
     };
-    checkSettings();
-  }, [isFocused]);
+    checkSettingsAndRole();
+  }, [isFocused, refreshSession, navigation]);
 
   const runEntryAnimations = useCallback(() => {
     if (loading || !isOpen) return;
@@ -93,12 +109,18 @@ export default function HomeScreen({ navigation }) {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    const updatedUser = await refreshSession().catch(() => null);
+    if (updatedUser && updatedUser.role === "scholar") {
+      navigation.replace("ScholarTabs");
+      setRefreshing(false);
+      return;
+    }
     // Re-trigger entry animations for visual feedback
     runEntryAnimations();
     // Brief delay so the spinner is visible
     await new Promise(resolve => setTimeout(resolve, 600));
     setRefreshing(false);
-  }, [runEntryAnimations]);
+  }, [runEntryAnimations, refreshSession, navigation]);
 
   if (loading) {
     return (

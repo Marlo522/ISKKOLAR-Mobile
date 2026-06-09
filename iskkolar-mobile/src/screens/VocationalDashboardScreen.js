@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useContext, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useContext, useState, useMemo, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useIsFocused } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { NotificationContext } from '../context/NotificationContext';
 import { getScholarDashboardSummary } from '../services/scholarDashboardService';
@@ -23,8 +24,9 @@ const formatDisplayDate = (value) => {
 };
 
 export default function VocationalDashboardScreen({ navigation }) {
-  const { user } = useContext(AuthContext);
+  const { user, refreshSession } = useContext(AuthContext);
   const { unreadCount, fetchAnnouncements } = useContext(NotificationContext);
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   
   const [dashboardSummary, setDashboardSummary] = useState(null);
@@ -35,7 +37,7 @@ export default function VocationalDashboardScreen({ navigation }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // Fetch summary and completion status
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const summary = await getScholarDashboardSummary();
       setDashboardSummary(summary?.data || summary || null);
@@ -45,21 +47,44 @@ export default function VocationalDashboardScreen({ navigation }) {
     } catch (error) {
       console.warn('Failed to load vocational dashboard data', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadData();
+    if (!isFocused) return;
+
+    const checkRoleAndLoad = async () => {
+      const updatedUser = await refreshSession().catch(err => {
+        console.warn("VocationalDashboard: Failed to refresh session on focus:", err);
+        return null;
+      });
+
+      if (updatedUser && updatedUser.role !== "scholar") {
+        navigation.replace("Main");
+        return;
+      }
+
+      void loadData();
+    };
+
+    checkRoleAndLoad();
+
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true })
     ]).start();
-  }, []);
+  }, [isFocused, loadData, refreshSession, navigation]);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    const updatedUser = await refreshSession().catch(() => null);
+    if (updatedUser && updatedUser.role !== "scholar") {
+      navigation.replace("Main");
+      setRefreshing(false);
+      return;
+    }
     await Promise.all([loadData(), fetchAnnouncements()]);
     setRefreshing(false);
-  };
+  }, [loadData, fetchAnnouncements, refreshSession, navigation]);
 
   // ─────────── RESOLVE VALUES & TIMELINE (PARITY WITH WEB) ───────────
   const vocData = dashboardSummary?.vocational;
@@ -172,17 +197,17 @@ export default function VocationalDashboardScreen({ navigation }) {
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
           {[
-            { label: 'PROGRAM', value: vocProgram, icon: 'book' },
-            { label: 'SCHOOL / CENTER', value: vocSchool, icon: 'school' },
-            { label: 'DURATION', value: vocDuration, icon: 'time' },
-            { label: 'END DATE', value: vocEndDateFormatted, icon: 'calendar' }
+            { label: 'PROGRAM', value: vocProgram, icon: 'book', fullWidth: true },
+            { label: 'SCHOOL / CENTER', value: vocSchool, icon: 'school', fullWidth: true },
+            { label: 'DURATION', value: vocDuration, icon: 'time', fullWidth: false },
+            { label: 'END DATE', value: vocEndDateFormatted, icon: 'calendar', fullWidth: false }
           ].map((item, idx) => (
-            <View key={idx} style={styles.statCard}>
+            <View key={idx} style={[styles.statCard, item.fullWidth ? { width: '100%' } : { width: '48%' }]}>
               <View style={styles.statIconHeader}>
                 <Ionicons name={item.icon} size={16} color="#727ab6" />
                 <Text style={styles.statLabel}>{item.label}</Text>
               </View>
-              <Text style={styles.statValue} numberOfLines={2}>{item.value}</Text>
+              <Text style={styles.statValue}>{item.value}</Text>
             </View>
           ))}
         </View>

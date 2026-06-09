@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState, useEffect, useCallback, useRef } from "react";
 import { NativeModules } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { deletePushToken } from "../services/pushNotificationService";
@@ -6,19 +6,27 @@ import api from "../services/api";
 
 export const AuthContext = createContext();
 
+const normalizeUser = (value) => {
+  if (!value || typeof value !== "object") return null;
+  const role = value.role || value.userType || "";
+  return {
+    ...value,
+    role,
+    userType: role,
+    firstName: value.firstName || value.first_name || "",
+    middleName: value.middleName || value.middle_name || "",
+    lastName: value.lastName || value.last_name || "",
+  };
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isHydrated, setIsHydrated] = useState(false);
+  const userRef = useRef(null);
 
-  const normalizeUser = (value) => {
-    if (!value || typeof value !== "object") return null;
-    return {
-      ...value,
-      firstName: value.firstName || value.first_name || "",
-      middleName: value.middleName || value.middle_name || "",
-      lastName: value.lastName || value.last_name || "",
-    };
-  };
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   useEffect(() => {
     let mounted = true;
@@ -53,14 +61,14 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const loginUser = async (userData, rememberMe = false) => {
+  const loginUser = useCallback(async (userData, rememberMe = false) => {
     const normalized = normalizeUser(userData);
     setUser(normalized);
     await AsyncStorage.setItem("user", JSON.stringify(normalized));
     await AsyncStorage.setItem("remember_me", rememberMe ? "true" : "false");
-  };
+  }, []);
 
-  const logoutUser = async () => {
+  const logoutUser = useCallback(async () => {
     try {
       // 1. Get FCM token and unregister it from backend before destroying session (only if Firebase is linked)
       if (NativeModules.RNFBAppModule) {
@@ -89,10 +97,36 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     await AsyncStorage.removeItem("user");
     await AsyncStorage.setItem("remember_me", "false");
-  };
+  }, []);
+
+  const refreshSession = useCallback(async () => {
+    try {
+      const response = await api.get("/auth/me");
+      const latestUser = response.data?.data || response.data;
+      if (latestUser) {
+        const storedRememberMe = await AsyncStorage.getItem("remember_me");
+        const rememberMe = storedRememberMe === "true";
+        const normalized = normalizeUser(latestUser);
+        
+        const previousUser = userRef.current;
+        const serializedUser = JSON.stringify(normalized);
+        const userChanged = JSON.stringify(previousUser) !== serializedUser;
+
+        if (userChanged) {
+          setUser(normalized);
+          await AsyncStorage.setItem("user", serializedUser);
+        }
+        await AsyncStorage.setItem("remember_me", rememberMe ? "true" : "false");
+        return normalized;
+      }
+    } catch (error) {
+      console.warn("AuthContext: Failed to refresh user session:", error);
+    }
+    return null;
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isHydrated, loginUser, logoutUser }}>
+    <AuthContext.Provider value={{ user, isHydrated, loginUser, logoutUser, refreshSession }}>
       {children}
     </AuthContext.Provider>
   );

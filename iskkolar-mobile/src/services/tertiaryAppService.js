@@ -14,6 +14,28 @@ const mapRelationshipToBackendRole = (rel) => {
   return "Other";
 };
 
+const isFatherEmpty = (vals) => {
+  return (
+    (!vals.fatherName || vals.fatherName.trim() === "") &&
+    (!vals.fatherBirthday || vals.fatherBirthday.trim() === "") &&
+    (!vals.fatherStatus || vals.fatherStatus === "--" || vals.fatherStatus.trim() === "") &&
+    (!vals.fatherContact || vals.fatherContact.trim() === "" || vals.fatherContact === "09") &&
+    (!vals.fatherOccupation || vals.fatherOccupation.trim() === "") &&
+    (!vals.fatherIncome || vals.fatherIncome.trim() === "")
+  );
+};
+
+const isMotherEmpty = (vals) => {
+  return (
+    (!vals.motherName || vals.motherName.trim() === "") &&
+    (!vals.motherBirthday || vals.motherBirthday.trim() === "") &&
+    (!vals.motherStatus || vals.motherStatus === "--" || vals.motherStatus.trim() === "") &&
+    (!vals.motherContact || vals.motherContact.trim() === "" || vals.motherContact === "09") &&
+    (!vals.motherOccupation || vals.motherOccupation.trim() === "") &&
+    (!vals.motherIncome || vals.motherIncome.trim() === "")
+  );
+};
+
 const buildFamilyMembers = (values, dynamicFamilyMembers) => {
   const cleanMember = (member) => {
     if (member.employment_status === "Unemployed" || member.employment_status === "Deceased") {
@@ -25,7 +47,7 @@ const buildFamilyMembers = (values, dynamicFamilyMembers) => {
 
   const family = [];
 
-  if (!values.hasGuardian || values.fatherName) {
+  if (!isFatherEmpty(values)) {
     family.push(cleanMember({
       role: "father",
       full_name: values.fatherName || "",
@@ -37,7 +59,7 @@ const buildFamilyMembers = (values, dynamicFamilyMembers) => {
     }));
   }
 
-  if (!values.hasGuardian || values.motherName) {
+  if (!isMotherEmpty(values)) {
     family.push(cleanMember({
       role: "mother",
       full_name: values.motherName || "",
@@ -120,6 +142,8 @@ const prepareFormData = (values, uploads, dynamicFamilyMembers) => {
     appendFile(formData, "income_cert_mother", uploads.incomeMother);
     appendFile(formData, "indigency_cert_father", uploads.indigencyFather);
     appendFile(formData, "indigency_cert_mother", uploads.indigencyMother);
+    appendFile(formData, "letter_intent_applicant", uploads.letterOfIntentApplicant);
+    appendFile(formData, "letter_intent_parent", uploads.letterOfIntentParent);
 
     if (values.hasGuardian) {
       if (uploads.incomeGuardian) appendFile(formData, "income_cert_guardian", uploads.incomeGuardian);
@@ -154,6 +178,7 @@ export const validateTertiaryStep = async (apiStep, values, uploads, dynamicFami
     headers: {
       'Content-Type': 'multipart/form-data',
     },
+    timeout: 120000,
   });
   return true;
 };
@@ -164,7 +189,11 @@ export const submitTertiaryApplication = async (values, uploads, dynamicFamilyMe
     headers: {
       'Content-Type': 'multipart/form-data',
     },
+    timeout: 120000,
   });
+  if (response.data && response.data.success === false) {
+    throw response.data;
+  }
   return response.data;
 };
 

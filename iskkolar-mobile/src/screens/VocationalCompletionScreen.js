@@ -39,6 +39,12 @@ export default function VocationalCompletionScreen({ navigation, route }) {
 
   const [existingSubmission, setExistingSubmission] = useState(undefined); // undefined = loading
   const [form, setForm] = useState({ completionDate: "", certificateNumber: "" });
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const targetDate = form.completionDate ? new Date(form.completionDate) : null;
+  if (targetDate) targetDate.setHours(0, 0, 0, 0);
+  const isBeforeEndDate = targetDate ? today < targetDate : false;
   const [files, setFiles] = useState({ completion_certificate: null, transcript_of_records: null, other: null });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -143,6 +149,17 @@ export default function VocationalCompletionScreen({ navigation, route }) {
       return;
     }
 
+    if (form.completionDate) {
+      const todayDate = new Date();
+      todayDate.setHours(0, 0, 0, 0);
+      const targetDateObj = new Date(form.completionDate);
+      targetDateObj.setHours(0, 0, 0, 0);
+      if (todayDate < targetDateObj) {
+        setError(`You cannot submit your certification of completion before your program's end date (${formatDisplayDate(form.completionDate)}).`);
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const payload = {
@@ -161,30 +178,37 @@ export default function VocationalCompletionScreen({ navigation, route }) {
     }
   };
 
-  const renderFilePicker = (key, label, isOptional = false) => {
+  const renderFilePicker = (key, label, isOptional = false, isHalfWidth = false) => {
     const hasFile = !!files[key];
     const hasError = !!fieldErrors[key];
     
     return (
-      <View style={styles.filePickerContainer}>
-        <Text style={styles.fieldLabel}>
+      <View style={isHalfWidth ? styles.uploadRowItemHalf : styles.uploadRowItemFull}>
+        <Text style={styles.fieldLabel} numberOfLines={1} ellipsizeMode="tail">
           {label} {isOptional ? <Text style={styles.optionalText}>(Optional)</Text> : <Text style={styles.requiredAsterisk}>*</Text>}
         </Text>
         <TouchableOpacity 
           style={[
-            styles.filePicker, 
-            hasFile && styles.filePicked, 
-            hasError && styles.filePickerError
+            styles.unifiedUploadContainer, 
+            hasError && styles.errorInput
           ]} 
           onPress={() => pickDocument(key)}
         >
           <Ionicons 
-            name={hasFile ? "checkmark-circle" : "cloud-upload-outline"} 
-            size={22} 
-            color={hasFile ? "#15803d" : "#727ab6"} 
+            name="share-outline" 
+            size={18} 
+            color={hasFile ? "#5b5f97" : "#848baf"} 
+            style={{ marginRight: 8 }}
           />
-          <Text style={[styles.filePickerText, hasFile && styles.filePickedText]}>
-            {hasFile ? files[key].name : `Select File`}
+          <Text
+            style={[
+              styles.unifiedUploadText,
+              hasFile ? styles.unifiedUploadTextActive : styles.unifiedUploadTextInactive
+            ]}
+            numberOfLines={1}
+            ellipsizeMode="middle"
+          >
+            {hasFile ? files[key].name : `No file chosen`}
           </Text>
         </TouchableOpacity>
         {hasError && <Text style={styles.errorText}>{fieldErrors[key]}</Text>}
@@ -283,6 +307,23 @@ export default function VocationalCompletionScreen({ navigation, route }) {
             )}
           </View>
 
+          {sub.ai_summary ? (
+            <View style={styles.aiReportCard}>
+              <View style={styles.aiReportHeader}>
+                <Ionicons name="sparkles-outline" size={18} color="#3d4076" style={{ marginRight: 6 }} />
+                <Text style={styles.aiReportTitle}>AI Qualification Report</Text>
+              </View>
+              <View style={styles.aiReportBody}>
+                <Text style={styles.aiReportLabel}>AI Evaluation Summary</Text>
+                <Text style={styles.aiReportText}>{`"${sub.ai_summary}"`}</Text>
+                <View style={styles.aiReportFooter}>
+                  <Text style={styles.aiReportFooterText}>Automated Analysis</Text>
+                  <Text style={styles.aiReportFooterText}>Evaluated at submission</Text>
+                </View>
+              </View>
+            </View>
+          ) : null}
+
           <TouchableOpacity style={styles.returnBtn} onPress={() => navigation.goBack()}>
             <Text style={styles.returnBtnText}>Back to Dashboard</Text>
           </TouchableOpacity>
@@ -307,6 +348,7 @@ export default function VocationalCompletionScreen({ navigation, route }) {
           aiCheckingEnabled={aiCheckingEnabled}
           successTitle="Submitted Successfully"
           successMessage="Your certification of completion has been submitted for staff review."
+          aiSummary={existingSubmission?.ai_summary || existingSubmission?.aiSummary}
           onViewApplications={() => navigation.goBack()}
           viewApplicationsText="Return to Dashboard"
         />
@@ -363,9 +405,11 @@ export default function VocationalCompletionScreen({ navigation, route }) {
           </View>
 
           {/* Documents */}
-          {renderFilePicker('completion_certificate', 'Completion Certificate / Diploma')}
-          {renderFilePicker('transcript_of_records', 'Transcript of Records (TOR)', true)}
-          {renderFilePicker('other', 'Other Supporting Document', true)}
+          <View style={styles.uploadsGridContainer}>
+            {renderFilePicker('completion_certificate', 'Completion Certificate / Diploma', false)}
+            {renderFilePicker('transcript_of_records', 'Transcript of Records (TOR)', true)}
+            {renderFilePicker('other', 'Other Supporting Document', true)}
+          </View>
 
           {error ? (
             <View style={styles.errorBox}>
@@ -374,10 +418,22 @@ export default function VocationalCompletionScreen({ navigation, route }) {
             </View>
           ) : null}
 
+          {isBeforeEndDate && (
+            <View style={styles.lockedBox}>
+              <Ionicons name="warning-outline" size={20} color="#b45309" style={{ marginRight: 10, marginTop: 2 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.lockedTitle}>Submission Locked:</Text>
+                <Text style={styles.lockedText}>
+                  {`You can only submit your completion documents after your program's end date (${formatDisplayDate(form.completionDate)}).`}
+                </Text>
+              </View>
+            </View>
+          )}
+
           <TouchableOpacity 
-            style={[styles.submitBtn, submitting && styles.submitBtnDisabled]} 
+            style={[styles.submitBtn, (submitting || isBeforeEndDate) && styles.submitBtnDisabled]} 
             onPress={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || isBeforeEndDate}
           >
             {submitting ? (
               <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
@@ -456,17 +512,44 @@ const styles = StyleSheet.create({
   hintText: { fontSize: 11, color: '#94a3b8', marginTop: 6, fontWeight: '500' },
   errorText: { color: '#ef4444', fontSize: 11, marginTop: 4, fontWeight: '600' },
 
-  // Document Pickers
-  filePickerContainer: { marginBottom: 16 },
-  filePicker: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc',
-    borderRadius: 10, padding: 16, borderWidth: 1, borderColor: '#cbd5e1',
-    borderStyle: 'dashed'
+  uploadsGridContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    width: "100%",
   },
-  filePicked: { borderColor: '#16a34a', borderStyle: 'solid', backgroundColor: '#f0fdf4' },
-  filePickerError: { borderColor: '#fca5a5', backgroundColor: '#fef2f2' },
-  filePickerText: { marginLeft: 10, fontSize: 14, color: '#5b5f97', fontWeight: '700', flex: 1 },
-  filePickedText: { color: '#15803d' },
+  uploadRowItemHalf: {
+    width: "48.5%",
+    marginBottom: 16,
+  },
+  uploadRowItemFull: {
+    width: "100%",
+    marginBottom: 16,
+  },
+  unifiedUploadContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    height: 48,
+    paddingHorizontal: 12,
+  },
+  unifiedUploadText: {
+    fontSize: 14,
+    flex: 1,
+  },
+  unifiedUploadTextActive: {
+    color: "#5b5f97",
+    fontWeight: "700",
+  },
+  unifiedUploadTextInactive: {
+    color: "#848baf",
+    fontWeight: "500",
+  },
+  errorInput: { borderColor: "#ef4444", borderWidth: 1.5 },
 
   // Buttons
   submitBtn: {
@@ -537,5 +620,81 @@ const styles = StyleSheet.create({
     borderColor: '#e0e2ff', borderWidth: 1, borderRadius: 10,
     padding: 12, marginTop: 16
   },
-  tipBoxText: { color: '#5b5f97', fontSize: 12, lineHeight: 18, marginLeft: 8, flex: 1, fontWeight: '500' }
+  tipBoxText: { color: '#5b5f97', fontSize: 12, lineHeight: 18, marginLeft: 8, flex: 1, fontWeight: '500' },
+  
+  lockedBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#fef3c7',
+    borderColor: '#fef08a',
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+    marginTop: 8
+  },
+  lockedTitle: {
+    fontWeight: '800',
+    color: '#b45309',
+    fontSize: 13,
+    marginBottom: 2
+  },
+  lockedText: {
+    color: '#b45309',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500'
+  },
+  aiReportCard: {
+    marginTop: 20,
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(91, 95, 151, 0.15)',
+    padding: 16,
+  },
+  aiReportHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  aiReportTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#3d4076',
+  },
+  aiReportBody: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 14,
+  },
+  aiReportLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#3d4076',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  aiReportText: {
+    fontSize: 12,
+    color: '#334155',
+    lineHeight: 18,
+    fontStyle: 'italic',
+  },
+  aiReportFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  aiReportFooterText: {
+    fontSize: 9,
+    color: '#94a3b8',
+    fontWeight: '500',
+  },
 });

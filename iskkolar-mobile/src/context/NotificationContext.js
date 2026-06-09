@@ -98,6 +98,16 @@ export const NotificationProvider = ({ children }) => {
   // Fetch announcements from server
   const fetchAnnouncements = useCallback(async () => {
     if (!user) return;
+
+    // Guard: ensure we actually have a token before hitting the API
+    try {
+      const storedUser = await AsyncStorage.getItem('user');
+      const parsed = storedUser ? JSON.parse(storedUser) : null;
+      if (!parsed?.token) return; // No token yet — silently skip
+    } catch (_) {
+      return; // AsyncStorage error — skip this cycle
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -172,6 +182,30 @@ export const NotificationProvider = ({ children }) => {
       console.warn("NotificationContext: Failed to mark announcement as read", e);
     }
   }, [user]);
+
+  // Mark all current announcements as read
+  const markAllAnnouncementsAsRead = useCallback(async () => {
+    if (!user) return;
+    const userId = user.id || user.uid;
+    if (!userId) return;
+
+    try {
+      setReadIds((prev) => {
+        const unreadIds = announcements
+          .filter((item) => !prev.includes(item.id) && !archivedIdsRef.current.includes(item.id))
+          .map((item) => item.id);
+
+        if (unreadIds.length === 0) return prev;
+        const updated = [...prev, ...unreadIds];
+        AsyncStorage.setItem(`read_announcements_${userId}`, JSON.stringify(updated)).catch(e => {
+          console.warn("NotificationContext: Failed to save read IDs", e);
+        });
+        return updated;
+      });
+    } catch (e) {
+      console.warn("NotificationContext: Failed to mark all announcements as read", e);
+    }
+  }, [user, announcements]);
 
   // Archive an announcement
   const archiveAnnouncement = useCallback(async (id) => {
@@ -251,6 +285,7 @@ export const NotificationProvider = ({ children }) => {
       error,
       fetchAnnouncements,
       markAsRead,
+      markAllAnnouncementsAsRead,
       archiveAnnouncement,
       unarchiveAnnouncement
     }}>

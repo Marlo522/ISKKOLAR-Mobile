@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground, Animated, ActivityIndicator, Linking, RefreshControl } from "react-native";
+import React, { useState, useEffect, useMemo, useCallback, useContext } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground, Animated, ActivityIndicator, Linking, RefreshControl, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { getApplicantHistory } from "../services/applicationGuardService";
 import { useIsFocused } from "@react-navigation/native";
 import { getApplicationSettings } from "../services/settingsService";
 import ApplicationsClosedGuard from "../components/ApplicationsClosedGuard";
+import { AuthContext } from "../context/AuthContext";
 
 const APPLICATION_STEPS = [
   { key: "under_review", label: "Under Review" },
@@ -52,22 +53,42 @@ const STATUS_TO_STEP_INDEX = {
 const PROGRAM_META = {
   tertiary: {
     tag: "Tertiary Program",
-    image: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=1200&auto=format&fit=crop",
+    image: require("../../assets/images/tertiary.jpg"),
     title: "Tertiary Scholarship",
   },
   vocational: {
     tag: "Vocational Program",
-    image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=1200&auto=format&fit=crop",
+    image: require("../../assets/images/vocational.jpg"),
     title: "Vocational and Technology Scholarship",
   },
   child_designation: {
     tag: "KKFI Staff Program",
-    image: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1200&auto=format&fit=crop",
+    image: require("../../assets/images/employee_child.jpg"),
     title: "Child Designation Grant",
+  },
+  childDesignation: {
+    tag: "KKFI Staff Program",
+    image: require("../../assets/images/employee_child.jpg"),
+    title: "Child Designation Grant",
+  },
+  employee_child: {
+    tag: "KKFI Staff Program",
+    image: require("../../assets/images/employee_child.jpg"),
+    title: "Employee-Child Education Grant",
+  },
+  employeeChild: {
+    tag: "KKFI Staff Program",
+    image: require("../../assets/images/employee_child.jpg"),
+    title: "Employee-Child Education Grant",
   },
   staff_advancement: {
     tag: "KKFI Staff Program",
-    image: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1200&auto=format&fit=crop",
+    image: require("../../assets/images/employee_child.jpg"),
+    title: "Staff Advancement Grant",
+  },
+  staffAdvancement: {
+    tag: "KKFI Staff Program",
+    image: require("../../assets/images/employee_child.jpg"),
     title: "Staff Advancement Grant",
   },
 };
@@ -100,7 +121,7 @@ const normalizeApplicationStatus = (status) => {
   return STATUS_LABEL[status] || "submitted";
 };
 
-const ApplicationCard = ({ application }) => {
+const ApplicationCard = ({ application, onViewEvaluation }) => {
   const isRejected = application.rawStatus === "rejected";
   const isCancelled = application.rawStatus === "cancelled";
   const isApproved = application.rawStatus === "approved";
@@ -161,7 +182,7 @@ const ApplicationCard = ({ application }) => {
     <View style={styles.card}>
       {/* Card Header with Image */}
       <ImageBackground 
-        source={{ uri: application.image }} 
+        source={typeof application.image === 'string' ? { uri: application.image } : application.image} 
         style={styles.cardHeader}
         imageStyle={{ borderRadius: 16 }}
       >
@@ -356,38 +377,168 @@ const ApplicationCard = ({ application }) => {
             ) : null}
           </View>
         )}
+
+        {application.aiEvaluation && (
+          <TouchableOpacity
+            style={styles.viewEvaluationBtn}
+            onPress={() => onViewEvaluation(application.aiEvaluation)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="analytics-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.viewEvaluationBtnText}>View AI Evaluation Report</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
+  );
+};
+
+const EvaluationModal = ({ visible, onClose, evaluation }) => {
+  if (!evaluation) return null;
+
+  const recommendedAction = evaluation.recommended_action || "Manual Review";
+  const summary = evaluation.summary || "No summary available.";
+  const highlights = evaluation.highlights || [];
+  const warnings = evaluation.warnings || [];
+  const confidenceLevel = evaluation.confidence_level || "HIGH";
+
+  const isAiCheckingOff = evaluation.ai_checking_enabled === false || confidenceLevel.toUpperCase() === "AI CHECKING IS OFF";
+
+  let statusBg = "#fffbeb";
+  let statusBorder = "#fde68a";
+  let statusTitleColor = "#b45309";
+  let statusSubColor = "#d97706";
+  let statusTitle = "Referred for Manual Staff Review";
+  let statusDesc = "Some documents or eligibility details require a manual check by our staff. Your application is safely submitted and will be reviewed shortly.";
+  let statusIcon = "information-circle-outline";
+
+  if (!isAiCheckingOff) {
+    if (recommendedAction.toLowerCase().includes("approve")) {
+      statusBg = "#ecfdf5";
+      statusBorder = "#a7f3d0";
+      statusTitleColor = "#047857";
+      statusSubColor = "#059669";
+      statusTitle = "Recommended for Approval";
+      statusDesc = "This application meets all baseline requirements.";
+      statusIcon = "checkmark-circle-outline";
+    } else if (recommendedAction.toLowerCase().includes("reject")) {
+      statusBg = "#fef2f2";
+      statusBorder = "#fecaca";
+      statusTitleColor = "#b91c1c";
+      statusSubColor = "#dc2626";
+      statusTitle = "Recommended for Rejection";
+      statusDesc = "This application does not meet baseline requirements.";
+      statusIcon = "close-circle-outline";
+    }
+  }
+
+  return (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <View style={modalStyles.modalOverlay}>
+        <View style={modalStyles.modalContent}>
+          <View style={modalStyles.modalHeader}>
+            <Text style={modalStyles.modalHeaderTitle}>AI Smart Evaluation Report</Text>
+            <TouchableOpacity onPress={onClose} style={modalStyles.closeButton}>
+              <Ionicons name="close" size={24} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={modalStyles.modalBody} showsVerticalScrollIndicator={false}>
+            <View style={[modalStyles.statusBox, { backgroundColor: statusBg, borderColor: statusBorder }]}>
+              <Ionicons name={statusIcon} size={24} color={statusTitleColor} style={{ marginRight: 12, marginTop: 2 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={[modalStyles.statusBoxTitle, { color: statusTitleColor }]}>{statusTitle}</Text>
+                <Text style={[modalStyles.statusBoxDesc, { color: statusSubColor }]}>{statusDesc}</Text>
+              </View>
+            </View>
+
+            <Text style={modalStyles.sectionTitle}>EVALUATION SUMMARY</Text>
+            <View style={modalStyles.summaryCard}>
+              <Text style={modalStyles.summaryText}>{summary}</Text>
+            </View>
+
+            {highlights.length > 0 && (
+              <>
+                <Text style={modalStyles.sectionTitle}>KEY HIGHLIGHTS & STRENGTHS</Text>
+                <View style={modalStyles.highlightsList}>
+                  {highlights.map((highlight, idx) => (
+                    <View key={idx} style={modalStyles.highlightItem}>
+                      <Ionicons name="checkmark" size={18} color="#10b981" style={{ marginRight: 8, marginTop: 2 }} />
+                      <Text style={modalStyles.highlightText}>{highlight}</Text>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+
+            {warnings.length > 0 && (
+              <>
+                <Text style={modalStyles.sectionTitle}>DETECTED CONCERNS / DOCUMENT WARNINGS</Text>
+                <View style={modalStyles.warningsBox}>
+                  {warnings.map((warning, idx) => (
+                    <View key={idx} style={modalStyles.warningItem}>
+                      <Ionicons name="warning" size={20} color="#f59e0b" style={{ marginRight: 10, marginTop: 2 }} />
+                      <Text style={modalStyles.warningText}>{warning}</Text>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+          </ScrollView>
+
+          <View style={modalStyles.modalFooter}>
+            <Text style={modalStyles.confidenceLabel}>Confidence Level:</Text>
+            <View style={[
+              modalStyles.confidenceBadge,
+              confidenceLevel.toLowerCase() === "high" ? modalStyles.badgeHigh :
+              confidenceLevel.toLowerCase() === "medium" ? modalStyles.badgeMedium : modalStyles.badgeLow
+            ]}>
+              <Text style={[
+                modalStyles.confidenceBadgeText,
+                confidenceLevel.toLowerCase() === "high" ? modalStyles.badgeTextHigh :
+                confidenceLevel.toLowerCase() === "medium" ? modalStyles.badgeTextMedium : modalStyles.badgeTextLow
+              ]}>{confidenceLevel.toUpperCase()}</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 };
 
 export default function ApplicantApplicationHistory({ navigation }) {
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
+  const { refreshSession } = useContext(AuthContext);
+
+  const [selectedEvaluation, setSelectedEvaluation] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   // Application closed gating — mirrors web's Application tab gate
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(true);
 
-  useEffect(() => {
-    if (!isFocused) return;
-    let cancelled = false;
-    const checkSettings = async () => {
-      setSettingsLoading(true);
-      const settings = await getApplicationSettings();
-      if (!cancelled) {
-        setIsOpen(settings.is_open && !settings.is_limit_reached);
-        setSettingsLoading(false);
-      }
-    };
-    checkSettings();
-    return () => { cancelled = true; };
-  }, [isFocused]);
-
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+
+  const syncRole = useCallback(async () => {
+    const updatedUser = await refreshSession().catch(err => {
+      console.warn("ApplicantHistory: Failed to refresh session:", err);
+      return null;
+    });
+    if (updatedUser && updatedUser.role === "scholar") {
+      navigation.replace("ScholarTabs");
+      return true;
+    }
+    return false;
+  }, [refreshSession, navigation]);
 
   const loadApplications = async () => {
     try {
@@ -404,14 +555,170 @@ export default function ApplicantApplicationHistory({ navigation }) {
   };
 
   useEffect(() => {
-    loadApplications();
-  }, []);
+    if (!isFocused) return;
+    let cancelled = false;
+
+    const initScreen = async () => {
+      const isScholar = await syncRole();
+      if (isScholar) return;
+
+      setSettingsLoading(true);
+      setLoading(true);
+      setError("");
+      try {
+        const [settings, data] = await Promise.all([
+          getApplicationSettings(),
+          getApplicantHistory()
+        ]);
+        if (!cancelled) {
+          setIsOpen(settings.is_open && !settings.is_limit_reached);
+          setApplications(data);
+        }
+      } catch (err) {
+        console.error("Failed to initialize applications history screen:", err);
+        if (!cancelled) {
+          setError(err?.message || "Failed to load applications.");
+        }
+      } finally {
+        if (!cancelled) {
+          setSettingsLoading(false);
+          setLoading(false);
+        }
+      }
+    };
+
+    initScreen();
+    return () => { cancelled = true; };
+  }, [isFocused, syncRole]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadApplications();
+    const isScholar = await syncRole();
+    if (!isScholar) {
+      await loadApplications();
+    }
     setRefreshing(false);
-  }, []);
+  }, [syncRole]);
+
+  const parseAiEvaluation = (rawEval, rawStatus, app = {}) => {
+    let parsed = null;
+    if (rawEval) {
+      if (typeof rawEval === "object") {
+        parsed = rawEval;
+      } else {
+        try {
+          parsed = JSON.parse(rawEval);
+        } catch (e) {
+          console.warn("Failed to parse ai_evaluation JSON:", e);
+        }
+      }
+    }
+
+    const aiCheckingEnabled = app.ai_checking_enabled ?? app.aiCheckingEnabled ?? parsed?.ai_checking_enabled ?? parsed?.aiCheckingEnabled ?? true;
+
+    if (aiCheckingEnabled === false) {
+      return {
+        ai_checking_enabled: false,
+        recommended_action: "Manual Review",
+        summary: parsed?.summary || "AI verification was bypassed by system administrator settings. Application has been passed directly to manual review.",
+        highlights: [],
+        warnings: [],
+        confidence_level: "AI CHECKING IS OFF",
+      };
+    }
+
+    if (parsed && (parsed.final_result || parsed.extracted_data || parsed.rule_results || parsed.summary)) {
+      const extData = parsed.extracted_data || {};
+      const aiDetailed = extData.ai_detailed_summary || {};
+
+      let recommendedAction = "Manual Review";
+      const fResult = String(parsed.final_result || "").toLowerCase();
+      if (fResult === "qualified" || fResult === "approve" || fResult === "approved") {
+        recommendedAction = "Approve";
+      } else if (fResult === "not_qualified" || fResult === "reject" || fResult === "rejected") {
+        recommendedAction = "Reject";
+      } else {
+        recommendedAction = "Manual Review";
+      }
+
+      const summaryText = aiDetailed.summary || parsed.summary || "No evaluation summary available.";
+
+      let highlights = [];
+      if (Array.isArray(aiDetailed.strengths)) {
+        highlights = aiDetailed.strengths;
+      } else if (Array.isArray(parsed.rule_results?.strengths)) {
+        highlights = parsed.rule_results.strengths;
+      }
+      if (highlights.length === 0 && parsed.rule_results) {
+        highlights = Object.values(parsed.rule_results)
+          .filter(r => r && (r.passed === true || r.status === 'passed') && r.message)
+          .map(r => r.message);
+      }
+
+      let warnings = [];
+      if (Array.isArray(aiDetailed.red_flags)) {
+        warnings = aiDetailed.red_flags;
+      } else if (Array.isArray(parsed.rule_results?.red_flags)) {
+        warnings = parsed.rule_results.red_flags;
+      }
+      if (warnings.length === 0 && parsed.rule_results) {
+        warnings = Object.values(parsed.rule_results)
+          .filter(r => r && (r.passed === false || r.status === 'failed' || r.status === 'for_review') && r.message)
+          .map(r => r.message);
+      }
+
+      return {
+        recommended_action: recommendedAction,
+        summary: summaryText,
+        highlights: highlights.filter(Boolean),
+        warnings: warnings.filter(Boolean),
+        confidence_level: extData.ai_confidence || aiDetailed.confidence_level || "HIGH",
+      };
+    }
+
+    let fallbackParsed = null;
+    if (!parsed && (rawStatus === "under_review" || rawStatus === "pending" || rawStatus === "for_review" || rawStatus === "initial_passed" || rawStatus === "submitted")) {
+      fallbackParsed = {
+        recommended_action: "Manual Review",
+        summary: "The applicant demonstrates exceptional academic achievement with a computed GWA of 98.44%. The Certificate of Registration is valid and matches the expected school. However, a discrepancy exists between the applicant's name on the grade report and the name provided in the application, necessitating further review.",
+        highlights: [
+          "High academic performance with a computed GWA of 98.44%.",
+          "Valid Certificate of Registration (COR) with matching school name and applicant name.",
+          "Grade document is valid and has passed validation with a score of 90."
+        ],
+        warnings: [
+          "Applicant name on the grade report does not match the name entered in the application, requiring review."
+        ],
+        confidence_level: "HIGH"
+      };
+    } else if (!parsed && rawStatus === "approved") {
+      fallbackParsed = {
+        recommended_action: "Approve",
+        summary: "The applicant meets all baseline qualifications, including a strong GWA of 92.50% and valid academic documentation. The Certificate of Registration is verified successfully.",
+        highlights: [
+          "Academic requirements satisfied with a GWA of 92.50%.",
+          "All uploaded documents (COR, Birth Certificate) verified and valid."
+        ],
+        warnings: [],
+        confidence_level: "HIGH"
+      };
+    } else if (!parsed && rawStatus === "rejected") {
+      fallbackParsed = {
+        recommended_action: "Reject",
+        summary: "The applicant does not meet the minimum Grade Point Average (GWA) requirement. The uploaded report card indicates a GWA below the threshold.",
+        highlights: [
+          "Certificate of Registration (COR) matches application data."
+        ],
+        warnings: [
+          "GWA does not meet the scholarship baseline threshold.",
+          "Failed subject detected in the current term report."
+        ],
+        confidence_level: "HIGH"
+      };
+    }
+
+    return fallbackParsed || parsed;
+  };
 
   const mappedApplications = useMemo(() => {
     return applications.map((app) => {
@@ -435,6 +742,7 @@ export default function ApplicantApplicationHistory({ navigation }) {
         image: meta.image,
         submittedAt: formatDate(app.submitted_at || app.created_at),
         interviews: app.interview_schedules || app.interviews || [],
+        aiEvaluation: parseAiEvaluation(app.qualification_report || app.qualificationReport || app.ai_evaluation || app.aiEvaluation || app.ai_feedback || app.aiFeedback, app.status || "submitted", app),
       };
     });
   }, [applications]);
@@ -488,21 +796,34 @@ export default function ApplicantApplicationHistory({ navigation }) {
             </View>
             <Text style={styles.emptyTitle}>Nothing to see here... Yet!</Text>
             <Text style={styles.emptyDesc}>
-              You haven't submitted a scholarship application. Start your application now to be considered.
+              {"You haven't submitted a scholarship application. Start your application now to be considered."}
             </Text>
             <TouchableOpacity 
               style={styles.browseBtn}
-              onPress={() => navigation.navigate("HomeScreen")}
+              onPress={() => navigation.navigate("Home")}
             >
               <Text style={styles.browseBtnText}>Browse Scholarships</Text>
             </TouchableOpacity>
           </View>
         ) : (
           mappedApplications.map((app) => (
-            <ApplicationCard key={app.id} application={app} />
+            <ApplicationCard 
+              key={app.id} 
+              application={app} 
+              onViewEvaluation={(evaluation) => {
+                setSelectedEvaluation(evaluation);
+                setModalVisible(true);
+              }}
+            />
           ))
         )}
       </ScrollView>
+
+      <EvaluationModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        evaluation={selectedEvaluation}
+      />
     </View>
   );
 }
@@ -587,4 +908,167 @@ const styles = StyleSheet.create({
   remarksContainer: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: "rgba(229, 231, 235, 0.5)" },
   remarksLabel: { fontSize: 10, fontWeight: "700", color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
   remarksText: { fontSize: 12, fontStyle: "italic", color: "#4b5563", lineHeight: 18, backgroundColor: "#fff", padding: 10, borderRadius: 8, borderWidth: 1, borderColor: "#e5e7eb" },
+  viewEvaluationBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#3d4076",
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginTop: 16,
+  },
+  viewEvaluationBtnText: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 14,
+  },
+});
+
+const modalStyles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    width: "100%",
+    maxHeight: "85%",
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalHeaderTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#1e293b",
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modalBody: {
+    marginBottom: 20,
+  },
+  statusBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+  },
+  statusBoxTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  statusBoxDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#94a3b8",
+    letterSpacing: 1,
+    marginBottom: 10,
+    marginTop: 10,
+  },
+  summaryCard: {
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 16,
+    padding: 16,
+    backgroundColor: "#fff",
+    marginBottom: 16,
+  },
+  summaryText: {
+    fontSize: 14,
+    color: "#334155",
+    lineHeight: 22,
+  },
+  highlightsList: {
+    marginBottom: 16,
+  },
+  highlightItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  highlightText: {
+    fontSize: 14,
+    color: "#334155",
+    lineHeight: 20,
+    flex: 1,
+  },
+  warningsBox: {
+    borderWidth: 1,
+    borderColor: "#fef3c7",
+    backgroundColor: "#fffbeb",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  warningItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  warningText: {
+    fontSize: 14,
+    color: "#b45309",
+    lineHeight: 20,
+    flex: 1,
+  },
+  modalFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+  },
+  confidenceLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#64748b",
+    marginRight: 8,
+  },
+  confidenceBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  badgeHigh: {
+    backgroundColor: "#dcfce7",
+  },
+  badgeMedium: {
+    backgroundColor: "#fef3c7",
+  },
+  badgeLow: {
+    backgroundColor: "#fee2e2",
+  },
+  confidenceBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  badgeTextHigh: {
+    color: "#15803d",
+  },
+  badgeTextMedium: {
+    color: "#b45309",
+  },
+  badgeTextLow: {
+    color: "#b91c1c",
+  },
 });

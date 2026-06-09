@@ -17,47 +17,106 @@ export default function ApplicationResultState({
   onViewApplications,
   viewApplicationsText = "Return to Dashboard",
 }) {
-  
-  // Render the Manual Review Warning Card (when AI/OCR is disabled)
+
+  // ─── Manual Review Warning Card (AI/OCR disabled) ───────────────────────────
   const renderManualReviewCard = () => {
+    const reportSummary =
+      aiSummary ||
+      qualificationReport?.qualification_report?.summary ||
+      qualificationReport?.summary ||
+      "AI verification was bypassed by system administrator settings. Application has been passed directly to manual review.";
+
     return (
-      <View style={styles.manualReviewCard}>
-        <View style={styles.manualReviewHeader}>
-          <Ionicons name="warning" size={40} color="#d97706" style={styles.warningIcon} />
-          <Text style={styles.manualReviewTitle}>Submitted for Manual Review</Text>
+      <View style={styles.manualReviewReport}>
+        <View style={styles.manualReviewBanner}>
+          <Ionicons
+            name="information-circle"
+            size={24}
+            color="#b45309"
+            style={styles.manualReviewBannerIcon}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.manualReviewBannerTitle}>
+              Referred for Manual Staff Review
+            </Text>
+            <Text style={styles.manualReviewBannerText}>
+              Some documents or eligibility details require a manual check by
+              our staff. Your application is safely submitted and will be
+              reviewed shortly.
+            </Text>
+          </View>
         </View>
-        <Text style={styles.manualReviewText}>
-          Your application has been submitted successfully and will be reviewed manually 
-          by our staff. You will be notified once a decision has been made.
-        </Text>
+
+        <Text style={styles.sectionLabel}>EVALUATION SUMMARY</Text>
+        <View style={styles.manualReviewSummaryCard}>
+          <Text style={styles.manualReviewSummaryText}>{reportSummary}</Text>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.manualReviewFooter}>
+          <Text style={styles.manualReviewFooterLabel}>Confidence Level:</Text>
+          <View style={styles.manualReviewFooterBadge}>
+            <Text style={styles.manualReviewFooterBadgeText}>
+              AI CHECKING IS OFF
+            </Text>
+          </View>
+        </View>
       </View>
     );
   };
 
-  // Render the AI report structure (like in ProgramApplyScreen)
+  // ─── Full AI Report (structured rules + smart eval) ─────────────────────────
   const renderAiReport = () => {
-    const reportData = qualificationReport?.qualification_report || qualificationReport;
+    const reportData =
+      qualificationReport?.qualification_report || qualificationReport;
     const detailedAiSummary = reportData?.extracted_data?.ai_detailed_summary;
 
-    // Filter out internal/fraud rules
-    const qualificationRuleEntries = Object.entries(reportData?.rule_results || {}).filter(
-      ([ruleCode]) => !['fraud_score', 'confidence_score', 'income_doc_match', 'income_documents_valid'].some(exclude => ruleCode.toLowerCase().includes(exclude))
+    // Filter out internal / fraud scoring rules
+    const qualificationRuleEntries = Object.entries(
+      reportData?.rule_results || {}
+    ).filter(
+      ([ruleCode]) =>
+        !["fraud_score", "confidence_score", "income_doc_match", "income_documents_valid"].some(
+          (exclude) => ruleCode.toLowerCase().includes(exclude)
+        )
     );
 
     const isQualified = reportData?.final_result === "qualified";
-    const isReview = reportData?.final_result !== "qualified" && reportData?.final_result !== "not_qualified";
+    const isReview =
+      reportData?.final_result !== "qualified" &&
+      reportData?.final_result !== "not_qualified";
 
-    const finalStatusText =
-      isQualified ? "Qualified" :
-        reportData?.final_result === "not_qualified" ? "Not Qualified" :
-          "For Review of Staff";
+    const finalStatusText = isQualified
+      ? "Qualified"
+      : reportData?.final_result === "not_qualified"
+      ? "Not Qualified"
+      : "For Review of Staff";
 
-    const statusColor = isQualified ? "#1a9e6a" : (isReview ? "#e8a030" : "#e03a3a");
-    const statusBg = isQualified ? "#e6fff5" : (isReview ? "#fff7e6" : "#fff0f0");
+    const statusColor = isQualified
+      ? "#059669"
+      : isReview
+      ? "#d97706"
+      : "#dc2626";
+    const statusBg = isQualified
+      ? "#ecfdf5"
+      : isReview
+      ? "#fffbeb"
+      : "#fef2f2";
+    const statusBorder = isQualified
+      ? "#6ee7b7"
+      : isReview
+      ? "#fcd34d"
+      : "#fca5a5";
+    const statusIcon = isQualified
+      ? "ribbon"
+      : isReview
+      ? "time-outline"
+      : "close-circle";
 
     return (
       <View style={styles.aiReportContainer}>
-        {/* Success Banner */}
+        {/* Eval-complete banner */}
         <View style={styles.successBanner}>
           <View style={styles.successIconOuter}>
             <Ionicons name="checkmark-done" size={20} color="#fff" />
@@ -65,110 +124,198 @@ export default function ApplicationResultState({
           <View style={{ flex: 1 }}>
             <Text style={styles.successBannerTitle}>Evaluation Complete</Text>
             <Text style={styles.successBannerText}>
-              Your application has been successfully parsed and evaluated by our AI.
+              Your application has been successfully parsed and evaluated by our
+              AI.
             </Text>
           </View>
         </View>
 
-        {/* AI Report Card */}
+        {/* Main report card */}
         <View style={styles.reportCard}>
+          {/* Card header */}
           <View style={styles.reportCardHeader}>
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-              <Ionicons name="sparkles" size={20} color="#4f5ec4" style={{ marginRight: 8 }} />
+            <View style={styles.reportCardTitleRow}>
+              <View style={styles.reportCardIconWrap}>
+                <Ionicons name="sparkles" size={16} color="#fff" />
+              </View>
               <Text style={styles.reportCardTitle}>AI Qualification Report</Text>
             </View>
-            <Text style={styles.reportCardSub}>
-              {reportData?.summary || 'No qualification report summary available.'}
-            </Text>
+            {!!reportData?.summary && (
+              <Text style={styles.reportCardSub}>{reportData.summary}</Text>
+            )}
           </View>
 
-          <View style={{ padding: 16 }}>
+          {/* Card body */}
+          <View style={styles.reportCardBody}>
+
+            {/* ── Smart Eval Section ── */}
             {detailedAiSummary && (
               <View style={styles.smartEvalContainer}>
-                <Text style={styles.smartEvalTitle}>AI Smart Evaluation</Text>
+                <Text style={styles.smartEvalTitle}>🤖 AI Smart Evaluation</Text>
 
-                <View style={{ marginBottom: 14 }}>
-                  <Text style={styles.smartEvalHeadingStrengths}>Strengths</Text>
-                  {(detailedAiSummary?.strengths || []).map((item, index) => (
-                    <View key={`strength-${index}`} style={{ flexDirection: 'row', marginBottom: 6 }}>
-                      <Text style={styles.bulletStrength}>•</Text>
-                      <Text style={styles.bulletText}>{item}</Text>
+                {/* Strengths */}
+                {(detailedAiSummary?.strengths || []).length > 0 && (
+                  <View style={styles.evalSection}>
+                    <View style={styles.evalSectionHeader}>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={14}
+                        color="#059669"
+                      />
+                      <Text style={styles.evalHeadingStrengths}>Strengths</Text>
                     </View>
-                  ))}
-                </View>
+                    {detailedAiSummary.strengths.map((item, index) => (
+                      <View key={`s-${index}`} style={styles.evalBulletRow}>
+                        <View
+                          style={[
+                            styles.evalBulletDot,
+                            { backgroundColor: "#059669" },
+                          ]}
+                        />
+                        <Text style={styles.bulletText}>{item}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
 
-                <View style={{ marginBottom: 14 }}>
-                  <Text style={styles.smartEvalHeadingFlags}>Red Flags</Text>
-                  {(detailedAiSummary?.red_flags || []).map((item, index) => (
-                    <View key={`red-flag-${index}`} style={{ flexDirection: 'row', marginBottom: 6 }}>
-                      <Text style={styles.bulletFlag}>•</Text>
-                      <Text style={styles.bulletText}>{item}</Text>
+                {/* Red Flags */}
+                {(detailedAiSummary?.red_flags || []).length > 0 && (
+                  <View style={styles.evalSection}>
+                    <View style={styles.evalSectionHeader}>
+                      <Ionicons name="warning" size={14} color="#dc2626" />
+                      <Text style={styles.evalHeadingFlags}>Red Flags</Text>
                     </View>
-                  ))}
-                </View>
+                    {detailedAiSummary.red_flags.map((item, index) => (
+                      <View key={`f-${index}`} style={styles.evalBulletRow}>
+                        <View
+                          style={[
+                            styles.evalBulletDot,
+                            { backgroundColor: "#dc2626" },
+                          ]}
+                        />
+                        <Text style={styles.bulletText}>{item}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
 
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                  <View style={styles.smartEvalHalfBlock}>
-                    <Text style={styles.smartEvalHalfLabel}>Summary</Text>
-                    <Text style={styles.smartEvalHalfText}>{detailedAiSummary?.summary || 'No summary available.'}</Text>
+                {/* Summary + Recommendation – stacked vertically */}
+                {(detailedAiSummary?.summary ||
+                  detailedAiSummary?.recommendation) && (
+                  <View style={styles.evalInfoStack}>
+                    {detailedAiSummary?.summary ? (
+                      <View style={styles.evalInfoCard}>
+                        <Text style={styles.evalInfoLabel}>Summary</Text>
+                        <Text style={styles.evalInfoText}>
+                          {detailedAiSummary.summary}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {detailedAiSummary?.recommendation ? (
+                      <View
+                        style={[styles.evalInfoCard, { borderColor: "#c7d2fe" }]}
+                      >
+                        <Text
+                          style={[styles.evalInfoLabel, { color: "#4338ca" }]}
+                        >
+                          Recommendation
+                        </Text>
+                        <Text style={styles.evalInfoText}>
+                          {detailedAiSummary.recommendation}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
-                  <View style={styles.smartEvalHalfBlock}>
-                    <Text style={styles.smartEvalHalfLabel}>Recommendation</Text>
-                    <Text style={styles.smartEvalHalfText}>{detailedAiSummary?.recommendation || 'No recommendation available.'}</Text>
-                  </View>
-                </View>
+                )}
               </View>
             )}
 
+            {/* ── Empty state ── */}
             {qualificationRuleEntries.length === 0 && !detailedAiSummary && (
-              <View style={{ alignItems: "center", paddingVertical: 20 }}>
-                <Ionicons name="document-text-outline" size={48} color="#e4e8f6" />
-                <Text style={{ color: "#8a94b5", marginTop: 10, fontWeight: "600" }}>Application submitted successfully.</Text>
+              <View style={styles.emptyState}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={48}
+                  color="#e0e7f5"
+                />
+                <Text style={styles.emptyStateText}>
+                  Application submitted successfully.
+                </Text>
               </View>
             )}
 
+            {/* ── Rule Cards (vertical, mobile-safe) ── */}
             {qualificationRuleEntries.length > 0 && (
-              <View style={styles.tableContainer}>
-                {/* Table Header */}
-                <View style={styles.tableHeader}>
-                  <Text style={[styles.tableHeaderCell, { flex: 1.5 }]}>Rule</Text>
-                  <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Status</Text>
-                  <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Feedback</Text>
-                </View>
-
-                {/* Table Body */}
+              <View>
+                <Text style={styles.sectionLabel}>QUALIFICATION RULES</Text>
                 {qualificationRuleEntries.map(([ruleCode, result], idx) => {
                   const passed = Boolean(result?.passed);
-                  const state = result?.status || (passed ? 'passed' : 'failed');
+                  const state =
+                    result?.status || (passed ? "passed" : "failed");
 
-                  let badgeBg = "#fff0f0";
-                  let badgeText = "#e03a3a";
-                  if (state === 'for_review') {
-                    badgeBg = "#fffbeb";
-                    badgeText = "#b45309";
+                  let pillBg, pillText, pillIcon, accentColor;
+                  if (state === "for_review") {
+                    pillBg = "#fffbeb";
+                    pillText = "#b45309";
+                    pillIcon = "time-outline";
+                    accentColor = "#d97706";
                   } else if (passed) {
-                    badgeBg = "#ecfdf5";
-                    badgeText = "#047857";
+                    pillBg = "#ecfdf5";
+                    pillText = "#059669";
+                    pillIcon = "checkmark-circle";
+                    accentColor = "#059669";
+                  } else {
+                    pillBg = "#fef2f2";
+                    pillText = "#dc2626";
+                    pillIcon = "close-circle";
+                    accentColor = "#dc2626";
                   }
 
-                  const formattedRuleCode = ruleCode
-                    .split('_')
-                    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-                    .join(' ');
+                  const formattedCode = ruleCode
+                    .split("_")
+                    .map(
+                      (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+                    )
+                    .join(" ");
 
                   return (
-                    <View key={ruleCode} style={[styles.tableRow, idx === qualificationRuleEntries.length - 1 && { borderBottomWidth: 0 }]}>
-                      <View style={{ flex: 1.5, paddingRight: 8 }}>
-                        <Text style={styles.tableCellRule}>{formattedRuleCode}</Text>
-                      </View>
-                      <View style={{ flex: 1, justifyContent: "flex-start", alignItems: "flex-start", paddingRight: 8 }}>
-                        <View style={[styles.badgePill, { backgroundColor: badgeBg }]}>
-                          <Text style={[styles.badgeText, { color: badgeText }]}>{state}</Text>
+                    <View
+                      key={ruleCode}
+                      style={[
+                        styles.ruleCard,
+                        { borderLeftColor: accentColor },
+                      ]}
+                    >
+                      <View style={styles.ruleCardHeader}>
+                        <Text style={styles.ruleCardName} numberOfLines={2}>
+                          {formattedCode}
+                        </Text>
+                        <View
+                          style={[
+                            styles.ruleStatusPill,
+                            { backgroundColor: pillBg },
+                          ]}
+                        >
+                          <Ionicons
+                            name={pillIcon}
+                            size={12}
+                            color={pillText}
+                            style={{ marginRight: 4 }}
+                          />
+                          <Text
+                            style={[styles.ruleStatusText, { color: pillText }]}
+                          >
+                            {state === "for_review"
+                              ? "Review"
+                              : state.charAt(0).toUpperCase() + state.slice(1)}
+                          </Text>
                         </View>
                       </View>
-                      <View style={{ flex: 2 }}>
-                        <Text style={styles.tableCellFeedback}>{result?.message || 'No feedback available'}</Text>
-                      </View>
+                      {!!result?.message && (
+                        <Text style={styles.ruleCardFeedback}>
+                          {result.message}
+                        </Text>
+                      )}
                     </View>
                   );
                 })}
@@ -177,46 +324,59 @@ export default function ApplicationResultState({
           </View>
 
           {/* Final Status Footer */}
-          <View style={[styles.reportFooter, { backgroundColor: statusBg }]}>
+          <View
+            style={[
+              styles.reportFooter,
+              { backgroundColor: statusBg, borderTopColor: statusBorder },
+            ]}
+          >
+            <View
+              style={[
+                styles.reportFooterIconWrap,
+                { backgroundColor: statusColor },
+              ]}
+            >
+              <Ionicons name={statusIcon} size={20} color="#fff" />
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.reportFooterLabel}>Final Status</Text>
-              <Text style={[styles.reportFooterValue, { color: statusColor }]}>{finalStatusText}</Text>
+              <Text style={[styles.reportFooterValue, { color: statusColor }]}>
+                {finalStatusText}
+              </Text>
             </View>
-            <Ionicons name={isQualified ? "ribbon" : (isReview ? "time" : "close-circle")} size={36} color={statusColor} style={{ opacity: 0.8 }} />
           </View>
         </View>
       </View>
     );
   };
 
-  // Render a simpler textual AI paragraph/advice report (like in renewals, compliant, financial records)
-  const renderAiSummaryCard = () => {
-    return (
-      <View style={styles.aiSummaryCard}>
-        <View style={styles.aiSummaryHeader}>
-          <View style={styles.aiSummaryIconWrap}>
-            <Ionicons name="sparkles" size={16} color="#fff" />
-          </View>
-          <Text style={styles.aiSummaryTitle}>AI ANALYSIS & ADVICE</Text>
+  // ─── Simple AI Summary Card (renewals / grade compliance) ───────────────────
+  const renderAiSummaryCard = () => (
+    <View style={styles.aiSummaryCard}>
+      <View style={styles.aiSummaryHeader}>
+        <View style={styles.aiSummaryIconWrap}>
+          <Ionicons name="sparkles" size={16} color="#fff" />
         </View>
-        <Text style={styles.aiSummaryText}>
-          {`"${aiSummary}"`}
+        <Text style={styles.aiSummaryTitle}>AI ANALYSIS &amp; ADVICE</Text>
+      </View>
+      <Text style={styles.aiSummaryText}>{`"${aiSummary}"`}</Text>
+      <View style={styles.aiSummaryFooter}>
+        <Text style={styles.aiSummaryFooterLeft}>
+          Generated by Iskkolar AI Assistant
         </Text>
-        <View style={styles.aiSummaryFooter}>
-          <Text style={styles.aiSummaryFooterLeft}>Generated by Iskkolar AI Assistant</Text>
-          <Text style={styles.aiSummaryFooterRight}>Verified Analysis</Text>
-        </View>
+        <Text style={styles.aiSummaryFooterRight}>Verified Analysis</Text>
       </View>
-    );
-  };
+    </View>
+  );
 
+  // ─── Root render ────────────────────────────────────────────────────────────
   return (
-    <ScrollView 
-      style={styles.container} 
+    <ScrollView
+      style={styles.container}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     >
-      {/* Standard checkmark success banner at the very top */}
+      {/* ── Success hero ── */}
       <View style={styles.successCentered}>
         <View style={styles.checkIconOuter}>
           <Ionicons name="checkmark-circle" size={80} color="#16a34a" />
@@ -225,7 +385,7 @@ export default function ApplicationResultState({
         <Text style={styles.successSubtitleText}>{successMessage}</Text>
       </View>
 
-      {/* Switching Logic: Manual Warning Card vs AI Report Panels */}
+      {/* ── Report content ── */}
       {!aiCheckingEnabled ? (
         renderManualReviewCard()
       ) : (
@@ -235,111 +395,183 @@ export default function ApplicationResultState({
         </>
       )}
 
-      {/* Return / Navigation Action Button */}
+      {/* ── CTA button ── */}
       <TouchableOpacity style={styles.actionBtn} onPress={onViewApplications}>
+        <Ionicons
+          name="grid-outline"
+          size={18}
+          color="#fff"
+          style={{ marginRight: 8 }}
+        />
         <Text style={styles.actionBtnText}>{viewApplicationsText}</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: "#f8fafc" },
   contentContainer: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingHorizontal: 18,
+    paddingTop: 24,
     paddingBottom: 60,
   },
+
+  // Success hero
   successCentered: {
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 28,
+    paddingHorizontal: 8,
   },
   checkIconOuter: {
-    marginBottom: 16,
+    marginBottom: 14,
+    shadowColor: "#16a34a",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
   },
   successTitleText: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "800",
-    color: "#1e293b",
+    color: "#0f172a",
     textAlign: "center",
-    marginBottom: 6,
+    marginBottom: 8,
+    letterSpacing: -0.3,
   },
   successSubtitleText: {
     fontSize: 14,
     color: "#64748b",
     textAlign: "center",
     lineHeight: 22,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
   },
 
-  // Manual Review warning card
-  manualReviewCard: {
-    backgroundColor: "#fffbeb",
-    borderWidth: 1.5,
-    borderColor: "#fbbf24",
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 28,
-  },
-  manualReviewHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  warningIcon: {
-    marginRight: 10,
-  },
-  manualReviewTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#78350f",
-  },
-  manualReviewText: {
-    fontSize: 14,
-    color: "#92400e",
-    lineHeight: 22,
-    fontWeight: "500",
-  },
-
-  // Action Button
+  // Action button
   actionBtn: {
     backgroundColor: "#4f5fc5",
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: 14,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 8,
+    marginTop: 20,
+    flexDirection: "row",
+    shadowColor: "#4f5fc5",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   actionBtnText: {
     color: "#fff",
     fontSize: 15,
     fontWeight: "700",
+    letterSpacing: 0.2,
   },
 
-  // AI Report structure
-  aiReportContainer: {
+  // Shared section label
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#94a3b8",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    marginBottom: 10,
+    marginTop: 4,
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: "#f1f5f9",
+    marginVertical: 16,
+  },
+
+  // ─── Manual Review Card ──────────────────────────────────────────────
+  manualReviewReport: { marginBottom: 20 },
+  manualReviewBanner: {
+    backgroundColor: "#fffbeb",
+    borderWidth: 1,
+    borderColor: "#fde68a",
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "flex-start",
     marginBottom: 20,
   },
+  manualReviewBannerIcon: { marginRight: 12, marginTop: 2 },
+  manualReviewBannerTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#b45309",
+    marginBottom: 4,
+  },
+  manualReviewBannerText: {
+    fontSize: 13,
+    color: "#b45309",
+    lineHeight: 18,
+    opacity: 0.9,
+  },
+  manualReviewSummaryCard: {
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 14,
+    padding: 14,
+    backgroundColor: "#fff",
+    marginBottom: 8,
+  },
+  manualReviewSummaryText: {
+    fontSize: 14,
+    color: "#334155",
+    lineHeight: 22,
+  },
+  manualReviewFooter: { flexDirection: "row", alignItems: "center" },
+  manualReviewFooterLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#64748b",
+    marginRight: 8,
+  },
+  manualReviewFooterBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: "#fee2e2",
+  },
+  manualReviewFooterBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#b91c1c",
+  },
+
+  // ─── AI Report wrapper ───────────────────────────────────────────────
+  aiReportContainer: { marginBottom: 4 },
+
+  // Eval-complete banner
   successBanner: {
     backgroundColor: "#eef0ff",
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 14,
-    marginBottom: 18,
+    marginBottom: 14,
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#dbe2f6",
+    borderColor: "#c7d2fe",
   },
   successIconOuter: {
     backgroundColor: "#4f5fc5",
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
+    shadowColor: "#4f5fc5",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   successBannerTitle: {
     color: "#2d3a7c",
@@ -347,147 +579,196 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginBottom: 2,
   },
-  successBannerText: {
-    color: "#5b6095",
-    fontSize: 12,
-    lineHeight: 16,
-  },
+  successBannerText: { color: "#5b6095", fontSize: 12, lineHeight: 17 },
+
+  // Report card shell
   reportCard: {
-    backgroundColor: "#f7f8ff",
-    borderRadius: 14,
+    backgroundColor: "#ffffff",
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: "#dbe2f6",
     overflow: "hidden",
+    shadowColor: "#3d4fa0",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    marginBottom: 4,
   },
   reportCardHeader: {
     padding: 16,
+    backgroundColor: "#f7f8ff",
     borderBottomWidth: 1,
-    borderBottomColor: "#eff1f8",
+    borderBottomColor: "#eef0fc",
+  },
+  reportCardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  reportCardIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: "#4f5fc5",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10,
   },
   reportCardTitle: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#3d4fa0",
+    color: "#2d3a7c",
   },
   reportCardSub: {
     fontSize: 13,
     color: "#6b7280",
-    lineHeight: 18,
+    lineHeight: 19,
   },
+  reportCardBody: { padding: 14 },
+
+  // ─── Smart Eval ──────────────────────────────────────────────────────
   smartEvalContainer: {
     marginBottom: 16,
-    borderRadius: 10,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
-    backgroundColor: "#fff",
+    borderColor: "#e8eaf6",
+    backgroundColor: "#fcfcff",
     padding: 14,
   },
   smartEvalTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "800",
-    color: "#3d4076",
-    marginBottom: 10,
+    color: "#3730a3",
+    marginBottom: 12,
   },
-  smartEvalHeadingStrengths: {
+  evalSection: { marginBottom: 14 },
+  evalSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  evalHeadingStrengths: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#047857",
-    marginBottom: 6,
+    color: "#059669",
+    marginLeft: 6,
   },
-  smartEvalHeadingFlags: {
+  evalHeadingFlags: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#be123c",
+    color: "#dc2626",
+    marginLeft: 6,
+  },
+  evalBulletRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
     marginBottom: 6,
+    paddingLeft: 4,
   },
-  bulletStrength: {
-    color: "#047857",
-    marginRight: 6,
-    fontWeight: "bold",
-  },
-  bulletFlag: {
-    color: "#be123c",
-    marginRight: 6,
-    fontWeight: "bold",
+  evalBulletDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginTop: 6,
+    marginRight: 10,
+    flexShrink: 0,
   },
   bulletText: {
     fontSize: 13,
     color: "#374151",
     flex: 1,
-    lineHeight: 18,
+    lineHeight: 19,
   },
-  smartEvalHalfBlock: {
-    width: '48%',
-    backgroundColor: "#f9fafb",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 8,
-  },
-  smartEvalHalfLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#6b7280",
-    textTransform: "uppercase",
-    marginBottom: 2,
-  },
-  smartEvalHalfText: {
-    fontSize: 12,
-    color: "#374151",
-    lineHeight: 16,
-  },
-  tableContainer: {
+  evalInfoStack: { gap: 8 },
+  evalInfoCard: {
+    backgroundColor: "#fff",
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#e5e7eb",
-    backgroundColor: "#fff",
-    overflow: "hidden",
+    padding: 12,
   },
-  tableHeader: {
-    flexDirection: "row",
-    backgroundColor: "#f9fafb",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-  },
-  tableHeaderCell: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#4b5563",
-  },
-  tableRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#f3f4f6",
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    alignItems: "center",
-  },
-  tableCellRule: {
-    color: "#1f2937",
-    fontWeight: "600",
-    fontSize: 12,
-  },
-  tableCellFeedback: {
-    color: "#4b5563",
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  badgePill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  badgeText: {
-    fontWeight: "700",
+  evalInfoLabel: {
     fontSize: 10,
+    fontWeight: "800",
+    color: "#6b7280",
     textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 5,
   },
+  evalInfoText: {
+    fontSize: 13,
+    color: "#374151",
+    lineHeight: 19,
+  },
+
+  // ─── Empty state ─────────────────────────────────────────────────────
+  emptyState: { alignItems: "center", paddingVertical: 28 },
+  emptyStateText: {
+    color: "#8a94b5",
+    marginTop: 10,
+    fontWeight: "600",
+    fontSize: 14,
+  },
+
+  // ─── Rule cards (vertical, mobile-safe) ──────────────────────────────
+  ruleCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderLeftWidth: 4,
+    padding: 12,
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  ruleCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  ruleCardName: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1e293b",
+    flex: 1,
+    marginRight: 8,
+  },
+  ruleStatusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  ruleStatusText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  ruleCardFeedback: {
+    fontSize: 12,
+    color: "#64748b",
+    lineHeight: 18,
+  },
+
+  // ─── Report footer ────────────────────────────────────────────────────
   reportFooter: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: "#eff1f8",
     flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  reportFooterIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
     alignItems: "center",
   },
   reportFooterLabel: {
@@ -499,23 +780,24 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   reportFooterValue: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "800",
+    letterSpacing: -0.2,
   },
 
-  // AI Summary Card style
+  // ─── AI Summary card (simpler form, used in renewals etc.) ───────────
   aiSummaryCard: {
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#e4e8f8",
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 18,
+    padding: 18,
     marginBottom: 24,
     shadowColor: "#4f5fc5",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 3,
   },
   aiSummaryHeader: {
     flexDirection: "row",
@@ -524,25 +806,26 @@ const styles = StyleSheet.create({
   },
   aiSummaryIconWrap: {
     backgroundColor: "#4f5fc5",
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 30,
+    height: 30,
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 10,
   },
   aiSummaryTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "800",
     color: "#4f5fc5",
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
   },
   aiSummaryText: {
     fontSize: 14,
     color: "#3d4076",
     fontStyle: "italic",
-    lineHeight: 20,
-    marginBottom: 12,
+    lineHeight: 22,
+    marginBottom: 14,
   },
   aiSummaryFooter: {
     flexDirection: "row",
@@ -551,13 +834,6 @@ const styles = StyleSheet.create({
     borderTopColor: "#f1f3fa",
     paddingTop: 10,
   },
-  aiSummaryFooterLeft: {
-    fontSize: 11,
-    color: "#8a90ba",
-  },
-  aiSummaryFooterRight: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#2cae57",
-  },
+  aiSummaryFooterLeft: { fontSize: 11, color: "#8a90ba" },
+  aiSummaryFooterRight: { fontSize: 11, fontWeight: "700", color: "#2cae57" },
 });

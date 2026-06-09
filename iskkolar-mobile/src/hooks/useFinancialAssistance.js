@@ -110,10 +110,10 @@ export const useFinancialAssistance = () => {
           const purchaseDateObj = new Date(y, m - 1, d);
           
           const academicYearStart = parseInt(String(values?.academicYear || "").split("-")[0]);
-          const limitYear = isNaN(academicYearStart) ? new Date().getFullYear() : academicYearStart;
+          const currentYear = new Date().getFullYear();
+          const limitYear = isNaN(academicYearStart) ? currentYear : Math.min(academicYearStart, currentYear);
           
           const today = new Date();
-          today.setDate(today.getDate() + 1);
           today.setHours(23, 59, 59, 999);
           
           if (purchaseDateObj.getFullYear() < limitYear) {

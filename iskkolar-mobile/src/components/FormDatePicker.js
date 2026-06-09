@@ -93,7 +93,7 @@ const FormDatePicker = ({
   
   const currentYear = new Date().getFullYear();
   const minYear = currentYear - 80;
-  const maxYear = currentYear + 1;
+  const maxYear = currentYear + 10;
   
   const years = [];
   for (let y = maxYear; y >= minYear; y--) {

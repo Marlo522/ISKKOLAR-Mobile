@@ -12,6 +12,7 @@ import { AuthContext } from "../context/AuthContext";
 import ApplicationResultState from "../components/ApplicationResultState";
 import { useGradeCompliance } from "../hooks/useGradeCompliance";
 import { getSubmissionWindowStatus, validateNextTermDates, parseStringToDate } from "../utils/gradeComplianceUtils";
+import { validateGwa, INVALID_GWA_ERROR } from "../utils/gradeValidation";
 import ApplicationSubmissionGuard from "../components/ApplicationSubmissionGuard";
 
 const statusColors = {
@@ -225,7 +226,7 @@ export default function GradeComplianceScreen({ navigation }) {
             try {
               const result = await DocumentPicker.getDocumentAsync({
                 type: ["application/pdf", "image/*"],
-                copyToCacheDirectory: false,
+                copyToCacheDirectory: true,
               });
               handleResult(result);
             } catch (err) {
@@ -251,7 +252,7 @@ export default function GradeComplianceScreen({ navigation }) {
       term: selectedTerm ? "" : "Please select a term.",
       nextTermStartDate: isGraduating || nextTermStartDate ? "" : "Next term start date is required.",
       nextTermEndDate: isGraduating || nextTermEndDate ? "" : "Next term end date is required.",
-      gwa: gwa ? "" : "GWA is required.",
+      gwa: !gwa ? "GWA is required." : (!validateGwa(gwa) ? INVALID_GWA_ERROR : ""),
     };
 
     if (!isGraduating) {
@@ -267,7 +268,8 @@ export default function GradeComplianceScreen({ navigation }) {
       !selectedTerm ||
       !gradeReportFile ||
       (!isGraduating && (!corFile || !nextTermStartDate || !nextTermEndDate || nextFieldErrors.nextTermStartDate || nextFieldErrors.nextTermEndDate)) ||
-      !gwa
+      !gwa ||
+      nextFieldErrors.gwa
     ) {
       return;
     }
@@ -470,15 +472,23 @@ export default function GradeComplianceScreen({ navigation }) {
   const renderUpload = (label, fileObj, type, errorMsg) => (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
-      <TouchableOpacity style={[styles.uploadWrapper, errorMsg && styles.errorInput]} onPress={() => pickFile(type)}>
-        <View style={styles.chooseFileBtn}>
-          <Text style={styles.chooseFileText}>Choose File</Text>
-        </View>
-        <View style={styles.fileNameBox}>
-          <Text style={[styles.fileNameText, fileObj && { color: "#111" }]} numberOfLines={1}>
-            {fileObj ? fileObj.name || "Selected File" : "No file chosen"}
-          </Text>
-        </View>
+      <TouchableOpacity style={[styles.unifiedUploadContainer, errorMsg && styles.errorInput]} onPress={() => pickFile(type)}>
+        <Ionicons
+          name="share-outline"
+          size={18}
+          color={fileObj ? "#4f5fc5" : "#848baf"}
+          style={{ marginRight: 8 }}
+        />
+        <Text
+          style={[
+            styles.unifiedUploadText,
+            fileObj ? styles.unifiedUploadTextActive : styles.unifiedUploadTextInactive
+          ]}
+          numberOfLines={1}
+          ellipsizeMode="middle"
+        >
+          {fileObj ? fileObj.name || "Selected File" : "No file chosen"}
+        </Text>
       </TouchableOpacity>
       {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
     </View>
@@ -523,7 +533,7 @@ export default function GradeComplianceScreen({ navigation }) {
     if (!selectedTermId) {
       return (
         <View style={styles.landingContainer}>
-          <Text style={[styles.landingHeader, { marginBottom: 4 }]}>COR & Grade Compliance</Text>
+          <Text style={[styles.landingHeader, { marginBottom: 4 }]}>Certificate of Registration & Grade Compliance</Text>
           {resolvedIsGraduate ? null : (
             <Text style={{ fontSize: 13, color: '#6870a3', marginBottom: 20, marginLeft: 2, fontWeight: '500' }}>
               Academic Year: {academicYear || "2025-2026"}
@@ -744,7 +754,7 @@ export default function GradeComplianceScreen({ navigation }) {
           </TouchableOpacity>
 
           <View style={{ flex: 1, marginLeft: 16 }}>
-            <Text style={styles.titleLanding}>COR & Grade Compliance</Text>
+            <Text style={styles.titleLanding}>Certificate of Registration & Grade Compliance</Text>
             <Text style={styles.subtitleLanding} numberOfLines={1}>
               {selectedTerm ? `Submit grades for ${selectedTerm.termLabel}` : "Track your academic standing"}
             </Text>
@@ -758,7 +768,7 @@ export default function GradeComplianceScreen({ navigation }) {
 
       {selectedTermId && step === 2 && completeStage === "none" && (
         <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
-          <Text style={styles.titleLanding}>COR & Grade Compliance</Text>
+          <Text style={styles.titleLanding}>Certificate of Registration & Grade Compliance</Text>
         </View>
       )}
 
@@ -863,11 +873,28 @@ const styles = StyleSheet.create({
   inputReadOnly: { borderWidth: 1, borderColor: "#e0e0e0", borderRadius: 12, paddingHorizontal: 16, minHeight: 50, paddingVertical: 12, backgroundColor: "#fafafa", justifyContent: 'center' },
   inputReadOnlyText: { color: "#666", fontSize: 14, lineHeight: 20 },
 
-  uploadWrapper: { flexDirection: "row", borderWidth: 1, borderStyle: "dashed", borderColor: "#ccc", borderRadius: 8, backgroundColor: "#fff", overflow: "hidden" },
-  chooseFileBtn: { backgroundColor: "#5b5f97", paddingHorizontal: 16, paddingVertical: 12, justifyContent: "center", alignItems: "center", borderRightWidth: 1, borderRightColor: '#ccc' },
-  chooseFileText: { color: "#fff", fontSize: 13, fontWeight: "700" },
-  fileNameBox: { flex: 1, paddingHorizontal: 12, justifyContent: "center" },
-  fileNameText: { color: "#888", fontSize: 13 },
+  unifiedUploadContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    height: 48,
+    paddingHorizontal: 12,
+  },
+  unifiedUploadText: {
+    fontSize: 14,
+    flex: 1,
+  },
+  unifiedUploadTextActive: {
+    color: "#4f5fc5",
+    fontWeight: "700",
+  },
+  unifiedUploadTextInactive: {
+    color: "#848baf",
+    fontWeight: "500",
+  },
   errorInput: { borderColor: "#dc2626", borderWidth: 2 },
   errorText: { color: "#dc2626", fontSize: 12, marginTop: 4, fontWeight: "500" },
 

@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  
+
   TouchableOpacity,
   ScrollView,
   Platform,
@@ -50,13 +50,14 @@ const infoFields = {
   prevSchoolName: "",
   prevProgram: "",
   prevYearGraduated: "",
+  prevGwa: "",
   prevGradeScale: "1.0 - 5.00 Grading System",
   staffId: "",
   firstName: "",
   middleName: "",
   lastName: "",
   suffix: "--",
-  position: "Human Resource",
+  position: "--",
   fatherName: "",
   fatherBirthday: "",
   fatherStatus: "--",
@@ -80,6 +81,28 @@ const infoFields = {
   guardianContact: "",
   guardianOccupation: "",
   guardianIncome: "",
+};
+
+const isFatherEmpty = (vals) => {
+  return (
+    (!vals.fatherName || vals.fatherName.trim() === "") &&
+    (!vals.fatherBirthday || vals.fatherBirthday.trim() === "") &&
+    (!vals.fatherStatus || vals.fatherStatus === "--" || vals.fatherStatus.trim() === "") &&
+    (!vals.fatherContact || vals.fatherContact.trim() === "" || vals.fatherContact === "09") &&
+    (!vals.fatherOccupation || vals.fatherOccupation.trim() === "") &&
+    (!vals.fatherIncome || vals.fatherIncome.trim() === "")
+  );
+};
+
+const isMotherEmpty = (vals) => {
+  return (
+    (!vals.motherName || vals.motherName.trim() === "") &&
+    (!vals.motherBirthday || vals.motherBirthday.trim() === "") &&
+    (!vals.motherStatus || vals.motherStatus === "--" || vals.motherStatus.trim() === "") &&
+    (!vals.motherContact || vals.motherContact.trim() === "" || vals.motherContact === "09") &&
+    (!vals.motherOccupation || vals.motherOccupation.trim() === "") &&
+    (!vals.motherIncome || vals.motherIncome.trim() === "")
+  );
 };
 
 export default function ProgramApplyScreen({ navigation, route }) {
@@ -133,6 +156,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const [formAccess, setFormAccess] = useState({ allowed: true, reason: null, message: "", blockedApplication: null });
   const [isApplicationsClosed, setIsApplicationsClosed] = useState(false);
   const [closedYear, setClosedYear] = useState(new Date().getFullYear());
+  const [examplesModalVisible, setExamplesModalVisible] = useState(false);
 
   const {
     submitting: tertiarySubmitting,
@@ -276,7 +300,6 @@ export default function ProgramApplyScreen({ navigation, route }) {
         }
       } catch (err) {
         if (!mounted) return;
-        setOngoingApplication(null);
       } finally {
         if (mounted) setIsCheckingApplication(false);
       }
@@ -289,9 +312,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
     };
   }, []);
 
-  // tertiary: 4 steps (0=Academic, 1=Family, 2=Docs, 3=Review)
-  // others:   3 steps (0, 1, 2=Review)
-  const maxStep = selectedProgram === "employeeChild" ? 2 : 3;
+  const maxStep = 3;
   const requiresIncomeProof = (status) => ["Employed", "Self-Employed"].includes(status);
 
   const parseStringToDate = (str) => {
@@ -443,7 +464,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
       position:
         valueOf("position", "job_position", "jobPosition", "designation") ||
         prev.position ||
-        "Human Resource",
+        "--",
     }));
   };
 
@@ -578,7 +599,11 @@ export default function ProgramApplyScreen({ navigation, route }) {
       }
       setCompleteStage("qualificationReport");
     } catch (err) {
-      Alert.alert("Submission Failed", err?.message || apiError || "An error occurred.");
+      Alert.alert(
+        "Submission Failed",
+        err?.message || apiError || "An error occurred.",
+        [{ text: "OK", style: "default" }]
+      );
     } finally {
       setLocalSubmitting(false);
     }
@@ -605,14 +630,14 @@ export default function ProgramApplyScreen({ navigation, route }) {
       key === "vocationalProgram"
         ? vocationalProgramOptions
         : ["tertiarySchool", "prevSchoolName"].includes(key)
-        ? heiSchoolNames
-        : programOptions;
+          ? heiSchoolNames
+          : programOptions;
     const suggestions = isPredictive && query.trim().length >= 1
       ? optionsSource.filter(opt => opt.toLowerCase().includes(query.toLowerCase()))
       : [];
 
     return (
-      <View style={[styles.row, { zIndex: isPredictive && activePredictiveKey === key && suggestions.length > 0 ? 99 : 1 }]}>
+      <View style={[styles.row, { position: "relative", zIndex: isPredictive && activePredictiveKey === key && suggestions.length > 0 ? 99 : 1 }]}>
         <Text style={styles.label}>{label}</Text>
         <SafeTextInput placeholderTextColor="#888"
           value={values[key]}
@@ -743,21 +768,29 @@ export default function ProgramApplyScreen({ navigation, route }) {
     </View>
   );
 
-  const renderUpload = (label, key) => (
-    <View style={styles.row}>
+  const renderUpload = (label, key, isHalfWidth = false) => (
+    <View style={isHalfWidth ? styles.uploadRowItemHalf : styles.uploadRowItemFull}>
       <Text style={styles.label}>{label}</Text>
       <TouchableOpacity
         onPress={() => pickFile(key)}
-        style={[styles.newUploadContainer, fieldErrors[key] && styles.errorInput]}
+        style={[styles.unifiedUploadContainer, fieldErrors[key] && styles.errorInput]}
       >
-        <View style={styles.chooseFileBtn}>
-          <Text style={styles.chooseFileText}>Choose File</Text>
-        </View>
-        <View style={styles.fileNameBox}>
-          <Text style={styles.fileNameText} numberOfLines={1} ellipsizeMode="middle">
-            {uploadText[key] ? uploadText[key].name || uploadText[key].fileName || "Selected File" : "No file chosen"}
-          </Text>
-        </View>
+        <Ionicons
+          name="share-outline"
+          size={18}
+          color={uploadText[key] ? "#4f5fc5" : "#848baf"}
+          style={{ marginRight: 8 }}
+        />
+        <Text
+          style={[
+            styles.unifiedUploadText,
+            uploadText[key] ? styles.unifiedUploadTextActive : styles.unifiedUploadTextInactive
+          ]}
+          numberOfLines={1}
+          ellipsizeMode="middle"
+        >
+          {uploadText[key] ? uploadText[key].name || uploadText[key].fileName || "Selected File" : "No file chosen"}
+        </Text>
       </TouchableOpacity>
       {fieldErrors[key] && <Text style={styles.errorText}>{fieldErrors[key]}</Text>}
     </View>
@@ -1035,20 +1068,27 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderInput("Secondary GWA (General Weighted Average)", "secondaryGwa", "e.g. 88.50", { keyboardType: "numeric" })}
           <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide your final general average from your high school report card.</Text>
           {values.incomingFreshman === "Yes" && (
-            <>
-              {renderUpload("Grade Report", "gradeReport")}
-              <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
-                Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
-              </Text>
-            </>
+            <View style={styles.uploadsGridContainer}>
+              {renderUpload("Grade Report", "gradeReport", false)}
+              <View style={{ width: "100%" }}>
+                <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -6, marginBottom: 16, fontStyle: 'italic' }}>
+                  Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
+                </Text>
+              </View>
+            </View>
           )}
 
           <Text style={styles.sectionHeader}>| Current Tertiary Education</Text>
           {renderInput("University / College Name", "tertiarySchool", "Enter School Name")}
           {renderInput("Program", "program", "Enter Program")}
           {renderSelect("Term Type", "termType", ["Semester", "Trimester", "Quarter System"])}
-          {renderSelect("Grade Scale", "gradeScale", ["1.0 - 5.00 Grading System", "4.00 GPA System", "Percentage System", "Letter Grade System"])}
-          <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Note: Choose the grading system used by your school records to avoid incorrect evaluation.</Text>
+          {renderSelect("Grade Scale", "gradeScale", ["1.0 - 5.00 Grading System", "4.00 GPA System"])}
+          <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 4 }}>{"Note: Choose the grading system used by your school records to avoid incorrect evaluation."}</Text>
+          <TouchableOpacity onPress={() => setExamplesModalVisible(true)} style={{ marginTop: 0, marginBottom: 16 }}>
+            <Text style={{ color: "#4f5fc5", fontSize: 13, fontWeight: "600", textDecorationLine: "underline" }}>
+              View grading scale examples
+            </Text>
+          </TouchableOpacity>
           {renderSelect("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th"])}
           {renderSelect("Term", "term",
             values.termType === "Quarter System" ? ["1st", "2nd", "3rd", "4th"] :
@@ -1074,13 +1114,22 @@ export default function ProgramApplyScreen({ navigation, route }) {
             <>
               {renderInput("Current Tertiary GWA", "tertiaryGwa", "e.g. 1.75 or 88.00", { keyboardType: "numeric" })}
               <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide your GWA from your most recent semester/term.</Text>
-              {renderUpload("Current Term Report Card", "currentTermGradeReport")}
-              <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
-                Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
-              </Text>
             </>
           )}
-          {renderUpload("Certificate of Registration", "cor")}
+
+          <View style={styles.uploadsGridContainer}>
+            {values.incomingFreshman === "No" && (
+              <>
+                {renderUpload("Current Term Report Card", "currentTermGradeReport", false)}
+                <View style={{ width: "100%" }}>
+                  <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -6, marginBottom: 16, fontStyle: 'italic' }}>
+                    Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
+                  </Text>
+                </View>
+              </>
+            )}
+            {renderUpload("Certificate of Registration", "cor", false)}
+          </View>
         </View>
       );
     }
@@ -1111,7 +1160,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
           {values.hasGuardian && (
             <View>
-              <Text style={styles.sectionHeader}>| Guardian's Information</Text>
+              <Text style={styles.sectionHeader}>{"| Guardian's Information"}</Text>
               {renderInput("Guardian's Name", "guardianName", "Enter Guardian's Name")}
               {renderDatePicker("Birthday", "guardianBirthday")}
               {renderSelect("Employment Status", "guardianStatus", ["--", "Employed", "Unemployed", "Self-Employed"])}
@@ -1125,7 +1174,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </View>
           )}
 
-          <Text style={styles.sectionHeader}>| Father's Information{values.hasGuardian ? " (Optional)" : ""}</Text>
+          <Text style={styles.sectionHeader}>{"| Father's Information"}{values.hasGuardian ? " (Optional)" : ""}</Text>
           {renderInput("Father's Name", "fatherName", "Enter Father's Name")}
           {renderDatePicker("Birthday", "fatherBirthday")}
           {renderSelect("Employment Status", "fatherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
@@ -1137,7 +1186,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </>
           )}
 
-          <Text style={styles.sectionHeader}>| Mother's Information{values.hasGuardian ? " (Optional)" : ""}</Text>
+          <Text style={styles.sectionHeader}>{"| Mother's Information"}{values.hasGuardian ? " (Optional)" : ""}</Text>
           {renderInput("Mother's Name", "motherName", "Enter Mother's Name")}
           {renderDatePicker("Birthday", "motherBirthday")}
           {renderSelect("Employment Status", "motherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
@@ -1160,56 +1209,61 @@ export default function ProgramApplyScreen({ navigation, route }) {
           <Text style={styles.sectionHeader}>| Supporting Documents</Text>
           <View style={{ backgroundColor: "#eaf2fe", padding: 13, borderRadius: 8, marginBottom: 18 }}>
             <Text style={{ color: "#305fce", fontSize: 13 }}>
-              Upload clear and readable files only. Accepted formats: PDF, DOC, DOCX. Max file size: 10MB each.
+              Upload clear and readable files only. Accepted formats: PDF, PNG, JPEG. Max file size: 10MB each.
             </Text>
           </View>
 
-          {renderUpload("Birth Certificate (Applicant)", "birthCert")}
+          <View style={styles.uploadsGridContainer}>
+            {renderUpload("Birth Certificate (Applicant)", "birthCert")}
+            {renderUpload("Letter of Intent (Applicant)", "letterOfIntentApplicant")}
+            {renderUpload("Letter of Intent (Parent)", "letterOfIntentParent")}
+            {renderUpload("Recommendation Letter Form (Optional)", "recommendation")}
+            {renderUpload("Essay", "essay")}
 
-          {values.hasGuardian && (
-            <>
-              {requiresIncomeProof(values.guardianStatus)
-                ? renderUpload("Income Certificate (Guardian)", "incomeGuardian")
-                : values.guardianStatus === "Unemployed"
-                  ? renderUpload("Certificate of Indigency (Guardian)", "indigencyGuardian")
-                  : <Text style={styles.skippedDoc}>Income/indigency document not required for Guardian ({values.guardianStatus}).</Text>}
-            </>
-          )}
+            {values.hasGuardian && (
+              <>
+                {requiresIncomeProof(values.guardianStatus)
+                  ? renderUpload("Income Certificate (Guardian)", "incomeGuardian")
+                  : values.guardianStatus === "Unemployed"
+                    ? renderUpload("Certificate of Indigency (Guardian)", "indigencyGuardian")
+                    : <View style={{ width: "100%" }}><Text style={styles.skippedDoc}>{"Income/indigency document not required for Guardian (" + values.guardianStatus + ")."}</Text></View>}
+              </>
+            )}
 
-          {requiresIncomeProof(values.fatherStatus)
-            ? renderUpload("Income Certificate (Father)", "incomeFather")
-            : values.fatherStatus === "Unemployed"
-              ? renderUpload("Certificate of Indigency (Father)", "indigencyFather")
-              : <Text style={styles.skippedDoc}>Income/indigency document not required for Father ({values.fatherStatus}).</Text>}
+            {!isFatherEmpty(values) && (
+              requiresIncomeProof(values.fatherStatus)
+                ? renderUpload("Income Certificate (Father)", "incomeFather")
+                : values.fatherStatus === "Unemployed"
+                  ? renderUpload("Certificate of Indigency (Father)", "indigencyFather")
+                  : <View style={{ width: "100%" }}><Text style={styles.skippedDoc}>{"Income/indigency document not required for Father (" + values.fatherStatus + ")."}</Text></View>
+            )}
 
-          {requiresIncomeProof(values.motherStatus)
-            ? renderUpload("Income Certificate (Mother)", "incomeMother")
-            : values.motherStatus === "Unemployed"
-              ? renderUpload("Certificate of Indigency (Mother)", "indigencyMother")
-              : <Text style={styles.skippedDoc}>Income/indigency document not required for Mother ({values.motherStatus}).</Text>}
+            {!isMotherEmpty(values) && (
+              requiresIncomeProof(values.motherStatus)
+                ? renderUpload("Income Certificate (Mother)", "incomeMother")
+                : values.motherStatus === "Unemployed"
+                  ? renderUpload("Certificate of Indigency (Mother)", "indigencyMother")
+                  : <View style={{ width: "100%" }}><Text style={styles.skippedDoc}>{"Income/indigency document not required for Mother (" + values.motherStatus + ")."}</Text></View>
+            )}
 
-          {familyMembers.map((member, idx) => {
-            if (requiresIncomeProof(member.status)) {
-              return (
-                <View key={"member-doc-inc-" + idx}>
-                  {renderUpload("Income Certificate (" + (member.name || "Family Member " + (idx + 1)) + ")", "incomeMember_" + idx)}
-                </View>
-              );
-            }
-            if (member.status === "Unemployed") {
-              return (
-                <View key={"member-doc-ind-" + idx}>
-                  {renderUpload("Certificate of Indigency (" + (member.name || "Family Member " + (idx + 1)) + ")", "indigencyMember_" + idx)}
-                </View>
-              );
-            }
-            return null;
-          })}
-
-          {renderUpload("Recommendation Letter Form (Optional)", "recommendation")}
-          {renderUpload("Essay", "essay")}
-          {renderUpload("Letter of Intent (Applicant)", "letterOfIntentApplicant")}
-          {renderUpload("Letter of Intent (Parent)", "letterOfIntentParent")}
+            {familyMembers.map((member, idx) => {
+              if (requiresIncomeProof(member.status)) {
+                return (
+                  <View key={"member-doc-inc-" + idx} style={{ width: "100%" }}>
+                    {renderUpload("Income Certificate (" + (member.name || "Family Member " + (idx + 1)) + ")", "incomeMember_" + idx, false)}
+                  </View>
+                );
+              }
+              if (member.status === "Unemployed") {
+                return (
+                  <View key={"member-doc-ind-" + idx} style={{ width: "100%" }}>
+                    {renderUpload("Certificate of Indigency (" + (member.name || "Family Member " + (idx + 1)) + ")", "indigencyMember_" + idx, false)}
+                  </View>
+                );
+              }
+              return null;
+            })}
+          </View>
         </View>
       );
     }
@@ -1242,17 +1296,23 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderYearInput("Year Graduated", "yearGraduated")}
           {renderInput("Secondary GWA (General Weighted Average)", "secondaryGwa", "e.g. 88.50", { keyboardType: "numeric" })}
           <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide your final general average from your high school report card.</Text>
-          {renderUpload("Grade Report", "gradeReport")}
-          <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
-            Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
-          </Text>
+          <View style={styles.uploadsGridContainer}>
+            {renderUpload("Grade Report", "gradeReport", false)}
+            <View style={{ width: "100%" }}>
+              <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -6, marginBottom: 16, fontStyle: 'italic' }}>
+                Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
+              </Text>
+            </View>
+          </View>
 
           <Text style={styles.sectionHeader}>| Vocational/Technical Education</Text>
           {renderInput("School Name", "vocationalSchoolName", "Enter School Name")}
           {renderInput("Program", "vocationalProgram", "Enter Program")}
           {renderSelect("Course Duration", "courseDuration", ["3 months", "6 months", "9 months", "12 months", "18 months", "24 months"])}
           {renderDatePicker("Completion Date", "completionDate")}
-          {renderUpload("Certificate of Registration", "cor")}
+          <View style={styles.uploadsGridContainer}>
+            {renderUpload("Certificate of Registration", "cor", false)}
+          </View>
         </View>
       );
     }
@@ -1283,7 +1343,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
           {values.hasGuardian && (
             <View>
-              <Text style={styles.sectionHeader}>| Guardian's Information</Text>
+              <Text style={styles.sectionHeader}>{"| Guardian's Information"}</Text>
               {renderInput("Guardian's Name", "guardianName", "Enter Guardian's Name")}
               {renderDatePicker("Birthday", "guardianBirthday")}
               {renderSelect("Employment Status", "guardianStatus", ["--", "Employed", "Unemployed", "Self-Employed"])}
@@ -1297,7 +1357,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </View>
           )}
 
-          <Text style={styles.sectionHeader}>| Father's Information{values.hasGuardian ? " (Optional)" : ""}</Text>
+          <Text style={styles.sectionHeader}>{"| Father's Information"}{values.hasGuardian ? " (Optional)" : ""}</Text>
           {renderInput("Father's Name", "fatherName", "Enter Father's Name")}
           {renderDatePicker("Birthday", "fatherBirthday")}
           {renderSelect("Employment Status", "fatherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
@@ -1309,7 +1369,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </>
           )}
 
-          <Text style={styles.sectionHeader}>| Mother's Information{values.hasGuardian ? " (Optional)" : ""}</Text>
+          <Text style={styles.sectionHeader}>{"| Mother's Information"}{values.hasGuardian ? " (Optional)" : ""}</Text>
           {renderInput("Mother's Name", "motherName", "Enter Mother's Name")}
           {renderDatePicker("Birthday", "motherBirthday")}
           {renderSelect("Employment Status", "motherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
@@ -1336,52 +1396,57 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </Text>
           </View>
 
-          {renderUpload("Birth Certificate (Applicant)", "birthCert")}
+          <View style={styles.uploadsGridContainer}>
+            {renderUpload("Birth Certificate (Applicant)", "birthCert")}
+            {renderUpload("Letter of Intent (Applicant)", "letterOfIntentApplicant")}
+            {renderUpload("Letter of Intent (Parent)", "letterOfIntentParent")}
+            {renderUpload("Recommendation Letter Form (Optional)", "recommendation")}
+            {renderUpload("Essay", "essay")}
 
-          {values.hasGuardian && (
-            <>
-              {requiresIncomeProof(values.guardianStatus)
-                ? renderUpload("Income Certificate (Guardian)", "incomeGuardian")
-                : values.guardianStatus === "Unemployed"
-                  ? renderUpload("Certificate of Indigency (Guardian)", "indigencyGuardian")
-                  : <Text style={styles.skippedDoc}>Income/indigency document not required for Guardian ({values.guardianStatus}).</Text>}
-            </>
-          )}
+            {values.hasGuardian && (
+              <>
+                {requiresIncomeProof(values.guardianStatus)
+                  ? renderUpload("Income Certificate (Guardian)", "incomeGuardian")
+                  : values.guardianStatus === "Unemployed"
+                    ? renderUpload("Certificate of Indigency (Guardian)", "indigencyGuardian")
+                    : <View style={{ width: "100%" }}><Text style={styles.skippedDoc}>{"Income/indigency document not required for Guardian (" + values.guardianStatus + ")."}</Text></View>}
+              </>
+            )}
 
-          {requiresIncomeProof(values.fatherStatus)
-            ? renderUpload("Income Certificate (Father)", "incomeFather")
-            : values.fatherStatus === "Unemployed"
-              ? renderUpload("Certificate of Indigency (Father)", "indigencyFather")
-              : <Text style={styles.skippedDoc}>Income/indigency document not required for Father ({values.fatherStatus}).</Text>}
+            {!isFatherEmpty(values) && (
+              requiresIncomeProof(values.fatherStatus)
+                ? renderUpload("Income Certificate (Father)", "incomeFather")
+                : values.fatherStatus === "Unemployed"
+                  ? renderUpload("Certificate of Indigency (Father)", "indigencyFather")
+                  : <View style={{ width: "100%" }}><Text style={styles.skippedDoc}>{"Income/indigency document not required for Father (" + values.fatherStatus + ")."}</Text></View>
+            )}
 
-          {requiresIncomeProof(values.motherStatus)
-            ? renderUpload("Income Certificate (Mother)", "incomeMother")
-            : values.motherStatus === "Unemployed"
-              ? renderUpload("Certificate of Indigency (Mother)", "indigencyMother")
-              : <Text style={styles.skippedDoc}>Income/indigency document not required for Mother ({values.motherStatus}).</Text>}
+            {!isMotherEmpty(values) && (
+              requiresIncomeProof(values.motherStatus)
+                ? renderUpload("Income Certificate (Mother)", "incomeMother")
+                : values.motherStatus === "Unemployed"
+                  ? renderUpload("Certificate of Indigency (Mother)", "indigencyMother")
+                  : <View style={{ width: "100%" }}><Text style={styles.skippedDoc}>{"Income/indigency document not required for Mother (" + values.motherStatus + ")."}</Text></View>
+            )}
 
-          {familyMembers.map((member, idx) => {
-            if (requiresIncomeProof(member.status)) {
-              return (
-                <View key={"member-doc-inc-" + idx}>
-                  {renderUpload("Income Certificate (" + (member.name || "Family Member " + (idx + 1)) + ")", "incomeMember_" + idx)}
-                </View>
-              );
-            }
-            if (member.status === "Unemployed") {
-              return (
-                <View key={"member-doc-ind-" + idx}>
-                  {renderUpload("Certificate of Indigency (" + (member.name || "Family Member " + (idx + 1)) + ")", "indigencyMember_" + idx)}
-                </View>
-              );
-            }
-            return null;
-          })}
-
-          {renderUpload("Recommendation Letter Form (Optional)", "recommendation")}
-          {renderUpload("Essay", "essay")}
-          {renderUpload("Letter of Intent (Applicant)", "letterOfIntentApplicant")}
-          {renderUpload("Letter of Intent (Parent)", "letterOfIntentParent")}
+            {familyMembers.map((member, idx) => {
+              if (requiresIncomeProof(member.status)) {
+                return (
+                  <View key={"member-doc-inc-" + idx} style={{ width: "100%" }}>
+                    {renderUpload("Income Certificate (" + (member.name || "Family Member " + (idx + 1)) + ")", "incomeMember_" + idx, false)}
+                  </View>
+                );
+              }
+              if (member.status === "Unemployed") {
+                return (
+                  <View key={"member-doc-ind-" + idx} style={{ width: "100%" }}>
+                    {renderUpload("Certificate of Indigency (" + (member.name || "Family Member " + (idx + 1)) + ")", "indigencyMember_" + idx, false)}
+                  </View>
+                );
+              }
+              return null;
+            })}
+          </View>
         </View>
       );
     }
@@ -1390,9 +1455,9 @@ export default function ProgramApplyScreen({ navigation, route }) {
   };
 
   const renderEmployeeChildFlow = () => {
-    if (step === 0) {
-      const isMasters = !isChildDesignation && values.educPath === "Masters Education";
+    const isMasters = !isChildDesignation && String(values.educPath).toLowerCase().includes("masters");
 
+    if (step === 0) {
       return (
         <View>
           <Text style={styles.sectionHeader}>Academic Information</Text>
@@ -1411,7 +1476,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             "PRE-K-12 CURRICULUM"
           ])}
           {renderYearInput("Year Graduated", "yearGraduated")}
-          {values.incomingFreshman === "Yes" && !isMasters && (
+          {!isMasters && (
             <>
               {renderInput("Secondary GWA (General Weighted Average)", "secondaryGwa", "e.g. 88.50", { keyboardType: "numeric" })}
               <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide your final general average from your high school report card.</Text>
@@ -1432,11 +1497,16 @@ export default function ProgramApplyScreen({ navigation, route }) {
               {renderInput("Previous School Name", "prevSchoolName", "Enter Previous School Name")}
               {renderInput("Previous Program", "prevProgram", "Enter Previous Program")}
               {renderYearInput("Previous Year Graduated", "prevYearGraduated")}
-              {renderInput("Previous Tertiary GWA", "secondaryGwa", "e.g. 1.75 or 88.50", { keyboardType: "numeric" })}
+              {renderInput("Previous Tertiary GWA", "prevGwa", "e.g. 1.75 or 88.50", { keyboardType: "numeric" })}
               <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Provide the GWA from your previous tertiary transcript.</Text>
               {values.incomingFreshman === "Yes" && (
                 <>
-                  {renderSelect("Grade Scale", "prevGradeScale", ["1.0 - 5.00 Grading System", "4.00 GPA System", "Percentage System", "Letter Grade System"])}
+                  {renderSelect("Grade Scale", "prevGradeScale", ["1.0 - 5.00 Grading System", "4.00 GPA System"])}
+                  <TouchableOpacity onPress={() => setExamplesModalVisible(true)} style={{ marginTop: -10, marginBottom: 14 }}>
+                    <Text style={{ color: "#4f5fc5", fontSize: 13, fontWeight: "600", textDecorationLine: "underline" }}>
+                      View grading scale examples
+                    </Text>
+                  </TouchableOpacity>
                   {renderUpload("Grade Report", "gradeReport")}
                   <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
                     Guide: Please upload your final grade report for the previous tertiary program.
@@ -1452,8 +1522,13 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderInput("University / College Name", "tertiarySchool", "Enter School Name")}
           {renderInput("Program", "program", "Enter Program")}
           {renderSelect("Term Type", "termType", ["Semester", "Trimester", "Quarter System"])}
-          {renderSelect("Grade Scale", "gradeScale", ["1.0 - 5.00 Grading System", "4.00 GPA System", "Percentage System", "Letter Grade System"])}
-          <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16 }}>Note: Choose the grading system used by your school records to avoid incorrect evaluation.</Text>
+          {renderSelect("Grade Scale", "gradeScale", ["1.0 - 5.00 Grading System", "4.00 GPA System"])}
+          <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 4 }}>{"Note: Choose the grading system used by your school records to avoid incorrect evaluation."}</Text>
+          <TouchableOpacity onPress={() => setExamplesModalVisible(true)} style={{ marginTop: 0, marginBottom: 16 }}>
+            <Text style={{ color: "#4f5fc5", fontSize: 13, fontWeight: "600", textDecorationLine: "underline" }}>
+              View grading scale examples
+            </Text>
+          </TouchableOpacity>
           {renderSelect("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th"])}
           {renderSelect("Term", "term",
             values.termType === "Quarter System" ? ["1st", "2nd", "3rd", "4th"] :
@@ -1484,35 +1559,19 @@ export default function ProgramApplyScreen({ navigation, route }) {
             </>
           )}
 
-          {renderUpload("Certificate of Registration", "cor")}
-          {renderUpload("Birth Certificate (Applicant)", "birthCert")}
-
-          {isChildDesignation && values.incomingFreshman === "No" && (
-            <>
-              {renderUpload("Current Term Report Card", "currentTermGradeReport")}
-              <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
-                Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
-              </Text>
-            </>
-          )}
-
-          {isChildDesignation && (
-            <>
-              {renderUpload("Letter of Intent (Applicant)", "letterOfIntentApplicant")}
-              {renderUpload("Letter of Intent (Parent)", "letterOfIntentParent")}
-            </>
-          )}
-
-          {!isChildDesignation && values.incomingFreshman === "No" && (
-            <>
-              {renderUpload("Current Term Report Card", "currentTermGradeReport")}
-              <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -10, marginBottom: 16, fontStyle: 'italic' }}>
-                Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
-              </Text>
-            </>
-          )}
-
-          {!isChildDesignation && renderUpload("Letter of Intent", "letterOfIntentApplicant")}
+          <View style={styles.uploadsGridContainer}>
+            {renderUpload("Certificate of Registration", "cor")}
+            {values.incomingFreshman === "No" && (
+              <>
+                {renderUpload("Current Term Report Card", "currentTermGradeReport")}
+                <View style={{ width: "100%" }}>
+                  <Text style={{ color: '#6b7280', fontSize: 13, marginTop: -6, marginBottom: 16, fontStyle: 'italic' }}>
+                    Guide: Please upload your latest grade report. Having a clearly displayed GWA in the report is an advantage.
+                  </Text>
+                </View>
+              </>
+            )}
+          </View>
         </View>
       );
     }
@@ -1536,6 +1595,28 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderReadonlyValue("Last Name", values.lastName)}
           {renderReadonlyValue("Suffix", values.suffix)}
           {renderReadonlyValue("Position", values.position)}
+        </View>
+      );
+    }
+
+    if (step === 2) {
+      return (
+        <View>
+          <Text style={styles.sectionHeader}>| Supporting Documents</Text>
+          <View style={{ backgroundColor: "#eaf2fe", padding: 13, borderRadius: 8, marginBottom: 18 }}>
+            <Text style={{ color: "#305fce", fontSize: 13 }}>
+              Upload clear and readable files only. Accepted formats: PDF, DOC, DOCX. Max file size: 10MB each.
+            </Text>
+          </View>
+
+          <View style={styles.uploadsGridContainer}>
+            {renderUpload("Birth Certificate (Applicant)", "birthCert")}
+            {renderUpload(
+              isChildDesignation ? "Letter of Intent (Applicant)" : "Letter of Intent",
+              "letterOfIntentApplicant"
+            )}
+            {isChildDesignation && renderUpload("Letter of Intent (Parent)", "letterOfIntentParent")}
+          </View>
         </View>
       );
     }
@@ -1574,7 +1655,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
   const renderReview = () => {
     const familyItems = [];
-    
+
     // Guardian (highest priority, only if hasGuardian is true and guardianName is entered)
     if (values.hasGuardian && values.guardianName && values.guardianName.trim() !== "") {
       familyItems.push(
@@ -1609,7 +1690,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
     }
 
     // Dynamic family members
-    const hasCoreFamilyData = 
+    const hasCoreFamilyData =
       (values.hasGuardian && values.guardianName && values.guardianName.trim() !== "") ||
       (values.fatherName && values.fatherName.trim() !== "") ||
       (values.motherName && values.motherName.trim() !== "");
@@ -1656,278 +1737,285 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
             {familyItems.length > 0 && renderReviewSection("Family / Guardian Information", "people-outline", familyItems)}
 
-          {renderReviewSection("Supporting Documents", "document-text-outline", [
-            ...(values.incomingFreshman === "Yes" ? [
-              { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" }
-            ] : []),
-            { label: "Certificate of Registration", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
-            ...(values.incomingFreshman === "No" ? [
-              { label: "Current Term Report Card", value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached", icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle" }
-            ] : []),
-            { label: "Certificate of Indigency", value: uploadText.indigency ? "Attached" : "Not Attached", icon: uploadText.indigency ? "checkmark-circle" : "close-circle" },
-            { label: "Birth Certificate", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
-            ...(values.hasGuardian ? [
-              ...(requiresIncomeProof(values.guardianStatus) ? [
-                { label: "Income Certificate (Guardian)", value: uploadText.incomeGuardian ? "Attached" : "Not Attached", icon: uploadText.incomeGuardian ? "checkmark-circle" : "close-circle" }
-              ] : values.guardianStatus === "Unemployed" ? [
-                { label: "Certificate of Indigency (Guardian)", value: uploadText.indigencyGuardian ? "Attached" : "Not Attached", icon: uploadText.indigencyGuardian ? "checkmark-circle" : "close-circle" }
-              ] : [])
-            ] : []),
-            ...(requiresIncomeProof(values.fatherStatus) ? [
-              { label: "Income Certificate (Father)", value: uploadText.incomeFather ? "Attached" : "Not Attached", icon: uploadText.incomeFather ? "checkmark-circle" : "close-circle" }
-            ] : values.fatherStatus === "Unemployed" ? [
-              { label: "Indigency (Father)", value: uploadText.indigencyFather ? "Attached" : "Not Attached", icon: uploadText.indigencyFather ? "checkmark-circle" : "close-circle" }
-            ] : []),
-            ...(requiresIncomeProof(values.motherStatus) ? [
-              { label: "Income Certificate (Mother)", value: uploadText.incomeMother ? "Attached" : "Not Attached", icon: uploadText.incomeMother ? "checkmark-circle" : "close-circle" }
-            ] : values.motherStatus === "Unemployed" ? [
-              { label: "Indigency (Mother)", value: uploadText.indigencyMother ? "Attached" : "Not Attached", icon: uploadText.indigencyMother ? "checkmark-circle" : "close-circle" }
-            ] : []),
-            ...familyMembers.filter(m => requiresIncomeProof(m.status) || m.status === "Unemployed").map((member, idx) => {
-              const isUnemp = member.status === "Unemployed";
-              const key = isUnemp ? `indigencyMember_${idx}` : `incomeMember_${idx}`;
-              const label = isUnemp ? `Indigency Certificate (${member.name || `Member ${idx + 1}`})` : `Income Certificate (${member.name || `Member ${idx + 1}`})`;
-              return {
-                label,
-                value: uploadText[key] ? "Attached" : "Not Attached",
-                icon: uploadText[key] ? "checkmark-circle" : "close-circle"
-              };
-            }),
-            { label: "Recommendation Letter Form (Optional)", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
-            { label: "Personal Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
-            { label: "Letter of Intent (Applicant)", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" },
-            { label: "Letter of Intent (Parent)", value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle" },
-          ])}
-        </>
-      )}
-
-      {selectedProgram === "vocational" && (
-        <>
-          {renderReviewSection("Program Assignment", "construct-outline", [
-            { label: "Scholarship Type", value: values.scholarshipType, icon: "ribbon-outline" },
-            { label: "Incoming Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
-          ])}
-          {renderReviewSection("Educational History", "school-outline", [
-            { label: "HS School Name", value: values.secondarySchool, icon: "business-outline" },
-            { label: "Strand / Track", value: values.strand, icon: "bookmarks-outline" },
-            { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
-          ])}
-          {renderReviewSection("Vocational Details", "flask-outline", [
-            { label: "Technical School", value: values.vocationalSchoolName, icon: "business-outline" },
-            { label: "Technical Program", value: values.vocationalProgram, icon: "list-outline" },
-            { label: "Course Duration", value: values.courseDuration, icon: "time-outline" },
-            { label: "Completion Date", value: values.completionDate, icon: "calendar-outline" },
-          ])}
-          {familyItems.length > 0 && renderReviewSection("Family / Guardian Information", "people-outline", familyItems)}
-
-          {renderReviewSection("Supporting Documents", "document-text-outline", [
-            ...(values.incomingFreshman === "Yes" ? [
-              { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" }
-            ] : []),
-            { label: "Certificate of Registration", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
-            { label: "Certificate of Indigency", value: uploadText.indigency ? "Attached" : "Not Attached", icon: uploadText.indigency ? "checkmark-circle" : "close-circle" },
-            { label: "Birth Certificate", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
-            ...(requiresIncomeProof(values.fatherStatus) ? [
-              { label: "Income Certificate (Father)", value: uploadText.incomeFather ? "Attached" : "Not Attached", icon: uploadText.incomeFather ? "checkmark-circle" : "close-circle" }
-            ] : values.fatherStatus === "Unemployed" ? [
-              { label: "Indigency (Father)", value: uploadText.indigencyFather ? "Attached" : "Not Attached", icon: uploadText.indigencyFather ? "checkmark-circle" : "close-circle" }
-            ] : []),
-            ...(requiresIncomeProof(values.motherStatus) ? [
-              { label: "Income Certificate (Mother)", value: uploadText.incomeMother ? "Attached" : "Not Attached", icon: uploadText.incomeMother ? "checkmark-circle" : "close-circle" }
-            ] : values.motherStatus === "Unemployed" ? [
-              { label: "Indigency (Mother)", value: uploadText.indigencyMother ? "Attached" : "Not Attached", icon: uploadText.indigencyMother ? "checkmark-circle" : "close-circle" }
-            ] : []),
-            ...familyMembers.filter(m => requiresIncomeProof(m.status) || m.status === "Unemployed").map((member, idx) => {
-              const isUnemp = member.status === "Unemployed";
-              const key = isUnemp ? `indigencyMember_${idx}` : `incomeMember_${idx}`;
-              const label = isUnemp ? `Indigency Certificate (${member.name || `Member ${idx + 1}`})` : `Income Certificate (${member.name || `Member ${idx + 1}`})`;
-              return {
-                label,
-                value: uploadText[key] ? "Attached" : "Not Attached",
-                icon: uploadText[key] ? "checkmark-circle" : "close-circle"
-              };
-            }),
-            { label: "Recommendation Letter Form (Optional)", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
-            { label: "Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
-            { label: "Letter of Intent (Applicant)", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" },
-            { label: "Letter of Intent (Parent)", value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle" },
-          ])}
-        </>
-      )}
-
-      {selectedProgram === "employeeChild" && (() => {
-        const isMasters = !isChildDesignation && values.educPath === "Masters Education";
-        return (
-          <>
-            {renderReviewSection("Academic Information", "school-outline", [
-              ...(!isChildDesignation ? [{ label: "Education Path", value: values.educPath, icon: "map-outline" }] : []),
-              { label: "Incoming Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
-              ...(isMasters ? [
-                { label: "Previous School Name", value: values.prevSchoolName, icon: "business-outline" },
-                { label: "Previous Program", value: values.prevProgram, icon: "school-outline" },
-                { label: "Previous Year Graduated", value: values.prevYearGraduated, icon: "calendar-outline" },
-                { label: "Previous Tertiary GWA", value: values.secondaryGwa, icon: "analytics-outline" },
-                ...(values.incomingFreshman === "Yes" ? [
-                  { label: "Grade Scale", value: values.prevGradeScale, icon: "ribbon-outline" },
-                ] : []),
-              ] : [
-                { label: "Secondary School", value: values.secondarySchool, icon: "business-outline" },
-                { label: "Strand", value: values.strand, icon: "bookmarks-outline" },
-                { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
-                ...(values.incomingFreshman === "Yes" ? [{ label: "Secondary GWA", value: values.secondaryGwa, icon: "analytics-outline" }] : []),
-              ]),
-              { label: isMasters ? "University / College Name" : "Tertiary School", value: values.tertiarySchool, icon: "location-outline" },
-              { label: "Program", value: values.program, icon: "school-outline" },
-              { label: "Term Type", value: values.termType, icon: "receipt-outline" },
-              { label: "Grade Scale", value: values.gradeScale, icon: "ribbon-outline" },
-              { label: "Year Level", value: values.yearLevel, icon: "ribbon-outline" },
-              { label: "Term", value: values.term, icon: "time-outline" },
-              { label: "Term Start Date", value: values.termStartDate, icon: "calendar-outline" },
-              { label: "Term End Date", value: values.termEndDate, icon: "calendar-outline" },
-              { label: "Expected Graduation Year", value: values.expectedGradYear, icon: "calendar-outline" },
-              ...(values.incomingFreshman === "No" ? [{ label: isMasters ? "Current Masters GWA" : "Current GWA", value: values.tertiaryGwa, icon: "analytics-outline" }] : []),
-            ])}
-             {renderReviewSection("Staff Information", "id-card-outline", [
-              { label: "Staff ID", value: values.staffId, icon: "barcode-outline" },
-              { label: "First Name", value: values.firstName, icon: "person-outline" },
-              { label: "Middle Name", value: values.middleName || "--", icon: "person-outline" },
-              { label: "Last Name", value: values.lastName, icon: "person-outline" },
-              { label: "Suffix", value: values.suffix || "--", icon: "person-outline" },
-              { label: "Position", value: values.position, icon: "briefcase-outline" },
-            ])}
             {renderReviewSection("Supporting Documents", "document-text-outline", [
               ...(values.incomingFreshman === "Yes" ? [
-                {
-                  label: isMasters ? "Previous Tertiary Grade Report" : "Grade Report",
-                  value: uploadText.gradeReport ? "Attached" : "Not Attached",
-                  icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle"
-                }
+                { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" }
               ] : []),
               { label: "Certificate of Registration", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
               ...(values.incomingFreshman === "No" ? [
-                {
-                  label: "Current Term Report Card",
-                  value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached",
-                  icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle"
-                }
+                { label: "Current Term Report Card", value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached", icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle" }
               ] : []),
-              ...(isChildDesignation ? [
-                { label: "Letter of Intent (Applicant)", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" },
-                { label: "Letter of Intent (Parent)", value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle" }
-              ] : [
-                { label: "Letter of Intent", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" }
-              ]),
+              { label: "Certificate of Indigency", value: uploadText.indigency ? "Attached" : "Not Attached", icon: uploadText.indigency ? "checkmark-circle" : "close-circle" },
+              { label: "Birth Certificate", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
+              ...(values.hasGuardian ? [
+                ...(requiresIncomeProof(values.guardianStatus) ? [
+                  { label: "Income Certificate (Guardian)", value: uploadText.incomeGuardian ? "Attached" : "Not Attached", icon: uploadText.incomeGuardian ? "checkmark-circle" : "close-circle" }
+                ] : values.guardianStatus === "Unemployed" ? [
+                  { label: "Certificate of Indigency (Guardian)", value: uploadText.indigencyGuardian ? "Attached" : "Not Attached", icon: uploadText.indigencyGuardian ? "checkmark-circle" : "close-circle" }
+                ] : [])
+              ] : []),
+              ...(requiresIncomeProof(values.fatherStatus) ? [
+                { label: "Income Certificate (Father)", value: uploadText.incomeFather ? "Attached" : "Not Attached", icon: uploadText.incomeFather ? "checkmark-circle" : "close-circle" }
+              ] : values.fatherStatus === "Unemployed" ? [
+                { label: "Indigency (Father)", value: uploadText.indigencyFather ? "Attached" : "Not Attached", icon: uploadText.indigencyFather ? "checkmark-circle" : "close-circle" }
+              ] : []),
+              ...(requiresIncomeProof(values.motherStatus) ? [
+                { label: "Income Certificate (Mother)", value: uploadText.incomeMother ? "Attached" : "Not Attached", icon: uploadText.incomeMother ? "checkmark-circle" : "close-circle" }
+              ] : values.motherStatus === "Unemployed" ? [
+                { label: "Indigency (Mother)", value: uploadText.indigencyMother ? "Attached" : "Not Attached", icon: uploadText.indigencyMother ? "checkmark-circle" : "close-circle" }
+              ] : []),
+              ...familyMembers.filter(m => requiresIncomeProof(m.status) || m.status === "Unemployed").map((member, idx) => {
+                const isUnemp = member.status === "Unemployed";
+                const key = isUnemp ? `indigencyMember_${idx}` : `incomeMember_${idx}`;
+                const label = isUnemp ? `Indigency Certificate (${member.name || `Member ${idx + 1}`})` : `Income Certificate (${member.name || `Member ${idx + 1}`})`;
+                return {
+                  label,
+                  value: uploadText[key] ? "Attached" : "Not Attached",
+                  icon: uploadText[key] ? "checkmark-circle" : "close-circle"
+                };
+              }),
+              { label: "Recommendation Letter Form (Optional)", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
+              { label: "Personal Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
+              { label: "Letter of Intent (Applicant)", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" },
+              { label: "Letter of Intent (Parent)", value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle" },
             ])}
           </>
-        );
-      })()}
+        )}
 
-      <View style={styles.premiumReviewCard}>
-        <View style={styles.declarationHeader}>
-          <Ionicons name="document-text-outline" size={20} color="#3d4fa0" />
-          <Text style={styles.declarationTitle}>Declaration & Agreement</Text>
-        </View>
+        {selectedProgram === "vocational" && (
+          <>
+            {renderReviewSection("Program Assignment", "construct-outline", [
+              { label: "Scholarship Type", value: values.scholarshipType, icon: "ribbon-outline" },
+              { label: "Incoming Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
+            ])}
+            {renderReviewSection("Educational History", "school-outline", [
+              { label: "HS School Name", value: values.secondarySchool, icon: "business-outline" },
+              { label: "Strand / Track", value: values.strand, icon: "bookmarks-outline" },
+              { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
+            ])}
+            {renderReviewSection("Vocational Details", "flask-outline", [
+              { label: "Technical School", value: values.vocationalSchoolName, icon: "business-outline" },
+              { label: "Technical Program", value: values.vocationalProgram, icon: "list-outline" },
+              { label: "Course Duration", value: values.courseDuration, icon: "time-outline" },
+              { label: "Completion Date", value: values.completionDate, icon: "calendar-outline" },
+            ])}
+            {familyItems.length > 0 && renderReviewSection("Family / Guardian Information", "people-outline", familyItems)}
 
-        <View style={styles.declarationItems}>
-          <View style={styles.declRow}>
-            <TouchableOpacity 
-              activeOpacity={0.7} 
-              onPress={() => setDeclarations((d) => {
-                const nextVal = !d.agree1;
-                return { agree1: nextVal, agree2: nextVal, agree3: nextVal };
-              })}
-              style={[styles.modernCheckbox, declarations.agree1 && styles.modernCheckboxChecked, { marginTop: 2 }]}
-            >
-              {declarations.agree1 && <Ionicons name="checkmark" size={14} color="#fff" />}
-            </TouchableOpacity>
-            
-            <Text style={[styles.declarationText, { marginLeft: 10 }]}>
-              <Text onPress={() => setDeclarations((d) => {
-                const nextVal = !d.agree1;
-                return { agree1: nextVal, agree2: nextVal, agree3: nextVal };
-              })}>
-                By ticking, you are confirming that you have read, understood and agree to KKFI{" "}
-              </Text>
-              <Text 
-                style={{ color: "#3d4fa0", fontWeight: "700", textDecorationLine: "underline" }}
-                onPress={() => setTermsModalVisible(true)}
+            {renderReviewSection("Supporting Documents", "document-text-outline", [
+              ...(values.incomingFreshman === "Yes" ? [
+                { label: "Grade Report", value: uploadText.gradeReport ? "Attached" : "Not Attached", icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle" }
+              ] : []),
+              { label: "Certificate of Registration", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
+              { label: "Certificate of Indigency", value: uploadText.indigency ? "Attached" : "Not Attached", icon: uploadText.indigency ? "checkmark-circle" : "close-circle" },
+              { label: "Birth Certificate", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
+              ...(requiresIncomeProof(values.fatherStatus) ? [
+                { label: "Income Certificate (Father)", value: uploadText.incomeFather ? "Attached" : "Not Attached", icon: uploadText.incomeFather ? "checkmark-circle" : "close-circle" }
+              ] : values.fatherStatus === "Unemployed" ? [
+                { label: "Indigency (Father)", value: uploadText.indigencyFather ? "Attached" : "Not Attached", icon: uploadText.indigencyFather ? "checkmark-circle" : "close-circle" }
+              ] : []),
+              ...(requiresIncomeProof(values.motherStatus) ? [
+                { label: "Income Certificate (Mother)", value: uploadText.incomeMother ? "Attached" : "Not Attached", icon: uploadText.incomeMother ? "checkmark-circle" : "close-circle" }
+              ] : values.motherStatus === "Unemployed" ? [
+                { label: "Indigency (Mother)", value: uploadText.indigencyMother ? "Attached" : "Not Attached", icon: uploadText.indigencyMother ? "checkmark-circle" : "close-circle" }
+              ] : []),
+              ...familyMembers.filter(m => requiresIncomeProof(m.status) || m.status === "Unemployed").map((member, idx) => {
+                const isUnemp = member.status === "Unemployed";
+                const key = isUnemp ? `indigencyMember_${idx}` : `incomeMember_${idx}`;
+                const label = isUnemp ? `Indigency Certificate (${member.name || `Member ${idx + 1}`})` : `Income Certificate (${member.name || `Member ${idx + 1}`})`;
+                return {
+                  label,
+                  value: uploadText[key] ? "Attached" : "Not Attached",
+                  icon: uploadText[key] ? "checkmark-circle" : "close-circle"
+                };
+              }),
+              { label: "Recommendation Letter Form (Optional)", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
+              { label: "Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
+              { label: "Letter of Intent (Applicant)", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" },
+              { label: "Letter of Intent (Parent)", value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle" },
+            ])}
+          </>
+        )}
+
+        {selectedProgram === "employeeChild" && (() => {
+          const isMasters = !isChildDesignation && String(values.educPath).toLowerCase().includes("masters");
+          return (
+            <>
+              {renderReviewSection("Academic Information", "school-outline", [
+                ...(!isChildDesignation ? [{ label: "Education Path", value: values.educPath, icon: "map-outline" }] : []),
+                { label: "Incoming Freshman", value: values.incomingFreshman, icon: "sparkles-outline" },
+                ...(isMasters ? [
+                  { label: "Previous School Name", value: values.prevSchoolName, icon: "business-outline" },
+                  { label: "Previous Program", value: values.prevProgram, icon: "school-outline" },
+                  { label: "Previous Year Graduated", value: values.prevYearGraduated, icon: "calendar-outline" },
+                  { label: "Previous Tertiary GWA", value: values.prevGwa, icon: "analytics-outline" },
+                  ...(values.incomingFreshman === "Yes" ? [
+                    { label: "Grade Scale", value: values.prevGradeScale, icon: "ribbon-outline" },
+                  ] : []),
+                ] : [
+                  { label: "Secondary School", value: values.secondarySchool, icon: "business-outline" },
+                  { label: "Strand", value: values.strand, icon: "bookmarks-outline" },
+                  { label: "Year Graduated", value: values.yearGraduated, icon: "calendar-outline" },
+                  ...(values.incomingFreshman === "Yes" ? [{ label: "Secondary GWA", value: values.secondaryGwa, icon: "analytics-outline" }] : []),
+                ]),
+                { label: isMasters ? "University / College Name" : "Tertiary School", value: values.tertiarySchool, icon: "location-outline" },
+                { label: "Program", value: values.program, icon: "school-outline" },
+                { label: "Term Type", value: values.termType, icon: "receipt-outline" },
+                { label: "Grade Scale", value: values.gradeScale, icon: "ribbon-outline" },
+                { label: "Year Level", value: values.yearLevel, icon: "ribbon-outline" },
+                { label: "Term", value: values.term, icon: "time-outline" },
+                { label: "Term Start Date", value: values.termStartDate, icon: "calendar-outline" },
+                { label: "Term End Date", value: values.termEndDate, icon: "calendar-outline" },
+                { label: "Expected Graduation Year", value: values.expectedGradYear, icon: "calendar-outline" },
+                ...(values.incomingFreshman === "No" ? [{ label: isMasters ? "Current Masters GWA" : "Current GWA", value: values.tertiaryGwa, icon: "analytics-outline" }] : []),
+              ])}
+              {renderReviewSection("Staff Information", "id-card-outline", [
+                { label: "Staff ID", value: values.staffId, icon: "barcode-outline" },
+                { label: "First Name", value: values.firstName, icon: "person-outline" },
+                { label: "Middle Name", value: values.middleName || "--", icon: "person-outline" },
+                { label: "Last Name", value: values.lastName, icon: "person-outline" },
+                { label: "Suffix", value: values.suffix || "--", icon: "person-outline" },
+                { label: "Position", value: values.position, icon: "briefcase-outline" },
+              ])}
+              {renderReviewSection("Supporting Documents", "document-text-outline", [
+                ...(values.incomingFreshman === "Yes" ? [
+                  {
+                    label: isMasters ? "Previous Tertiary Grade Report" : "Grade Report",
+                    value: uploadText.gradeReport ? "Attached" : "Not Attached",
+                    icon: uploadText.gradeReport ? "checkmark-circle" : "close-circle"
+                  }
+                ] : []),
+                { label: "Certificate of Registration", value: uploadText.cor ? "Attached" : "Not Attached", icon: uploadText.cor ? "checkmark-circle" : "close-circle" },
+                { label: "Birth Certificate (Applicant)", value: uploadText.birthCert ? "Attached" : "Not Attached", icon: uploadText.birthCert ? "checkmark-circle" : "close-circle" },
+                ...(values.incomingFreshman === "No" ? [
+                  {
+                    label: "Current Term Report Card",
+                    value: uploadText.currentTermGradeReport ? "Attached" : "Not Attached",
+                    icon: uploadText.currentTermGradeReport ? "checkmark-circle" : "close-circle"
+                  }
+                ] : []),
+                {
+                  label: isChildDesignation ? "Letter of Intent (Applicant)" : "Letter of Intent",
+                  value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached",
+                  icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle"
+                },
+                ...(isChildDesignation ? [
+                  {
+                    label: "Letter of Intent (Parent)",
+                    value: uploadText.letterOfIntentParent ? "Attached" : "Not Attached",
+                    icon: uploadText.letterOfIntentParent ? "checkmark-circle" : "close-circle"
+                  }
+                ] : []),
+              ])}
+            </>
+          );
+        })()}
+
+        <View style={styles.premiumReviewCard}>
+          <View style={styles.declarationHeader}>
+            <Ionicons name="document-text-outline" size={20} color="#3d4fa0" />
+            <Text style={styles.declarationTitle}>Declaration & Agreement</Text>
+          </View>
+
+          <View style={styles.declarationItems}>
+            <View style={styles.declRow}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setDeclarations((d) => {
+                  const nextVal = !d.agree1;
+                  return { agree1: nextVal, agree2: nextVal, agree3: nextVal };
+                })}
+                style={[styles.modernCheckbox, declarations.agree1 && styles.modernCheckboxChecked, { marginTop: 2 }]}
               >
-                declaration and agreement terms.
+                {declarations.agree1 && <Ionicons name="checkmark" size={14} color="#fff" />}
+              </TouchableOpacity>
+
+              <Text style={[styles.declarationText, { marginLeft: 10 }]}>
+                <Text onPress={() => setDeclarations((d) => {
+                  const nextVal = !d.agree1;
+                  return { agree1: nextVal, agree2: nextVal, agree3: nextVal };
+                })}>
+                  By ticking, you are confirming that you have read, understood and agree to KKFI{" "}
+                </Text>
+                <Text
+                  style={{ color: "#3d4fa0", fontWeight: "700", textDecorationLine: "underline" }}
+                  onPress={() => setTermsModalVisible(true)}
+                >
+                  declaration and agreement terms.
+                </Text>
               </Text>
-            </Text>
+            </View>
           </View>
         </View>
-      </View>
 
-      <Modal
-        visible={termsModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setTermsModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContentCard}>
-            {/* Modal Header */}
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitleText}>Declaration and Agreement Terms</Text>
-              <TouchableOpacity onPress={() => setTermsModalVisible(false)} style={styles.modalCloseBtn}>
-                <Ionicons name="close" size={20} color="#6b7280" />
+        <Modal
+          visible={termsModalVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setTermsModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContentCard}>
+              {/* Modal Header */}
+              <View style={styles.modalHeaderRow}>
+                <Text style={styles.modalTitleText}>Declaration and Agreement Terms</Text>
+                <TouchableOpacity onPress={() => setTermsModalVisible(false)} style={styles.modalCloseBtn}>
+                  <Ionicons name="close" size={20} color="#6b7280" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Separator line */}
+              <View style={styles.modalDivider} />
+
+              {/* Modal Body */}
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalBodyContainer}>
+                {/* Term 1 */}
+                <View style={styles.modalTermRow}>
+                  <View style={styles.modalNumberCircle}>
+                    <Text style={styles.modalNumberText}>1</Text>
+                  </View>
+                  <Text style={styles.modalTermText}>
+                    I certify that all information provided in this application is true and correct to the best of my knowledge. I understand that any false or misleading information may result in the denial or revocation of any scholarship granted.
+                  </Text>
+                </View>
+
+                {/* Term 2 */}
+                <View style={styles.modalTermRow}>
+                  <View style={styles.modalNumberCircle}>
+                    <Text style={styles.modalNumberText}>2</Text>
+                  </View>
+                  <Text style={styles.modalTermText}>
+                    I agree to provide any additional documentation requested by KKFI and to comply with all scholarship terms and conditions.
+                  </Text>
+                </View>
+
+                {/* Term 3 */}
+                <View style={styles.modalTermRow}>
+                  <View style={styles.modalNumberCircle}>
+                    <Text style={styles.modalNumberText}>3</Text>
+                  </View>
+                  <Text style={styles.modalTermText}>
+                    I have read and agree to the Data Privacy Notice. I consent to the collection, processing, and storage of my personal data for scholarship evaluation and related program administration.
+                  </Text>
+                </View>
+              </ScrollView>
+
+              {/* Modal Footer Button */}
+              <TouchableOpacity
+                style={styles.modalAgreeBtn}
+                activeOpacity={0.85}
+                onPress={() => {
+                  setDeclarations({ agree1: true, agree2: true, agree3: true });
+                  setTermsModalVisible(false);
+                }}
+              >
+                <Text style={styles.modalAgreeBtnText}>I Agree</Text>
               </TouchableOpacity>
             </View>
-
-            {/* Separator line */}
-            <View style={styles.modalDivider} />
-
-            {/* Modal Body */}
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalBodyContainer}>
-              {/* Term 1 */}
-              <View style={styles.modalTermRow}>
-                <View style={styles.modalNumberCircle}>
-                  <Text style={styles.modalNumberText}>1</Text>
-                </View>
-                <Text style={styles.modalTermText}>
-                  I certify that all information provided in this application is true and correct to the best of my knowledge. I understand that any false or misleading information may result in the denial or revocation of any scholarship granted.
-                </Text>
-              </View>
-
-              {/* Term 2 */}
-              <View style={styles.modalTermRow}>
-                <View style={styles.modalNumberCircle}>
-                  <Text style={styles.modalNumberText}>2</Text>
-                </View>
-                <Text style={styles.modalTermText}>
-                  I agree to provide any additional documentation requested by KKFI and to comply with all scholarship terms and conditions.
-                </Text>
-              </View>
-
-              {/* Term 3 */}
-              <View style={styles.modalTermRow}>
-                <View style={styles.modalNumberCircle}>
-                  <Text style={styles.modalNumberText}>3</Text>
-                </View>
-                <Text style={styles.modalTermText}>
-                  I have read and agree to the Data Privacy Notice. I consent to the collection, processing, and storage of my personal data for scholarship evaluation and related program administration.
-                </Text>
-              </View>
-            </ScrollView>
-
-            {/* Modal Footer Button */}
-            <TouchableOpacity 
-              style={styles.modalAgreeBtn}
-              activeOpacity={0.85}
-              onPress={() => {
-                setDeclarations({ agree1: true, agree2: true, agree3: true });
-                setTermsModalVisible(false);
-              }}
-            >
-              <Text style={styles.modalAgreeBtnText}>I Agree</Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
-    </View>
-  );
-};
+        </Modal>
+      </View>
+    );
+  };
 
   const renderQualification = () => {
     const aiCheckingEnabled = qualificationOutcome?.ai_checking_enabled ?? true;
@@ -2116,7 +2204,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
         ))}
       </View>
 
-      <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
         <Animated.View
           style={{
             opacity: stepAnim,
@@ -2184,7 +2272,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
         </View>
       </Modal>
 
-
+      <ExamplesModal visible={examplesModalVisible} onClose={() => setExamplesModalVisible(false)} />
     </View>
   );
 }
@@ -2287,36 +2375,41 @@ const styles = StyleSheet.create({
   lookupStatusOk: { color: "#1a9e6a" },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: "#4f5fc5", alignItems: "center", justifyContent: "center", marginRight: 10, marginTop: 1, backgroundColor: "#fff", flexShrink: 0 },
   checkboxChecked: { backgroundColor: "#4f5fc5", borderColor: "#4f5fc5" },
-  newUploadContainer: {
+  uploadsGridContainer: {
     flexDirection: "row",
-    borderWidth: 1,
-    borderColor: "#d7def8",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    width: "100%",
+  },
+  uploadRowItemHalf: {
+    width: "48.5%",
+    marginBottom: 14,
+  },
+  uploadRowItemFull: {
+    width: "100%",
+    marginBottom: 14,
+  },
+  unifiedUploadContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
     borderRadius: 8,
     backgroundColor: "#fff",
     height: 48,
-    overflow: "hidden",
+    paddingHorizontal: 12,
   },
-  chooseFileBtn: {
-    backgroundColor: "#f1f3f9",
-    borderRightWidth: 1,
-    borderRightColor: "#d7def8",
-    paddingHorizontal: 16,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  chooseFileText: {
-    color: "#5b6095",
+  unifiedUploadText: {
     fontSize: 14,
+    flex: 1,
+  },
+  unifiedUploadTextActive: {
+    color: "#4f5fc5",
     fontWeight: "700",
   },
-  fileNameBox: {
-    flex: 1,
-    paddingHorizontal: 12,
-    justifyContent: "center",
-  },
-  fileNameText: {
+  unifiedUploadTextInactive: {
     color: "#848baf",
-    fontSize: 14,
     fontWeight: "500",
   },
   predictionsContainer: {
@@ -2495,3 +2588,132 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
 });
+
+const ExamplesModal = ({ visible, onClose }) => {
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={{
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.6)",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 24,
+      }}>
+        <View style={{
+          width: "100%",
+          backgroundColor: "#fff",
+          borderRadius: 20,
+          padding: 20,
+          maxHeight: "85%",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.2,
+          shadowRadius: 12,
+          elevation: 5,
+        }}>
+          {/* Header */}
+          <View style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingBottom: 12,
+            borderBottomWidth: 1,
+            borderBottomColor: "#e5e7eb",
+            marginBottom: 16,
+          }}>
+            <Text style={{ fontSize: 18, fontWeight: "900", color: "#1f2937" }}>
+              Grading Scale Examples
+            </Text>
+            <TouchableOpacity onPress={onClose} style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: "#f3f4f6",
+              justifyContent: "center",
+              alignItems: "center",
+            }}>
+              <Ionicons name="close" size={20} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Body */}
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* 1.0 - 5.00 System */}
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: "#4f5fc5", marginBottom: 10 }}>
+                {"1.0 - 5.00 Grading System"}
+              </Text>
+
+              <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>1.00 - 1.75</Text>
+                  <Text style={{ fontWeight: "600", color: "#16a34a", fontSize: 13 }}>Excellent</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>2.00 - 2.50</Text>
+                  <Text style={{ fontWeight: "600", color: "#2563eb", fontSize: 13 }}>Very Good</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>2.75 - 3.00</Text>
+                  <Text style={{ fontWeight: "600", color: "#4f46e5", fontSize: 13 }}>Satisfactory</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10 }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>5.00</Text>
+                  <Text style={{ fontWeight: "700", color: "#dc2626", fontSize: 13 }}>Failed</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* 4.00 GPA System */}
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: "#4f5fc5", marginBottom: 10 }}>
+                {"4.00 GPA System"}
+              </Text>
+
+              <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>4.00</Text>
+                  <Text style={{ fontWeight: "700", color: "#16a34a", fontSize: 13 }}>A</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>3.00</Text>
+                  <Text style={{ fontWeight: "600", color: "#2563eb", fontSize: 13 }}>B</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>2.00</Text>
+                  <Text style={{ fontWeight: "600", color: "#475569", fontSize: 13 }}>C</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>1.00</Text>
+                  <Text style={{ fontWeight: "600", color: "#b45309", fontSize: 13 }}>D</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10 }}>
+                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>0.00</Text>
+                  <Text style={{ fontWeight: "700", color: "#dc2626", fontSize: 13 }}>F</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Footer note */}
+            <Text style={{
+              fontSize: 12,
+              color: "#64748b",
+              textAlign: "center",
+              fontStyle: "italic",
+              lineHeight: 18,
+              marginTop: 4,
+              marginBottom: 10,
+            }}>
+              {"Examples may vary by school. Follow your official transcript format."}
+            </Text>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+};
