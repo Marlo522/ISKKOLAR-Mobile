@@ -47,8 +47,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "527c5dc8-f53e-4984-b563-00defde35f1a"
+        "projectId": "b2abd6b1-dc54-403d-a084-7735729fb553"
       }
-    }
+    },
+    "owner": "kkfi-iskkolar"
   }
 }
