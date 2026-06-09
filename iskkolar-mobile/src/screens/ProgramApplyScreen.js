@@ -1209,7 +1209,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           <Text style={styles.sectionHeader}>| Supporting Documents</Text>
           <View style={{ backgroundColor: "#eaf2fe", padding: 13, borderRadius: 8, marginBottom: 18 }}>
             <Text style={{ color: "#305fce", fontSize: 13 }}>
-              Upload clear and readable files only. Accepted formats: PDF, DOC, DOCX. Max file size: 10MB each.
+              Upload clear and readable files only. Accepted formats: PDF, PNG, JPEG. Max file size: 10MB each.
             </Text>
           </View>
 

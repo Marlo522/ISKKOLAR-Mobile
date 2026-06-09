@@ -226,7 +226,7 @@ export default function GradeComplianceScreen({ navigation }) {
             try {
               const result = await DocumentPicker.getDocumentAsync({
                 type: ["application/pdf", "image/*"],
-                copyToCacheDirectory: false,
+                copyToCacheDirectory: true,
               });
               handleResult(result);
             } catch (err) {

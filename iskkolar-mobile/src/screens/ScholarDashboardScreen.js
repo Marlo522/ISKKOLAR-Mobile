@@ -32,17 +32,17 @@ export default function ScholarDashboardScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [renewalsOpen, setRenewalsOpen] = useState(true);
 
-  const currentYearLevel = dashboardSummary?.academicStatus?.yearLevel || user?.yearLevel || 'Not set';
+  const currentYearLevel = dashboardSummary?.academicStatus?.yearLevel || user?.yearLevel + 'Year' || 'Not set';
   const currentProgram = dashboardSummary?.academicStatus?.program || user?.program || user?.scholarshipType || '--';
   const currentGwaValue = dashboardSummary?.academicStatus?.latestGwa;
   const currentGwa = Number.isFinite(Number(currentGwaValue)) ? Number(currentGwaValue).toFixed(2) : '--';
-  
+
   const sourceSummary = dashboardSummary?.sourceSummary;
   const historyItems = applicationHistory || [];
-  
+
   // Exclude empty placeholders from count if they exist
   const actualApplications = historyItems.filter(item => item.id && !item.id.includes('_empty') && item.status !== 'not_started');
-  
+
   // Total applications submitted (Renewal, Tertiary, Vocational, KKFI, Exam Assistance, Financial Assistance, etc.)
   const submittedApplicationsCount = (sourceSummary ? (
     (sourceSummary.renewalsCount || 0) +
@@ -53,13 +53,13 @@ export default function ScholarDashboardScreen({ navigation }) {
   ) : 0) + actualApplications.filter(a => ['exam_assistance', 'receipt_submission'].includes(a.category)).length;
 
   const applicationsSubmitted = String(submittedApplicationsCount);
-  
+
   const gradeComplianceLatest = gradeComplianceSummary?.latestSubmission || null;
   const gradeComplianceTerms = gradeComplianceSummary?.terms || [];
   const nextPendingGradeComplianceTerm = gradeComplianceTerms.find(
     (item) => String(item?.status || '').toLowerCase() === 'pending'
   )?.term;
-  
+
   const currentTerm = nextPendingGradeComplianceTerm || gradeComplianceLatest?.term || dashboardSummary?.academicStatus?.term || user?.term || '--';
 
   const latestApp = actualApplications[0];
@@ -230,10 +230,10 @@ export default function ScholarDashboardScreen({ navigation }) {
           <View style={styles.heroIconWatermark}>
             <Ionicons name="school" size={100} color="rgba(255,255,255,0.15)" />
           </View>
-          
+
           {/* Bell Notification Button */}
-          <TouchableOpacity 
-            style={styles.bellButton} 
+          <TouchableOpacity
+            style={styles.bellButton}
             activeOpacity={0.8}
             onPress={() => navigation.navigate('Notifications')}
           >

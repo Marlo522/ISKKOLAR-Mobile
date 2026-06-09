@@ -24,7 +24,7 @@ export const submitGradeCompliance = async ({ term, scholarshipName, remarks, ne
     if (remarks) data.append('remarks', remarks);
     if (nextTermStartDate) data.append('nextTermStartDate', toIsoDate(nextTermStartDate));
     if (nextTermEndDate) data.append('nextTermEndDate', toIsoDate(nextTermEndDate));
-    if (gwa) data.append('gwa', parseFloat(gwa));
+    if (gwa) data.append('gwa', String(gwa));
 
     if (files?.gradeReport?.uri) {
       data.append('gradeReport', {
@@ -44,6 +44,7 @@ export const submitGradeCompliance = async ({ term, scholarshipName, remarks, ne
 
     const response = await api.post('/assistance/grade-compliance/submit', data, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000, // 2 minutes — AI/OCR processing can be slow
     });
 
     if (response.data && response.data.success === false) {
