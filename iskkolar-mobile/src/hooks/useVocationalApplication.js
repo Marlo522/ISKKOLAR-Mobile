@@ -6,6 +6,7 @@ import {
   validateVocationalStep,
   submitVocationalApplication,
 } from "../services/vocationalAppService";
+import { validateGwa, INVALID_GWA_ERROR } from "../utils/gradeValidation";
 
 // ─── FIELD MAP ────────────────────────────────────────────────
 // Maps backend API field names to their corresponding UI state keys.
@@ -371,7 +372,11 @@ export const useVocationalApplication = () => {
         preFlightErrors.yearGraduated = "Year must be exactly 4 digits.";
 
       // Required uploads on step 0 — backend doesn't validate files here
-      if (!values.secondaryGwa || values.secondaryGwa.trim() === "") preFlightErrors.secondaryGwa = "GWA is required.";
+      if (!values.secondaryGwa || values.secondaryGwa.trim() === "") {
+        preFlightErrors.secondaryGwa = "GWA is required.";
+      } else if (!validateGwa(values.secondaryGwa)) {
+        preFlightErrors.secondaryGwa = INVALID_GWA_ERROR;
+      }
       if (!uploads.gradeReport) preFlightErrors.gradeReport = "Grade Report is required.";
       if (!uploads.cor)
         preFlightErrors.cor = "COR is required.";

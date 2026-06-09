@@ -12,6 +12,7 @@ import { AuthContext } from "../context/AuthContext";
 import ApplicationResultState from "../components/ApplicationResultState";
 import { useGradeCompliance } from "../hooks/useGradeCompliance";
 import { getSubmissionWindowStatus, validateNextTermDates, parseStringToDate } from "../utils/gradeComplianceUtils";
+import { validateGwa, INVALID_GWA_ERROR } from "../utils/gradeValidation";
 import ApplicationSubmissionGuard from "../components/ApplicationSubmissionGuard";
 
 const statusColors = {
@@ -251,7 +252,7 @@ export default function GradeComplianceScreen({ navigation }) {
       term: selectedTerm ? "" : "Please select a term.",
       nextTermStartDate: isGraduating || nextTermStartDate ? "" : "Next term start date is required.",
       nextTermEndDate: isGraduating || nextTermEndDate ? "" : "Next term end date is required.",
-      gwa: gwa ? "" : "GWA is required.",
+      gwa: !gwa ? "GWA is required." : (!validateGwa(gwa) ? INVALID_GWA_ERROR : ""),
     };
 
     if (!isGraduating) {
@@ -267,7 +268,8 @@ export default function GradeComplianceScreen({ navigation }) {
       !selectedTerm ||
       !gradeReportFile ||
       (!isGraduating && (!corFile || !nextTermStartDate || !nextTermEndDate || nextFieldErrors.nextTermStartDate || nextFieldErrors.nextTermEndDate)) ||
-      !gwa
+      !gwa ||
+      nextFieldErrors.gwa
     ) {
       return;
     }

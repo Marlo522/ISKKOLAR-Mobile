@@ -2,6 +2,7 @@ import { useState, useCallback, useContext, useEffect } from "react";
 import { getScholarshipFormAccess } from "../services/applicationGuardService";
 import { AuthContext } from "../context/AuthContext";
 import { getMyApplications as fetchMyApplications, validateTertiaryStep, submitTertiaryApplication } from "../services/tertiaryAppService";
+import { validateGwa, INVALID_GWA_ERROR } from "../utils/gradeValidation";
 
 const FIELD_MAP = {
   scholarship_type: "scholarshipType",
@@ -347,8 +348,8 @@ export const useTertiaryApplication = () => {
       if (values.incomingFreshman === "Yes") {
         if (!values.secondaryGwa || values.secondaryGwa.trim() === "") {
           preFlightErrors.secondaryGwa = "Secondary GWA is required.";
-        } else if (!/^\d{2}(\.\d{1,2})?$/.test(values.secondaryGwa.trim())) {
-          preFlightErrors.secondaryGwa = "Secondary GWA must be in xx.xx format (e.g. 88.50).";
+        } else if (!validateGwa(values.secondaryGwa)) {
+          preFlightErrors.secondaryGwa = INVALID_GWA_ERROR;
         }
         if (!uploads.gradeReport) {
           preFlightErrors.gradeReport = "Grade report is required.";
@@ -356,8 +357,8 @@ export const useTertiaryApplication = () => {
       } else {
         if (!values.tertiaryGwa || values.tertiaryGwa.trim() === "") {
           preFlightErrors.tertiaryGwa = "Tertiary GWA is required.";
-        } else if (!/^\d(\.\d{1,2})?$/.test(values.tertiaryGwa.trim())) {
-          preFlightErrors.tertiaryGwa = "Tertiary GWA must be in x.xx format (e.g. 1.75).";
+        } else if (!validateGwa(values.tertiaryGwa)) {
+          preFlightErrors.tertiaryGwa = INVALID_GWA_ERROR;
         }
         if (!uploads.currentTermGradeReport) {
           preFlightErrors.currentTermGradeReport = "Current term report card is required.";

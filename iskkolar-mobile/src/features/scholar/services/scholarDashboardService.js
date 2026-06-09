@@ -38,7 +38,7 @@ const getBaseUrl = () => {
     return configuredBaseUrl;
   }
 
-  return 'http://192.168.1.2:5000/api';
+  return 'https://iskkolar-backend.onrender.com/api';
 };
 
 const createFallbackClient = () => {

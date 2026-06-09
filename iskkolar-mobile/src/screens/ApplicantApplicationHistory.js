@@ -53,22 +53,42 @@ const STATUS_TO_STEP_INDEX = {
 const PROGRAM_META = {
   tertiary: {
     tag: "Tertiary Program",
-    image: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=1200&auto=format&fit=crop",
+    image: require("../../assets/images/tertiary.jpg"),
     title: "Tertiary Scholarship",
   },
   vocational: {
     tag: "Vocational Program",
-    image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=1200&auto=format&fit=crop",
+    image: require("../../assets/images/vocational.jpg"),
     title: "Vocational and Technology Scholarship",
   },
   child_designation: {
     tag: "KKFI Staff Program",
-    image: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1200&auto=format&fit=crop",
+    image: require("../../assets/images/employee_child.jpg"),
     title: "Child Designation Grant",
+  },
+  childDesignation: {
+    tag: "KKFI Staff Program",
+    image: require("../../assets/images/employee_child.jpg"),
+    title: "Child Designation Grant",
+  },
+  employee_child: {
+    tag: "KKFI Staff Program",
+    image: require("../../assets/images/employee_child.jpg"),
+    title: "Employee-Child Education Grant",
+  },
+  employeeChild: {
+    tag: "KKFI Staff Program",
+    image: require("../../assets/images/employee_child.jpg"),
+    title: "Employee-Child Education Grant",
   },
   staff_advancement: {
     tag: "KKFI Staff Program",
-    image: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1200&auto=format&fit=crop",
+    image: require("../../assets/images/employee_child.jpg"),
+    title: "Staff Advancement Grant",
+  },
+  staffAdvancement: {
+    tag: "KKFI Staff Program",
+    image: require("../../assets/images/employee_child.jpg"),
     title: "Staff Advancement Grant",
   },
 };
@@ -162,7 +182,7 @@ const ApplicationCard = ({ application, onViewEvaluation }) => {
     <View style={styles.card}>
       {/* Card Header with Image */}
       <ImageBackground 
-        source={{ uri: application.image }} 
+        source={typeof application.image === 'string' ? { uri: application.image } : application.image} 
         style={styles.cardHeader}
         imageStyle={{ borderRadius: 16 }}
       >
@@ -382,30 +402,34 @@ const EvaluationModal = ({ visible, onClose, evaluation }) => {
   const warnings = evaluation.warnings || [];
   const confidenceLevel = evaluation.confidence_level || "HIGH";
 
+  const isAiCheckingOff = evaluation.ai_checking_enabled === false || confidenceLevel.toUpperCase() === "AI CHECKING IS OFF";
+
   let statusBg = "#fffbeb";
   let statusBorder = "#fde68a";
   let statusTitleColor = "#b45309";
   let statusSubColor = "#d97706";
   let statusTitle = "Referred for Manual Staff Review";
-  let statusDesc = "This application requires manual review by staff.";
+  let statusDesc = "Some documents or eligibility details require a manual check by our staff. Your application is safely submitted and will be reviewed shortly.";
   let statusIcon = "information-circle-outline";
 
-  if (recommendedAction.toLowerCase().includes("approve")) {
-    statusBg = "#ecfdf5";
-    statusBorder = "#a7f3d0";
-    statusTitleColor = "#047857";
-    statusSubColor = "#059669";
-    statusTitle = "Recommended for Approval";
-    statusDesc = "This application meets all baseline requirements.";
-    statusIcon = "checkmark-circle-outline";
-  } else if (recommendedAction.toLowerCase().includes("reject")) {
-    statusBg = "#fef2f2";
-    statusBorder = "#fecaca";
-    statusTitleColor = "#b91c1c";
-    statusSubColor = "#dc2626";
-    statusTitle = "Recommended for Rejection";
-    statusDesc = "This application does not meet baseline requirements.";
-    statusIcon = "close-circle-outline";
+  if (!isAiCheckingOff) {
+    if (recommendedAction.toLowerCase().includes("approve")) {
+      statusBg = "#ecfdf5";
+      statusBorder = "#a7f3d0";
+      statusTitleColor = "#047857";
+      statusSubColor = "#059669";
+      statusTitle = "Recommended for Approval";
+      statusDesc = "This application meets all baseline requirements.";
+      statusIcon = "checkmark-circle-outline";
+    } else if (recommendedAction.toLowerCase().includes("reject")) {
+      statusBg = "#fef2f2";
+      statusBorder = "#fecaca";
+      statusTitleColor = "#b91c1c";
+      statusSubColor = "#dc2626";
+      statusTitle = "Recommended for Rejection";
+      statusDesc = "This application does not meet baseline requirements.";
+      statusIcon = "close-circle-outline";
+    }
   }
 
   return (
@@ -576,7 +600,7 @@ export default function ApplicantApplicationHistory({ navigation }) {
     setRefreshing(false);
   }, [syncRole]);
 
-  const parseAiEvaluation = (rawEval, rawStatus) => {
+  const parseAiEvaluation = (rawEval, rawStatus, app = {}) => {
     let parsed = null;
     if (rawEval) {
       if (typeof rawEval === "object") {
@@ -588,6 +612,19 @@ export default function ApplicantApplicationHistory({ navigation }) {
           console.warn("Failed to parse ai_evaluation JSON:", e);
         }
       }
+    }
+
+    const aiCheckingEnabled = app.ai_checking_enabled ?? app.aiCheckingEnabled ?? parsed?.ai_checking_enabled ?? parsed?.aiCheckingEnabled ?? true;
+
+    if (aiCheckingEnabled === false) {
+      return {
+        ai_checking_enabled: false,
+        recommended_action: "Manual Review",
+        summary: parsed?.summary || "AI verification was bypassed by system administrator settings. Application has been passed directly to manual review.",
+        highlights: [],
+        warnings: [],
+        confidence_level: "AI CHECKING IS OFF",
+      };
     }
 
     if (parsed && (parsed.final_result || parsed.extracted_data || parsed.rule_results || parsed.summary)) {
@@ -705,7 +742,7 @@ export default function ApplicantApplicationHistory({ navigation }) {
         image: meta.image,
         submittedAt: formatDate(app.submitted_at || app.created_at),
         interviews: app.interview_schedules || app.interviews || [],
-        aiEvaluation: parseAiEvaluation(app.qualification_report || app.qualificationReport || app.ai_evaluation || app.aiEvaluation || app.ai_feedback || app.aiFeedback, app.status || "submitted"),
+        aiEvaluation: parseAiEvaluation(app.qualification_report || app.qualificationReport || app.ai_evaluation || app.aiEvaluation || app.ai_feedback || app.aiFeedback, app.status || "submitted", app),
       };
     });
   }, [applications]);
@@ -763,7 +800,7 @@ export default function ApplicantApplicationHistory({ navigation }) {
             </Text>
             <TouchableOpacity 
               style={styles.browseBtn}
-              onPress={() => navigation.navigate("HomeScreen")}
+              onPress={() => navigation.navigate("Home")}
             >
               <Text style={styles.browseBtnText}>Browse Scholarships</Text>
             </TouchableOpacity>

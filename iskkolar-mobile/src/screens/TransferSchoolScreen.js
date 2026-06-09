@@ -338,7 +338,7 @@ export default function TransferSchoolScreen({ navigation }) {
       : [];
 
     return (
-      <View style={[styles.row, fieldErrors[key] && styles.rowWithError, { zIndex: isPredictive && activePredictiveKey === key && suggestions.length > 0 ? 99 : 1 }]}>
+      <View style={[styles.row, fieldErrors[key] && styles.rowWithError, { position: "relative", zIndex: isPredictive && activePredictiveKey === key && suggestions.length > 0 ? 99 : 1 }]}>
         <Text style={styles.label}>{label} <Text style={{ color: "red" }}>*</Text></Text>
         <SafeTextInput
           style={[styles.input, fieldErrors[key] && { borderColor: "red" }]}
@@ -467,7 +467,7 @@ export default function TransferSchoolScreen({ navigation }) {
         </View>
       </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
         <Animated.View style={{ opacity: stepAnim, transform: [{ translateY: stepAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
 
           {/* Global error banner */}

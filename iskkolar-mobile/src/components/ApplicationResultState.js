@@ -20,16 +20,39 @@ export default function ApplicationResultState({
   
   // Render the Manual Review Warning Card (when AI/OCR is disabled)
   const renderManualReviewCard = () => {
+    const reportSummary = aiSummary || qualificationReport?.qualification_report?.summary || qualificationReport?.summary || "AI verification was bypassed by system administrator settings. Application has been passed directly to manual review.";
+    
     return (
-      <View style={styles.manualReviewCard}>
-        <View style={styles.manualReviewHeader}>
-          <Ionicons name="warning" size={40} color="#d97706" style={styles.warningIcon} />
-          <Text style={styles.manualReviewTitle}>Submitted for Manual Review</Text>
+      <View style={styles.manualReviewReport}>
+        {/* Warning Banner */}
+        <View style={styles.manualReviewBanner}>
+          <Ionicons name="information-circle" size={24} color="#b45309" style={styles.manualReviewBannerIcon} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.manualReviewBannerTitle}>Referred for Manual Staff Review</Text>
+            <Text style={styles.manualReviewBannerText}>
+              Some documents or eligibility details require a manual check by our staff. Your application is safely submitted and will be reviewed shortly.
+            </Text>
+          </View>
         </View>
-        <Text style={styles.manualReviewText}>
-          Your application has been submitted successfully and will be reviewed manually 
-          by our staff. You will be notified once a decision has been made.
-        </Text>
+
+        {/* Evaluation Summary */}
+        <Text style={styles.manualReviewSectionTitle}>EVALUATION SUMMARY</Text>
+        <View style={styles.manualReviewSummaryCard}>
+          <Text style={styles.manualReviewSummaryText}>
+            {reportSummary}
+          </Text>
+        </View>
+
+        {/* Separator Line */}
+        <View style={styles.manualReviewSeparator} />
+
+        {/* Footer */}
+        <View style={styles.manualReviewFooter}>
+          <Text style={styles.manualReviewFooterLabel}>Confidence Level:</Text>
+          <View style={styles.manualReviewFooterBadge}>
+            <Text style={styles.manualReviewFooterBadgeText}>AI CHECKING IS OFF</Text>
+          </View>
+        </View>
       </View>
     );
   };
@@ -559,5 +582,82 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     color: "#2cae57",
+  },
+  manualReviewReport: {
+    marginBottom: 20,
+  },
+  manualReviewBanner: {
+    backgroundColor: "#fffbeb",
+    borderWidth: 1,
+    borderColor: "#fde68a",
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 20,
+  },
+  manualReviewBannerIcon: {
+    marginRight: 12,
+    marginTop: 2,
+  },
+  manualReviewBannerTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#b45309",
+    marginBottom: 4,
+  },
+  manualReviewBannerText: {
+    fontSize: 13,
+    color: "#b45309",
+    lineHeight: 18,
+    opacity: 0.9,
+  },
+  manualReviewSectionTitle: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#94a3b8",
+    letterSpacing: 1,
+    marginBottom: 10,
+    marginTop: 10,
+    textTransform: "uppercase",
+  },
+  manualReviewSummaryCard: {
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 16,
+    padding: 16,
+    backgroundColor: "#fff",
+    marginBottom: 16,
+  },
+  manualReviewSummaryText: {
+    fontSize: 14,
+    color: "#334155",
+    lineHeight: 22,
+  },
+  manualReviewSeparator: {
+    height: 1,
+    backgroundColor: "#f1f5f9",
+    marginVertical: 16,
+  },
+  manualReviewFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  manualReviewFooterLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#64748b",
+    marginRight: 8,
+  },
+  manualReviewFooterBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: "#fee2e2",
+  },
+  manualReviewFooterBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#b91c1c",
   },
 });

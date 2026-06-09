@@ -9,6 +9,7 @@ import {
   getMyStaffAdvancementApplications,
 } from "../services/StaffApplication";
 import { getScholarshipFormAccess } from "../services/applicationGuardService";
+import { validateGwa, INVALID_GWA_ERROR } from "../utils/gradeValidation";
 
 const FIELD_MAP = {
   educ_path: "educPath",
@@ -327,8 +328,8 @@ export const useStaffApplication = (isChildDesignation) => {
           const rawSecondary = String(values.secondaryGwa || "").trim();
           if (!rawSecondary) {
             preflightErrors.secondaryGwa = "Secondary GWA is required.";
-          } else if (!/^\d{2}(\.\d{1,2})?$/.test(rawSecondary)) {
-            preflightErrors.secondaryGwa = "Secondary GWA must be in xx.xx format (e.g. 88.50).";
+          } else if (!validateGwa(rawSecondary)) {
+            preflightErrors.secondaryGwa = INVALID_GWA_ERROR;
           }
           if (!uploads.gradeReport)
             preflightErrors.gradeReport = "Grade report is required.";
@@ -337,12 +338,12 @@ export const useStaffApplication = (isChildDesignation) => {
         // Current GWA: rendered in masters section for masters applicants, and in current education section for non-freshman tertiary applicants
         const showMastersCurrentGwa = isSelfAdvancement && cleanEducPath === "masters" && values.incomingFreshman === "No";
         if (showMastersCurrentGwa || values.incomingFreshman === "No") {
-          const currentGwaLabel = showMastersCurrentGwa ? "Current Masters GWA" : "Current GWA";
           const rawTertiary = String(values.tertiaryGwa || "").trim();
           if (!rawTertiary) {
+            const currentGwaLabel = showMastersCurrentGwa ? "Current Masters GWA" : "Current GWA";
             preflightErrors.tertiaryGwa = `${currentGwaLabel} is required.`;
-          } else if (!/^\d(\.\d{1,2})?$/.test(rawTertiary)) {
-            preflightErrors.tertiaryGwa = `${currentGwaLabel} must be in x.xx format (e.g. 1.75).`;
+          } else if (!validateGwa(rawTertiary)) {
+            preflightErrors.tertiaryGwa = INVALID_GWA_ERROR;
           }
         }
 
@@ -364,8 +365,8 @@ export const useStaffApplication = (isChildDesignation) => {
           const rawPrev = String(values.prevGwa || "").trim();
           if (!rawPrev) {
             preflightErrors.prevGwa = "Previous tertiary GWA is required.";
-          } else if (!/^\d(\.\d{1,2})?$/.test(rawPrev)) {
-            preflightErrors.prevGwa = "Previous tertiary GWA must be in x.xx format (e.g. 1.75).";
+          } else if (!validateGwa(rawPrev)) {
+            preflightErrors.prevGwa = INVALID_GWA_ERROR;
           }
 
           if (values.incomingFreshman === "Yes") {

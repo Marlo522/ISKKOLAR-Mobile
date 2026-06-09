@@ -25,7 +25,7 @@ export const getAttachmentDownloadUrl = (fileUrl, fileName) => {
     return fileUrl;
   }
 
-  const apiBase = (api.defaults.baseURL || 'http://localhost:5000/api').replace(/\/+$/, '');
+  const apiBase = (api.defaults.baseURL || 'https://iskkolar-backend.onrender.com/api').replace(/\/+$/, '');
   return `${apiBase}/files/download?url=${encodeURIComponent(fileUrl)}&name=${encodeURIComponent(fileName || 'attachment')}`;
 };
 

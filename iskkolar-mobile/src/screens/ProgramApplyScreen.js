@@ -637,7 +637,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
       : [];
 
     return (
-      <View style={[styles.row, { zIndex: isPredictive && activePredictiveKey === key && suggestions.length > 0 ? 99 : 1 }]}>
+      <View style={[styles.row, { position: "relative", zIndex: isPredictive && activePredictiveKey === key && suggestions.length > 0 ? 99 : 1 }]}>
         <Text style={styles.label}>{label}</Text>
         <SafeTextInput placeholderTextColor="#888"
           value={values[key]}
@@ -2204,7 +2204,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
         ))}
       </View>
 
-      <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
         <Animated.View
           style={{
             opacity: stepAnim,
