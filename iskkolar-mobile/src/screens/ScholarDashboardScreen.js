@@ -90,7 +90,7 @@ export default function ScholarDashboardScreen({ navigation }) {
   const quickLinks = [
     { title: "Certificate of Registration & Grade Compliance", route: "GradeCompliance", icon: "clipboard-outline", iconBg: "#e7f6ea", iconColor: "#39a751" },
     { title: "Financial Records", route: "FinancialRecords", icon: "receipt-outline", iconBg: "#fcefe9", iconColor: "#e96e5e" },
-    { title: "My Profile", route: "Profile", icon: "person-outline", iconBg: "#f4effe", iconColor: "#7e52d8" },
+    { title: "Academic Records", route: "AcademicRecords", icon: "school-outline", iconBg: "#f4effe", iconColor: "#7e52d8" },
     { title: "Activities", route: "Activities", icon: "calendar-outline", iconBg: "#eefafc", iconColor: "#41b5bd" }
   ];
 
@@ -179,7 +179,11 @@ export default function ScholarDashboardScreen({ navigation }) {
       });
 
       if (updatedUser && updatedUser.role !== "scholar") {
-        navigation.replace("Main");
+        if (updatedUser.role === "terminated") {
+          navigation.replace("Terminated");
+        } else {
+          navigation.replace("Main");
+        }
         return;
       }
 
@@ -193,7 +197,11 @@ export default function ScholarDashboardScreen({ navigation }) {
     setRefreshing(true);
     const updatedUser = await refreshSession().catch(() => null);
     if (updatedUser && updatedUser.role !== "scholar") {
-      navigation.replace("Main");
+      if (updatedUser.role === "terminated") {
+        navigation.replace("Terminated");
+      } else {
+        navigation.replace("Main");
+      }
       setRefreshing(false);
       return;
     }

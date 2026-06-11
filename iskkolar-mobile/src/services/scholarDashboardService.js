@@ -40,3 +40,13 @@ export const getScholarApplicationHistory = async () => {
   }
 };
 
+export const getScholarAcademicRecords = async () => {
+  try {
+    const response = await api.get('/scholarships/dashboard/academic-records');
+    return response.data;
+  } catch (error) {
+    throw toReadableError(error);
+  }
+};
+
+
