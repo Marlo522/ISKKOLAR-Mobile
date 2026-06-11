@@ -72,6 +72,8 @@ export default function SplashScreen() {
           navigation.replace("Main");
         } else if (user.role === "scholar") {
           navigation.replace("ScholarTabs");
+        } else if (user.role === "terminated") {
+          navigation.replace("Terminated");
         } else {
           setShowWelcome(true);
         }

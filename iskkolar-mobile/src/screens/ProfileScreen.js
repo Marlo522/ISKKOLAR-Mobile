@@ -90,7 +90,9 @@ export default function ProfileScreen({ navigation }) {
         }));
         
         // Live role redirect
-        if (p.role === "scholar" && user?.role === "applicant") {
+        if (p.role === "terminated") {
+          navigation.replace("Terminated");
+        } else if (p.role === "scholar" && user?.role === "applicant") {
           navigation.replace("ScholarTabs");
         } else if (p.role === "applicant" && user?.role === "scholar") {
           navigation.replace("Main");
