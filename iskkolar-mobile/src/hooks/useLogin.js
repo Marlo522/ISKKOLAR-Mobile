@@ -58,13 +58,13 @@ export const useLogin = (navigation) => {
 
       switch (normalizedRole) {
         case "applicant":
-          navigation.replace("Main");
+          navigation.reset({ index: 0, routes: [{ name: "Main" }] });
           break;
         case "scholar":
-          navigation.replace("ScholarTabs");
+          navigation.reset({ index: 0, routes: [{ name: "ScholarTabs" }] });
           break;
         case "terminated":
-          navigation.replace("Terminated");
+          navigation.reset({ index: 0, routes: [{ name: "Terminated" }] });
           break;
         default:
           setApiError("Login failed.");

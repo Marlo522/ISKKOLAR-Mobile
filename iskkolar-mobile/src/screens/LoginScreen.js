@@ -41,7 +41,6 @@ export default function LoginScreen({ navigation }) {
         <Text style={styles.header}>LOGIN</Text>
         <Text style={styles.subheader}>Please enter your details to sign in</Text>
 
-        {apiError ? <Text style={styles.apiError}>{apiError}</Text> : null}
 
         {/* Email */}
         <View style={styles.field}>
@@ -86,6 +85,7 @@ export default function LoginScreen({ navigation }) {
             </TouchableOpacity>
           </View>
           {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
+          {!errors.password && apiError ? <Text style={styles.errorText}>{apiError}</Text> : null}
         </View>
 
         {/* Remember Me & Forgot password */}

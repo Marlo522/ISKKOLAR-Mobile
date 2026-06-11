@@ -317,235 +317,244 @@ export const useTertiaryApplication = () => {
     checkGuard();
   }, [checkGuard]);
 
+  // --- Preflight validators extracted per step so we can run them cumulatively ---
+
+  const getStep0PreflightErrors = useCallback((values, uploads) => {
+    const errors = {};
+
+    if (!values.secondarySchool || values.secondarySchool.trim() === "")
+      errors.secondarySchool = "Secondary School Name is required.";
+    if (!values.tertiarySchool || values.tertiarySchool.trim() === "")
+      errors.tertiarySchool = "University / College Name is required.";
+    if (!values.program || values.program.trim() === "")
+      errors.program = "Degree Program is required.";
+
+    if (!values.yearGraduated || values.yearGraduated.trim() === "")
+      errors.yearGraduated = "Year graduated is required.";
+    else if (values.yearGraduated.length < 4)
+      errors.yearGraduated = "Year must be exactly 4 digits.";
+
+    if (!values.expectedGradYear || values.expectedGradYear.trim() === "")
+      errors.expectedGradYear = "Expected graduation year is required.";
+    else if (values.expectedGradYear.length < 4)
+      errors.expectedGradYear = "Year must be exactly 4 digits.";
+
+    // Secondary GWA is always required regardless of freshman status
+    if (!values.secondaryGwa || values.secondaryGwa.trim() === "") {
+      errors.secondaryGwa = "Secondary GWA is required.";
+    } else if (!validateGwa(values.secondaryGwa)) {
+      errors.secondaryGwa = INVALID_GWA_ERROR;
+    }
+
+    if (values.incomingFreshman === "Yes") {
+      if (!uploads.gradeReport)
+        errors.gradeReport = "Grade report is required.";
+    } else {
+      if (!values.tertiaryGwa || values.tertiaryGwa.trim() === "") {
+        errors.tertiaryGwa = "Tertiary GWA is required.";
+      } else if (!validateGwa(values.tertiaryGwa)) {
+        errors.tertiaryGwa = INVALID_GWA_ERROR;
+      }
+      if (!uploads.currentTermGradeReport)
+        errors.currentTermGradeReport = "Current term report card is required.";
+    }
+
+    if (!uploads.cor)
+      errors.cor = "Certificate of Registration is required.";
+
+    if (!values.termStartDate || values.termStartDate.trim() === "") {
+      errors.termStartDate = "Term Start Date is required.";
+    } else {
+      const start = parseDateString(values.termStartDate);
+      const currentYear = new Date().getFullYear();
+      const yearStart = new Date(currentYear, 0, 1);
+      const yearEnd = new Date(currentYear, 11, 31);
+      if (start && (start < yearStart || start > yearEnd))
+        errors.termStartDate = "Start date must be within the current year.";
+    }
+
+    if (!values.termEndDate || values.termEndDate.trim() === "") {
+      errors.termEndDate = "Term End Date is required.";
+    }
+
+    if (values.termStartDate && values.termEndDate) {
+      const start = parseDateString(values.termStartDate);
+      const end = parseDateString(values.termEndDate);
+      if (start && end) {
+        const minEnd = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+        const daysInTargetMonth = new Date(minEnd.getFullYear(), minEnd.getMonth() + 1, 0).getDate();
+        minEnd.setDate(Math.min(start.getDate(), daysInTargetMonth));
+        if (end < minEnd)
+          errors.termEndDate = "Term End Date must be at least 1 month after Term Start Date.";
+      }
+    }
+
+    return errors;
+  }, []);
+
+  const getStep1PreflightErrors = useCallback((values, dynamicFamilyMembers, scholarBirth) => {
+    const errors = {};
+    const requiresProof = (status) => ["Employed", "Self-Employed"].includes(status);
+
+    if (scholarBirth && scholarBirth.getFullYear() >= 1990) {
+      if (values.fatherBirthday && values.fatherStatus !== "Deceased") {
+        const fatherBirth = parseDateString(values.fatherBirthday);
+        if (fatherBirth && fatherBirth >= scholarBirth)
+          errors.fatherBirthday = "Father should be older than the applicant.";
+      }
+      if (values.motherBirthday && values.motherStatus !== "Deceased") {
+        const motherBirth = parseDateString(values.motherBirthday);
+        if (motherBirth && motherBirth >= scholarBirth)
+          errors.motherBirthday = "Mother should be older than the applicant.";
+      }
+      if (values.hasGuardian && values.guardianBirthday && values.guardianStatus !== "Deceased") {
+        const guardianBirth = parseDateString(values.guardianBirthday);
+        if (guardianBirth && guardianBirth >= scholarBirth)
+          errors.guardianBirthday = "Guardian should be older than the applicant.";
+      }
+    }
+
+    const checkMember = (name, status, occ, inc, prefix, niceName) => {
+      if (!name || name.trim() === "") errors[prefix + "Name"] = `${niceName} Name is required.`;
+      if (!status || status === "--")
+        errors[prefix + "Status"] = `${niceName} Employment Status is required.`;
+      if (requiresProof(status)) {
+        if (!occ || occ.trim() === "") errors[prefix + "Occupation"] = `${niceName} Occupation is required.`;
+        if (!inc || inc.trim() === "") errors[prefix + "Income"] = `${niceName} Income is required.`;
+      }
+    };
+
+    const isFatherStarted = !isFatherEmpty(values);
+    const isMotherStarted = !isMotherEmpty(values);
+
+    if (values.hasGuardian) {
+      if (values.guardianStatus !== "Deceased") {
+        checkMember(values.guardianName, values.guardianStatus, values.guardianOccupation, values.guardianIncome, "guardian", "Guardian's");
+        if (!values.guardianContact || values.guardianContact.length < 11)
+          errors.guardianContact = "Contact Number must be 11 digits.";
+      }
+      if (isFatherStarted && isMotherStarted) {
+        errors.fatherName = "If you have a guardian, you can only provide either Father's or Mother's information, not both.";
+        errors.motherName = "If you have a guardian, you can only provide either Father's or Mother's information, not both.";
+      }
+    } else {
+      if (!isFatherStarted && !isMotherStarted) {
+        errors.fatherName = "You must fill out either Father's or Mother's information.";
+        errors.motherName = "You must fill out either Father's or Mother's information.";
+      }
+
+      const fatherIsDeceased = isFatherStarted && values.fatherStatus === "Deceased";
+      const motherIsDeceased = isMotherStarted && values.motherStatus === "Deceased";
+
+      if (fatherIsDeceased && motherIsDeceased) {
+        errors.hasGuardian = "Guardian is required because both parents are deceased.";
+      } else if (fatherIsDeceased && !isMotherStarted) {
+        errors.hasGuardian = "Guardian is required because Father is deceased and Mother's information is not provided.";
+      } else if (motherIsDeceased && !isFatherStarted) {
+        errors.hasGuardian = "Guardian is required because Mother is deceased and Father's information is not provided.";
+      }
+    }
+
+    if (isFatherStarted && values.fatherStatus !== "Deceased") {
+      checkMember(values.fatherName, values.fatherStatus, values.fatherOccupation, values.fatherIncome, "father", "Father's");
+      if (!values.fatherContact || values.fatherContact.length < 11)
+        errors.fatherContact = "Contact Number must be 11 digits.";
+    } else if (isFatherStarted && values.fatherStatus === "Deceased") {
+      if (!values.fatherName || values.fatherName.trim() === "")
+        errors.fatherName = "Father's Name is required.";
+    }
+
+    if (isMotherStarted && values.motherStatus !== "Deceased") {
+      checkMember(values.motherName, values.motherStatus, values.motherOccupation, values.motherIncome, "mother", "Mother's");
+      if (!values.motherContact || values.motherContact.length < 11)
+        errors.motherContact = "Contact Number must be 11 digits.";
+    } else if (isMotherStarted && values.motherStatus === "Deceased") {
+      if (!values.motherName || values.motherName.trim() === "")
+        errors.motherName = "Mother's Name is required.";
+    }
+
+    (dynamicFamilyMembers || []).forEach((mem, idx) => {
+      if (!mem.name || mem.name.trim() === "") errors[`dynFamily_${idx}_name`] = "Member Name is required.";
+      if (!mem.relationship || mem.relationship.trim() === "") errors[`dynFamily_${idx}_relationship`] = "Relationship is required.";
+      if (!mem.status || mem.status === "--")
+        errors[`dynFamily_${idx}_status`] = "Employment Status is required.";
+      if (mem.status !== "Deceased") {
+        if (!mem.contactNo || mem.contactNo.length < 11)
+          errors[`dynFamily_${idx}_contactNo`] = "Contact Number must be 11 digits.";
+      }
+      if (requiresProof(mem.status)) {
+        if (!mem.occupation || mem.occupation.trim() === "") errors[`dynFamily_${idx}_occupation`] = "Occupation is required.";
+        if (!mem.income || mem.income.trim() === "") errors[`dynFamily_${idx}_income`] = "Monthly Income is required.";
+      }
+    });
+
+    return errors;
+  }, []);
+
+  const getStep2PreflightErrors = useCallback((values, uploads, dynamicFamilyMembers) => {
+    const errors = {};
+    const requiresProof = (status) => ["Employed", "Self-Employed"].includes(status);
+    const requiresIndigency = (status) => status === "Unemployed";
+
+    if (!uploads.birthCert) errors.birthCert = "Birth certificate is required.";
+    if (!uploads.essay) errors.essay = "Essay is required.";
+    if (!uploads.letterOfIntentApplicant) errors.letterOfIntentApplicant = "Letter of Intent (Applicant) is required.";
+    if (!uploads.letterOfIntentParent) errors.letterOfIntentParent = "Letter of Intent (Parent) is required.";
+
+    if (values.hasGuardian) {
+      if (requiresProof(values.guardianStatus) && !uploads.incomeGuardian) errors.incomeGuardian = "Income certificate required.";
+      if (requiresIndigency(values.guardianStatus) && !uploads.indigencyGuardian) errors.indigencyGuardian = "Certificate of indigency required.";
+    }
+
+    const hasFatherDoc = !isFatherEmpty(values);
+    if (hasFatherDoc) {
+      if (requiresProof(values.fatherStatus) && !uploads.incomeFather) errors.incomeFather = "Income certificate required.";
+      if (requiresIndigency(values.fatherStatus) && !uploads.indigencyFather) errors.indigencyFather = "Certificate of indigency required.";
+    }
+
+    const hasMotherDoc = !isMotherEmpty(values);
+    if (hasMotherDoc) {
+      if (requiresProof(values.motherStatus) && !uploads.incomeMother) errors.incomeMother = "Income certificate required.";
+      if (requiresIndigency(values.motherStatus) && !uploads.indigencyMother) errors.indigencyMother = "Certificate of indigency required.";
+    }
+
+    (dynamicFamilyMembers || []).forEach((mem, idx) => {
+      if (requiresProof(mem.status) && !uploads[`incomeMember_${idx}`])
+        errors[`incomeMember_${idx}`] = "Income certificate required.";
+      if (requiresIndigency(mem.status) && !uploads[`indigencyMember_${idx}`])
+        errors[`indigencyMember_${idx}`] = "Certificate of indigency required.";
+    });
+
+    return errors;
+  }, []);
+
   // uiStep is the current 0-based step shown in the UI.
   // The Backend schema combines Academic and Family into step=1, and Documents into step=2.
+  // We run ALL steps' preflight checks up to and including the current step so that
+  // ALL validation errors are shown at once (matching the web behaviour).
   const validateStep = useCallback(async (uiStep, values, uploads, dynamicFamilyMembers) => {
     setError(null);
     setFieldErrors({});
 
     const apiStep = uiStep + 1;
 
-    // --- SUPPLEMENTAL FRONTEND PRE-FLIGHT VALIDATION ---
+    // --- CUMULATIVE SUPPLEMENTAL FRONTEND PRE-FLIGHT VALIDATION ---
+    // Always re-run every prior step's checks so no error goes silently undetected.
     let preFlightErrors = {};
 
-    if (uiStep === 0) {
-      // Required text fields
-      if (!values.secondarySchool || values.secondarySchool.trim() === "")
-        preFlightErrors.secondarySchool = "Secondary School Name is required.";
-      if (!values.tertiarySchool || values.tertiarySchool.trim() === "")
-        preFlightErrors.tertiarySchool = "University / College Name is required.";
-      if (!values.program || values.program.trim() === "")
-        preFlightErrors.program = "Degree Program is required.";
+    const scholarBirth = parseDateString(user?.birthday || user?.birthDate || user?.birthdate);
 
-      // Step 0: Ensure graduation years aren't just partially typed (e.g., "20")
-      if (values.yearGraduated && values.yearGraduated.length < 4) {
-        preFlightErrors.yearGraduated = "Year must be exactly 4 digits.";
-      }
-      if (values.expectedGradYear && values.expectedGradYear.length < 4) {
-        preFlightErrors.expectedGradYear = "Year must be exactly 4 digits.";
-      }
+    // Step 0 checks always run (required for steps 0, 1, and 2)
+    Object.assign(preFlightErrors, getStep0PreflightErrors(values, uploads));
 
-      if (values.incomingFreshman === "Yes") {
-        if (!values.secondaryGwa || values.secondaryGwa.trim() === "") {
-          preFlightErrors.secondaryGwa = "Secondary GWA is required.";
-        } else if (!validateGwa(values.secondaryGwa)) {
-          preFlightErrors.secondaryGwa = INVALID_GWA_ERROR;
-        }
-        if (!uploads.gradeReport) {
-          preFlightErrors.gradeReport = "Grade report is required.";
-        }
-      } else {
-        if (!values.tertiaryGwa || values.tertiaryGwa.trim() === "") {
-          preFlightErrors.tertiaryGwa = "Tertiary GWA is required.";
-        } else if (!validateGwa(values.tertiaryGwa)) {
-          preFlightErrors.tertiaryGwa = INVALID_GWA_ERROR;
-        }
-        if (!uploads.currentTermGradeReport) {
-          preFlightErrors.currentTermGradeReport = "Current term report card is required.";
-        }
-      }
-
-      if (!uploads.cor) {
-        preFlightErrors.cor = "Certificate of Registration is required.";
-      }
-
-      if (!values.termStartDate || values.termStartDate.trim() === "") {
-        preFlightErrors.termStartDate = "Term Start Date is required.";
-      } else {
-        const start = parseDateString(values.termStartDate);
-        const currentYear = new Date().getFullYear();
-        const yearStart = new Date(currentYear, 0, 1);
-        const yearEnd = new Date(currentYear, 11, 31);
-        if (start && (start < yearStart || start > yearEnd)) {
-          preFlightErrors.termStartDate = "Start date must be within the current year.";
-        }
-      }
-
-      if (!values.termEndDate || values.termEndDate.trim() === "") {
-        preFlightErrors.termEndDate = "Term End Date is required.";
-      }
-
-      if (values.termStartDate && values.termEndDate) {
-        const start = parseDateString(values.termStartDate);
-        const end = parseDateString(values.termEndDate);
-        if (start && end) {
-          const minEnd = new Date(start.getFullYear(), start.getMonth() + 1, 1);
-          const daysInTargetMonth = new Date(minEnd.getFullYear(), minEnd.getMonth() + 1, 0).getDate();
-          minEnd.setDate(Math.min(start.getDate(), daysInTargetMonth));
-
-          if (end < minEnd) {
-            preFlightErrors.termEndDate = "Term End Date must be at least 1 month after Term Start Date.";
-          }
-        }
-      }
+    // Step 1 checks run when on step 1 or beyond
+    if (uiStep >= 1) {
+      Object.assign(preFlightErrors, getStep1PreflightErrors(values, dynamicFamilyMembers, scholarBirth));
     }
 
-    if (uiStep === 1) {
-      // Validate that parents and guardians are older than the applicant/scholar
-      const scholarBirth = parseDateString(user?.birthday || user?.birthDate || user?.birthdate);
-      if (scholarBirth && scholarBirth.getFullYear() >= 1990) {
-        if (values.fatherBirthday && values.fatherStatus !== "Deceased") {
-          const fatherBirth = parseDateString(values.fatherBirthday);
-          if (fatherBirth && fatherBirth >= scholarBirth) {
-            preFlightErrors.fatherBirthday = "Father should be older than the applicant.";
-          }
-        }
-        if (values.motherBirthday && values.motherStatus !== "Deceased") {
-          const motherBirth = parseDateString(values.motherBirthday);
-          if (motherBirth && motherBirth >= scholarBirth) {
-            preFlightErrors.motherBirthday = "Mother should be older than the applicant.";
-          }
-        }
-        if (values.hasGuardian && values.guardianBirthday && values.guardianStatus !== "Deceased") {
-          const guardianBirth = parseDateString(values.guardianBirthday);
-          if (guardianBirth && guardianBirth >= scholarBirth) {
-            preFlightErrors.guardianBirthday = "Guardian should be older than the applicant.";
-          }
-        }
-      }
-
-      // Step 1: Specifically block empty strings on the Family inputs missing from backend rules
-      const requiresProof = (status) => ["Employed", "Self-Employed"].includes(status);
-      
-      const checkMember = (name, status, occ, inc, prefix, niceName) => {
-        if (!name || name.trim() === "") preFlightErrors[prefix + "Name"] = `${niceName} Name is required.`;
-        if (!status || status === "--") {
-          preFlightErrors[prefix + "Status"] = `${niceName} Employment Status is required.`;
-        }
-        if (requiresProof(status)) {
-          if (!occ || occ.trim() === "") preFlightErrors[prefix + "Occupation"] = `${niceName} Occupation is required.`;
-          if (!inc || inc.trim() === "") preFlightErrors[prefix + "Income"] = `${niceName} Income is required.`;
-        }
-      };
-
-      const isFatherStarted = !isFatherEmpty(values);
-      const isMotherStarted = !isMotherEmpty(values);
-
-      if (values.hasGuardian) {
-        if (values.guardianStatus !== "Deceased") {
-          checkMember(values.guardianName, values.guardianStatus, values.guardianOccupation, values.guardianIncome, "guardian", "Guardian's");
-          if (!values.guardianContact || values.guardianContact.length < 11) preFlightErrors.guardianContact = "Contact Number must be 11 digits.";
-        }
-
-        // Only allow either Father or Mother information, not both
-        if (isFatherStarted && isMotherStarted) {
-          preFlightErrors.fatherName = "If you have a guardian, you can only provide either Father's or Mother's information, not both.";
-          preFlightErrors.motherName = "If you have a guardian, you can only provide either Father's or Mother's information, not both.";
-        }
-      } else {
-        // If they do not have a guardian, both parent sections cannot be empty
-        if (!isFatherStarted && !isMotherStarted) {
-          preFlightErrors.fatherName = "You must fill out either Father's or Mother's information.";
-          preFlightErrors.motherName = "You must fill out either Father's or Mother's information.";
-        }
-
-        // Also check if both parents are deceased and no guardian is set
-        const fatherIsDeceased = isFatherStarted && values.fatherStatus === "Deceased";
-        const motherIsDeceased = isMotherStarted && values.motherStatus === "Deceased";
-
-        if (fatherIsDeceased && motherIsDeceased) {
-          preFlightErrors.hasGuardian = "Guardian is required because both parents are deceased.";
-        } else if (fatherIsDeceased && !isMotherStarted) {
-          preFlightErrors.hasGuardian = "Guardian is required because Father is deceased and Mother's information is not provided.";
-        } else if (motherIsDeceased && !isFatherStarted) {
-          preFlightErrors.hasGuardian = "Guardian is required because Mother is deceased and Father's information is not provided.";
-        }
-      }
-
-      if (isFatherStarted && values.fatherStatus !== "Deceased") {
-        checkMember(values.fatherName, values.fatherStatus, values.fatherOccupation, values.fatherIncome, "father", "Father's");
-        if (!values.fatherContact || values.fatherContact.length < 11) preFlightErrors.fatherContact = "Contact Number must be 11 digits.";
-      } else if (isFatherStarted && values.fatherStatus === "Deceased") {
-        if (!values.fatherName || values.fatherName.trim() === "") {
-          preFlightErrors.fatherName = "Father's Name is required.";
-        }
-      }
-
-      if (isMotherStarted && values.motherStatus !== "Deceased") {
-        checkMember(values.motherName, values.motherStatus, values.motherOccupation, values.motherIncome, "mother", "Mother's");
-        if (!values.motherContact || values.motherContact.length < 11) preFlightErrors.motherContact = "Contact Number must be 11 digits.";
-      } else if (isMotherStarted && values.motherStatus === "Deceased") {
-        if (!values.motherName || values.motherName.trim() === "") {
-          preFlightErrors.motherName = "Mother's Name is required.";
-        }
-      }
-
-      // Automatically validate all dynamically injected family members
-      (dynamicFamilyMembers || []).forEach((mem, idx) => {
-        if (!mem.name || mem.name.trim() === "") preFlightErrors[`dynFamily_${idx}_name`] = "Member Name is required.";
-        if (!mem.relationship || mem.relationship.trim() === "") preFlightErrors[`dynFamily_${idx}_relationship`] = "Relationship is required.";
-        if (!mem.status || mem.status === "--") {
-          preFlightErrors[`dynFamily_${idx}_status`] = "Employment Status is required.";
-        }
-        if (mem.status !== "Deceased") {
-          if (!mem.contactNo || mem.contactNo.length < 11) preFlightErrors[`dynFamily_${idx}_contactNo`] = "Contact Number must be 11 digits.";
-        }
-        if (requiresProof(mem.status)) {
-          if (!mem.occupation || mem.occupation.trim() === "") preFlightErrors[`dynFamily_${idx}_occupation`] = "Occupation is required.";
-          if (!mem.income || mem.income.trim() === "") preFlightErrors[`dynFamily_${idx}_income`] = "Monthly Income is required.";
-        }
-      });
-    }
-
-    if (uiStep === 2) {
-      // Step 2: Validate essential files
-      if (!uploads.birthCert) preFlightErrors.birthCert = "Birth certificate is required.";
-      if (!uploads.essay) preFlightErrors.essay = "Essay is required.";
-      if (!uploads.letterOfIntentApplicant) preFlightErrors.letterOfIntentApplicant = "Letter of Intent (Applicant) is required.";
-      if (!uploads.letterOfIntentParent) preFlightErrors.letterOfIntentParent = "Letter of Intent (Parent) is required.";
-
-      const fatherIsOptional = values.hasGuardian;
-      const motherIsOptional = values.hasGuardian;
-
-      const requiresProof = (status) => ["Employed", "Self-Employed"].includes(status);
-      const requiresIndigency = (status) => status === "Unemployed";
-      
-      if (values.hasGuardian) {
-        if (requiresProof(values.guardianStatus) && !uploads.incomeGuardian) preFlightErrors.incomeGuardian = "Income certificate required.";
-        if (requiresIndigency(values.guardianStatus) && !uploads.indigencyGuardian) preFlightErrors.indigencyGuardian = "Certificate of indigency required.";
-      }
-
-      const hasFatherDoc = !isFatherEmpty(values);
-      if (hasFatherDoc) {
-        if (requiresProof(values.fatherStatus) && !uploads.incomeFather) preFlightErrors.incomeFather = "Income certificate required.";
-        if (requiresIndigency(values.fatherStatus) && !uploads.indigencyFather) preFlightErrors.indigencyFather = "Certificate of indigency required.";
-      }
-
-      const hasMotherDoc = !isMotherEmpty(values);
-      if (hasMotherDoc) {
-        if (requiresProof(values.motherStatus) && !uploads.incomeMother) preFlightErrors.incomeMother = "Income certificate required.";
-        if (requiresIndigency(values.motherStatus) && !uploads.indigencyMother) preFlightErrors.indigencyMother = "Certificate of indigency required.";
-      }
-
-
-      (dynamicFamilyMembers || []).forEach((mem, idx) => {
-        if (requiresProof(mem.status) && !uploads[`incomeMember_${idx}`]) {
-          preFlightErrors[`incomeMember_${idx}`] = "Income certificate required.";
-        }
-        if (requiresIndigency(mem.status) && !uploads[`indigencyMember_${idx}`]) {
-          preFlightErrors[`indigencyMember_${idx}`] = "Certificate of indigency required.";
-        }
-      });
+    // Step 2 checks run only when on step 2
+    if (uiStep >= 2) {
+      Object.assign(preFlightErrors, getStep2PreflightErrors(values, uploads, dynamicFamilyMembers));
     }
 
     if (Object.keys(preFlightErrors).length > 0) {
