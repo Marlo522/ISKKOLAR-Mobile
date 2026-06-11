@@ -121,7 +121,7 @@ const normalizeApplicationStatus = (status) => {
   return STATUS_LABEL[status] || "submitted";
 };
 
-const ApplicationCard = ({ application, onViewEvaluation }) => {
+const ApplicationCard = ({ application, onViewEvaluation, onViewSubmittedInfo }) => {
   const isRejected = application.rawStatus === "rejected";
   const isCancelled = application.rawStatus === "cancelled";
   const isApproved = application.rawStatus === "approved";
@@ -378,16 +378,27 @@ const ApplicationCard = ({ application, onViewEvaluation }) => {
           </View>
         )}
 
-        {application.aiEvaluation && (
+        <View style={styles.btnStack}>
           <TouchableOpacity
-            style={styles.viewEvaluationBtn}
-            onPress={() => onViewEvaluation(application.aiEvaluation)}
+            style={styles.submittedInfoBtn}
+            onPress={() => onViewSubmittedInfo(application)}
             activeOpacity={0.8}
           >
-            <Ionicons name="analytics-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
-            <Text style={styles.viewEvaluationBtnText}>View AI Evaluation Report</Text>
+            <Ionicons name="document-text-outline" size={18} color="#5b5f97" style={{ marginRight: 8 }} />
+            <Text style={styles.submittedInfoBtnText}>Submitted Information</Text>
           </TouchableOpacity>
-        )}
+
+          {application.aiEvaluation ? (
+            <TouchableOpacity
+              style={styles.viewEvaluationBtn}
+              onPress={() => onViewEvaluation(application.aiEvaluation)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="analytics-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.viewEvaluationBtnText}>View AI Smart Evaluation Report</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
     </View>
   );
@@ -511,6 +522,334 @@ const EvaluationModal = ({ visible, onClose, evaluation }) => {
   );
 };
 
+const SubmittedInfoModal = ({ visible, onClose, application }) => {
+  if (!application) return null;
+  const raw = application.rawData;
+  if (!raw) return null;
+
+  // Extract variables
+  const type = raw.application_type || raw.type || 'tertiary';
+  
+  // 1. Details
+  const details = raw.tertiary_application_details?.[0] || raw.tertiary_application_details
+    || raw.vocational_application_details?.[0] || raw.vocational_application_details
+    || raw.kkfi_grant_details?.[0] || raw.kkfi_grant_details
+    || {};
+
+  // 2. Secondary
+  const secondary = raw.secondary_education?.[0] || raw.secondary_education || {};
+
+  // 3. Tertiary
+  const tertiary = raw.tertiary_education?.[0] || raw.tertiary_education || {};
+
+  // 4. Vocational
+  const vocational = raw.vocational_education?.[0] || raw.vocational_education || {};
+
+  // 5. Masters
+  const masters = raw.masters_education?.[0] || raw.masters_education || {};
+
+  // 6. Family
+  const familyMembers = Array.isArray(raw.family_members) ? raw.family_members : [];
+
+  // 7. Documents
+  const documents = Array.isArray(raw.application_documents) ? raw.application_documents : [];
+
+  // Formatter helpers
+  const formatValue = (val) => {
+    if (val === null || val === undefined || val === '') return '--';
+    if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+    return String(val);
+  };
+
+  return (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <View style={modalStyles.modalOverlay}>
+        <View style={modalStyles.modalContent}>
+          <View style={modalStyles.modalHeader}>
+            <Text style={modalStyles.modalHeaderTitle}>Submitted Information</Text>
+            <TouchableOpacity onPress={onClose} style={modalStyles.closeButton}>
+              <Ionicons name="close" size={24} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={modalStyles.modalBody} showsVerticalScrollIndicator={false}>
+            {/* Scholarship Information */}
+            <View style={styles.reviewCard}>
+              <Text style={styles.reviewCardTitle}>Scholarship Information</Text>
+              <View style={styles.reviewGrid}>
+                <View style={styles.reviewRow}>
+                  <Text style={styles.reviewLabel}>Scholarship Type</Text>
+                  <Text style={styles.reviewValue}>{formatValue(details.scholarship_type || details.scholarshipType)}</Text>
+                </View>
+                {details.incoming_freshman !== undefined && (
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Incoming Freshman?</Text>
+                    <Text style={styles.reviewValue}>{formatValue(details.incoming_freshman)}</Text>
+                  </View>
+                )}
+                {details.applicant_category !== undefined && (
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Category</Text>
+                    <Text style={styles.reviewValue}>{formatValue(details.applicant_category)}</Text>
+                  </View>
+                )}
+                {(details.educ_path || details.education_path) ? (
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Education Path</Text>
+                    <Text style={styles.reviewValue}>{formatValue(details.educ_path || details.education_path)}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+
+            {/* KKFI Employee Information (for Staff/Child Designation programs) */}
+            {details.staff_id ? (
+              <View style={styles.reviewCard}>
+                <Text style={styles.reviewCardTitle}>KKFI Employee Information</Text>
+                <View style={styles.reviewGrid}>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Staff ID</Text>
+                    <Text style={styles.reviewValue}>{formatValue(details.staff_id)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Employee Name</Text>
+                    <Text style={styles.reviewValue}>
+                      {`${details.first_name || ''} ${details.middle_name || ''} ${details.last_name || ''} ${details.suffix || ''}`.trim().replace(/\s+/g, ' ') || '--'}
+                    </Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Position</Text>
+                    <Text style={styles.reviewValue}>{formatValue(details.position)}</Text>
+                  </View>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Secondary Education (if present) */}
+            {Object.keys(secondary).length > 0 && (
+              <View style={styles.reviewCard}>
+                <Text style={styles.reviewCardTitle}>Secondary Education Information</Text>
+                <View style={styles.reviewGrid}>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>School Name</Text>
+                    <Text style={styles.reviewValue}>{formatValue(secondary.school_name)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Strand</Text>
+                    <Text style={styles.reviewValue}>{formatValue(secondary.strand)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Year Graduated</Text>
+                    <Text style={styles.reviewValue}>{formatValue(secondary.year_graduated)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Secondary GWA</Text>
+                    <Text style={styles.reviewValue}>{formatValue(secondary.gwa)}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Tertiary Education (if present) */}
+            {Object.keys(tertiary).length > 0 && (
+              <View style={styles.reviewCard}>
+                <Text style={styles.reviewCardTitle}>Tertiary Education Information</Text>
+                <View style={styles.reviewGrid}>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>School Name</Text>
+                    <Text style={styles.reviewValue}>{formatValue(tertiary.school_name)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Program</Text>
+                    <Text style={styles.reviewValue}>{formatValue(tertiary.program)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Year Level</Text>
+                    <Text style={styles.reviewValue}>{formatValue(tertiary.year_level)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Term Type</Text>
+                    <Text style={styles.reviewValue}>{formatValue(tertiary.term_type)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Grade Scale</Text>
+                    <Text style={styles.reviewValue}>{formatValue(tertiary.grade_scale)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Term</Text>
+                    <Text style={styles.reviewValue}>{formatValue(tertiary.term)}</Text>
+                  </View>
+                  {(tertiary.term_start_date || tertiary.term_end_date) ? (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Term Duration</Text>
+                      <Text style={styles.reviewValue}>
+                        {formatDate(tertiary.term_start_date)} - {formatDate(tertiary.term_end_date)}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Current GWA</Text>
+                    <Text style={styles.reviewValue}>{formatValue(tertiary.gwa)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Expected Graduation</Text>
+                    <Text style={styles.reviewValue}>{formatValue(tertiary.expected_graduation_year)}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Vocational Education (if present) */}
+            {Object.keys(vocational).length > 0 && (
+              <View style={styles.reviewCard}>
+                <Text style={styles.reviewCardTitle}>Vocational Education Information</Text>
+                <View style={styles.reviewGrid}>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>School Name</Text>
+                    <Text style={styles.reviewValue}>{formatValue(vocational.school_name)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Program</Text>
+                    <Text style={styles.reviewValue}>{formatValue(vocational.program)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Duration</Text>
+                    <Text style={styles.reviewValue}>{formatValue(vocational.course_duration)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>GWA</Text>
+                    <Text style={styles.reviewValue}>{formatValue(vocational.gwa)}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Masters Education (if present) */}
+            {Object.keys(masters).length > 0 && (
+              <View style={styles.reviewCard}>
+                <Text style={styles.reviewCardTitle}>Master's Education Information</Text>
+                <View style={styles.reviewGrid}>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>School Name</Text>
+                    <Text style={styles.reviewValue}>{formatValue(masters.school_name)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Program</Text>
+                    <Text style={styles.reviewValue}>{formatValue(masters.program)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>GWA</Text>
+                    <Text style={styles.reviewValue}>{formatValue(masters.gwa)}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Previous Tertiary Education (if present for Master's/Staff Advancement candidates) */}
+            {(details.prev_school_name || masters.prev_school_name) ? (
+              <View style={styles.reviewCard}>
+                <Text style={styles.reviewCardTitle}>Previous Tertiary Education</Text>
+                <View style={styles.reviewGrid}>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>School Name</Text>
+                    <Text style={styles.reviewValue}>{formatValue(details.prev_school_name || masters.prev_school_name)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Program</Text>
+                    <Text style={styles.reviewValue}>{formatValue(details.prev_program || masters.prev_program)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Year Graduated</Text>
+                    <Text style={styles.reviewValue}>{formatValue(details.prev_year_graduated || masters.prev_year_graduated)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>GWA</Text>
+                    <Text style={styles.reviewValue}>{formatValue(details.prev_tertiary_gwa || masters.prev_tertiary_gwa)}</Text>
+                  </View>
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Grade Scale</Text>
+                    <Text style={styles.reviewValue}>{formatValue(details.prev_grade_scale || details.prev_tertiary_grade_scale || masters.prev_grade_scale || masters.prev_tertiary_grade_scale)}</Text>
+                  </View>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Family Members */}
+            {familyMembers.length > 0 && (
+              <View style={styles.reviewCard}>
+                <Text style={styles.reviewCardTitle}>Family / Guardian Information</Text>
+                {familyMembers.map((member, idx) => (
+                  <View key={idx} style={[styles.familyMemberBox, idx > 0 && styles.familyMemberDivider]}>
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Relation / Name</Text>
+                      <Text style={styles.reviewValue}>
+                        {`${(member.role || 'Member').charAt(0).toUpperCase() + (member.role || 'Member').slice(1)} - ${formatValue(member.full_name)}`}
+                      </Text>
+                    </View>
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Birthday</Text>
+                      <Text style={styles.reviewValue}>{formatDate(member.birthday)}</Text>
+                    </View>
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Employment Status</Text>
+                      <Text style={styles.reviewValue}>{formatValue(member.employment_status)}</Text>
+                    </View>
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Contact Number</Text>
+                      <Text style={styles.reviewValue}>{formatValue(member.contact_number || member.contactNo)}</Text>
+                    </View>
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Occupation</Text>
+                      <Text style={styles.reviewValue}>{formatValue(member.occupation)}</Text>
+                    </View>
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Monthly Income</Text>
+                      <Text style={styles.reviewValue}>
+                        {member.monthly_income && !isNaN(Number(member.monthly_income))
+                          ? '₱' + Number(member.monthly_income).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                          : formatValue(member.monthly_income)}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Supporting Documents */}
+            {documents.length > 0 && (
+              <View style={styles.reviewCard}>
+                <Text style={styles.reviewCardTitle}>Supporting Documents</Text>
+                <View style={styles.reviewGrid}>
+                  {documents.map((doc, idx) => (
+                    <View key={idx} style={styles.reviewRow}>
+                      <Text style={[styles.reviewLabel, { flex: 1 }]}>
+                        {doc.document_type === 'cor' ? 'COR' :
+                         doc.document_type === 'grade_report' ? 'Grade Report' :
+                         doc.document_type === 'current_term_report' ? 'Term Report' :
+                         doc.document_type === 'birth_certificate' ? 'Birth Certificate' :
+                         doc.document_type === 'essay' ? 'Essay' :
+                         doc.document_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                      </Text>
+                      <Text style={[styles.reviewValue, { flex: 1.5, textAlign: 'right' }]} numberOfLines={1}>
+                        {formatValue(doc.file_name)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 export default function ApplicantApplicationHistory({ navigation }) {
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
@@ -518,6 +857,8 @@ export default function ApplicantApplicationHistory({ navigation }) {
 
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [infoModalVisible, setInfoModalVisible] = useState(false);
 
   // Application closed gating — mirrors web's Application tab gate
   const [settingsLoading, setSettingsLoading] = useState(true);
@@ -743,6 +1084,7 @@ export default function ApplicantApplicationHistory({ navigation }) {
         submittedAt: formatDate(app.submitted_at || app.created_at),
         interviews: app.interview_schedules || app.interviews || [],
         aiEvaluation: parseAiEvaluation(app.qualification_report || app.qualificationReport || app.ai_evaluation || app.aiEvaluation || app.ai_feedback || app.aiFeedback, app.status || "submitted", app),
+        rawData: app,
       };
     });
   }, [applications]);
@@ -814,6 +1156,10 @@ export default function ApplicantApplicationHistory({ navigation }) {
                 setSelectedEvaluation(evaluation);
                 setModalVisible(true);
               }}
+              onViewSubmittedInfo={(applicationData) => {
+                setSelectedApplication(applicationData);
+                setInfoModalVisible(true);
+              }}
             />
           ))
         )}
@@ -823,6 +1169,12 @@ export default function ApplicantApplicationHistory({ navigation }) {
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         evaluation={selectedEvaluation}
+      />
+
+      <SubmittedInfoModal
+        visible={infoModalVisible}
+        onClose={() => setInfoModalVisible(false)}
+        application={selectedApplication}
       />
     </View>
   );
@@ -908,6 +1260,28 @@ const styles = StyleSheet.create({
   remarksContainer: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: "rgba(229, 231, 235, 0.5)" },
   remarksLabel: { fontSize: 10, fontWeight: "700", color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
   remarksText: { fontSize: 12, fontStyle: "italic", color: "#4b5563", lineHeight: 18, backgroundColor: "#fff", padding: 10, borderRadius: 8, borderWidth: 1, borderColor: "#e5e7eb" },
+  btnStack: {
+    flexDirection: "column",
+    gap: 10,
+    marginTop: 16,
+    width: "100%",
+  },
+  submittedInfoBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
+    borderWidth: 1.5,
+    borderColor: "#5b5f97",
+    borderRadius: 14,
+    paddingVertical: 14,
+    width: "100%",
+  },
+  submittedInfoBtnText: {
+    color: "#5b5f97",
+    fontWeight: "800",
+    fontSize: 14,
+  },
   viewEvaluationBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -915,12 +1289,59 @@ const styles = StyleSheet.create({
     backgroundColor: "#3d4076",
     borderRadius: 14,
     paddingVertical: 14,
-    marginTop: 16,
+    width: "100%",
   },
   viewEvaluationBtnText: {
     color: "#fff",
     fontWeight: "800",
     fontSize: 14,
+  },
+  reviewCard: {
+    backgroundColor: "#f8f9fc",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  reviewCardTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#4f568e",
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+    paddingBottom: 6,
+  },
+  reviewGrid: {
+    gap: 8,
+  },
+  reviewRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  reviewLabel: {
+    fontSize: 12,
+    color: "#6b7280",
+    fontWeight: "600",
+  },
+  reviewValue: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#1f2937",
+    textAlign: "right",
+    flexShrink: 1,
+  },
+  familyMemberBox: {
+    gap: 6,
+    paddingVertical: 8,
+  },
+  familyMemberDivider: {
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+    marginTop: 8,
   },
 });
 

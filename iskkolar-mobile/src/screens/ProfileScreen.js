@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Platform, Image, Switch, NativeModules, RefreshControl } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Platform, Image, Switch, NativeModules, RefreshControl, Alert } from "react-native";
 import SafeTextInput from "../components/SafeTextInput";
 import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,6 +9,7 @@ import { useIsFocused } from "@react-navigation/native";
 import { AuthContext } from "../context/AuthContext";
 import * as profileService from "../services/profileService";
 import { registerPushToken, deletePushToken } from "../services/pushNotificationService";
+import SuccessModal from "../components/SuccessModal";
 
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -33,6 +34,11 @@ export default function ProfileScreen({ navigation }) {
   const [showNewPw, setShowNewPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(true);
+  const [successConfig, setSuccessConfig] = useState({
+    visible: false,
+    title: "",
+    message: "",
+  });
 
   // Mount animation
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -171,7 +177,11 @@ export default function ProfileScreen({ navigation }) {
         email: user?.email || form.email,
         mobileNumber: mobileValue,
       });
-      alert(updated._message || "Mobile number updated successfully!");
+      setSuccessConfig({
+        visible: true,
+        title: "Changes Saved!",
+        message: updated._message || "Mobile number updated successfully!",
+      });
       loginUser({ ...user, ...updated });
       setEditingMobile(false);
     } catch (err) {
@@ -199,7 +209,11 @@ export default function ProfileScreen({ navigation }) {
         email: emailValue,
         mobileNumber: user?.mobileNumber || form.mobileNumber,
       });
-      alert(updated._message || "Email updated successfully!");
+      setSuccessConfig({
+        visible: true,
+        title: "Changes Saved!",
+        message: updated._message || "Email updated successfully!",
+      });
       loginUser({ ...user, ...updated });
       setEditingEmail(false);
     } catch (err) {
@@ -209,9 +223,54 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
-  const pickProfilePhoto = async () => {
+  const pickProfilePhoto = () => {
+    Alert.alert(
+      "Change Profile Photo",
+      "Choose an option",
+      [
+        {
+          text: "Take Photo",
+          onPress: handleLaunchCamera,
+        },
+        {
+          text: "Choose from Library",
+          onPress: handleLaunchLibrary,
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ]
+    );
+  };
+
+  const handleLaunchCamera = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permission Denied", "Camera permission is required to take photos.");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (result.canceled) return;
+
+    const asset = result.assets?.[0];
+    if (!asset?.uri) return;
+
+    handleUploadProfilePhoto(asset);
+  };
+
+  const handleLaunchLibrary = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return;
+    if (!permission.granted) {
+      Alert.alert("Permission Denied", "Photos permission is required to select photos.");
+      return;
+    }
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -224,7 +283,61 @@ export default function ProfileScreen({ navigation }) {
     const asset = result.assets?.[0];
     if (!asset?.uri) return;
 
-    setForm({ ...form, profilePhoto: { uri: asset.uri } });
+    handleUploadProfilePhoto(asset);
+  };
+
+  const handleUploadProfilePhoto = async (asset) => {
+    setLoading(true);
+    try {
+      const updated = await profileService.updateProfile({
+        email: user?.email || form.email,
+        mobileNumber: user?.mobileNumber || user?.mobile_number || form.mobileNumber,
+        profilePhoto: {
+          uri: asset.uri,
+          name: asset.fileName || `profile-photo-${Date.now()}.jpg`,
+          type: asset.mimeType || "image/jpeg",
+        },
+      });
+      setSuccessConfig({
+        visible: true,
+        title: "Changes Saved!",
+        message: updated._message || "Profile picture updated successfully!",
+      });
+      loginUser({ ...user, ...updated });
+      setForm(prev => ({
+        ...prev,
+        profilePhoto: updated.profilePictureUrl ? { uri: updated.profilePictureUrl } : null,
+      }));
+    } catch (err) {
+      Alert.alert("Error", err.message || "Failed to update profile picture.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveProfilePhoto = async () => {
+    setLoading(true);
+    try {
+      const updated = await profileService.updateProfile({
+        email: user?.email || form.email,
+        mobileNumber: user?.mobileNumber || user?.mobile_number || form.mobileNumber,
+        removePhoto: true,
+      });
+      setSuccessConfig({
+        visible: true,
+        title: "Photo Removed",
+        message: updated._message || "Profile picture removed successfully!",
+      });
+      loginUser({ ...user, ...updated });
+      setForm(prev => ({
+        ...prev,
+        profilePhoto: null,
+      }));
+    } catch (err) {
+      Alert.alert("Error", err.message || "Failed to remove profile picture.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updatePassword = async () => {
@@ -247,7 +360,11 @@ export default function ProfileScreen({ navigation }) {
     setLoading(true);
     try {
       const res = await profileService.changePassword(passwords.current, passwords.newPassword);
-      alert(res.message || "Password updated successfully!");
+      setSuccessConfig({
+        visible: true,
+        title: "Password Changed",
+        message: res.message || "Password updated successfully!",
+      });
       setPasswords({ current: "", newPassword: "", confirm: "" });
       setShowCurrentPw(false);
       setShowNewPw(false);
@@ -265,7 +382,11 @@ export default function ProfileScreen({ navigation }) {
       <View style={[styles.landingHeaderTop, { paddingTop: insets.top + 16 }]}>
         <View style={styles.profileRow}>
           <View style={styles.userIconWrapper}>
-            <Ionicons name="person-outline" size={24} color="#5b6095" />
+            {form.profilePhoto?.uri ? (
+              <Image source={{ uri: form.profilePhoto.uri }} style={{ width: "100%", height: "100%", borderRadius: 12.5 }} />
+            ) : (
+              <Ionicons name="person-outline" size={24} color="#5b6095" />
+            )}
           </View>
           <View style={styles.headerTextCol}>
             <Text style={styles.userName}>{form.firstName} {form.lastName}</Text>
@@ -318,7 +439,7 @@ export default function ProfileScreen({ navigation }) {
 
               {form.profilePhoto?.uri && (
                 <TouchableOpacity
-                  onPress={() => setForm({ ...form, profilePhoto: null })}
+                  onPress={handleRemoveProfilePhoto}
                   style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, backgroundColor: '#fee2e2' }}
                 >
                   <Text style={{ color: '#ef4444', fontWeight: '700', fontSize: 13 }}>Remove Photo</Text>
@@ -493,6 +614,12 @@ export default function ProfileScreen({ navigation }) {
           </View>
         )}
       </Animated.ScrollView>
+      <SuccessModal
+        visible={successConfig.visible}
+        title={successConfig.title}
+        message={successConfig.message}
+        onClose={() => setSuccessConfig(prev => ({ ...prev, visible: false }))}
+      />
     </View>
   );
 }

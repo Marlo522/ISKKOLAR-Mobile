@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useContext, useCallback } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Alert, Animated, Modal } from "react-native";
+import React, { useState, useEffect, useRef, useContext, useCallback, useMemo } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Alert, Animated, Modal, Image } from "react-native";
 import SafeTextInput from "../components/SafeTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -102,6 +102,75 @@ export default function FinancialRecordsScreen({ navigation }) {
   const [recordsError, setRecordsError] = useState(null);
   const [appsError, setAppsError] = useState(null);
   const [summary, setSummary] = useState(null);
+
+  // Filters State
+  const [disbursementYearFilter, setDisbursementYearFilter] = useState('all');
+  const [proofYearFilter, setProofYearFilter] = useState('all');
+  const [activePicker, setActivePicker] = useState(null); // 'disbursements' | 'proofs' | null
+  const isDisbInitializedRef = useRef(false);
+  const isProofInitializedRef = useRef(false);
+
+  const disbursementYears = useMemo(() => {
+    const yearsSet = new Set();
+    transactions.forEach((tx) => {
+      if (tx.periodYear) {
+        if (tx.periodYear.includes('-')) {
+          yearsSet.add(tx.periodYear);
+        } else {
+          yearsSet.add(`${tx.periodYear}-${parseInt(tx.periodYear) + 1}`);
+        }
+      }
+    });
+    return Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
+  }, [transactions]);
+
+  const proofYears = useMemo(() => {
+    const yearsSet = new Set();
+    applications.forEach((app) => {
+      const submissionData = Array.isArray(app.expense_proof_submissions) 
+        ? app.expense_proof_submissions[0] 
+        : app.expense_proof_submissions;
+      if (submissionData?.academic_year) {
+        yearsSet.add(submissionData.academic_year);
+      }
+    });
+    return Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
+  }, [applications]);
+
+  useEffect(() => {
+    if (!isDisbInitializedRef.current && disbursementYears.length > 0) {
+      setDisbursementYearFilter(disbursementYears[0]);
+      isDisbInitializedRef.current = true;
+    }
+  }, [disbursementYears]);
+
+  useEffect(() => {
+    if (!isProofInitializedRef.current && proofYears.length > 0) {
+      setProofYearFilter(proofYears[0]);
+      isProofInitializedRef.current = true;
+    }
+  }, [proofYears]);
+
+  const filteredTransactions = useMemo(() => {
+    if (disbursementYearFilter === 'all') return transactions;
+    return transactions.filter((tx) => {
+      if (!tx.periodYear) return false;
+      const formattedYear = tx.periodYear.includes('-') 
+        ? tx.periodYear 
+        : `${tx.periodYear}-${parseInt(tx.periodYear) + 1}`;
+      return formattedYear === disbursementYearFilter;
+    });
+  }, [transactions, disbursementYearFilter]);
+
+  const filteredApplications = useMemo(() => {
+    if (proofYearFilter === 'all') return applications;
+    return applications.filter((app) => {
+      const submissionData = Array.isArray(app.expense_proof_submissions) 
+        ? app.expense_proof_submissions[0] 
+        : app.expense_proof_submissions;
+      return submissionData?.academic_year === proofYearFilter;
+    });
+  }, [applications, proofYearFilter]);
 
   const {
     submitting,
@@ -415,7 +484,7 @@ export default function FinancialRecordsScreen({ navigation }) {
     .filter((t) => ["Confirmed", "Released"].includes(t.status))
     .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
 
-  // Total amount spent (all-time) based on approved and pending receipts
+  // Total amount spent based on approved and pending receipts (all-time)
   const totalAmountSpent = applications
     .filter((s) => ["approved", "pending", "success"].includes(s.status))
     .reduce((sum, sub) => {
@@ -601,7 +670,7 @@ export default function FinancialRecordsScreen({ navigation }) {
                     <Text style={styles.totalStatLabel}>This Year</Text>
                   </View>
                   <View style={styles.totalStatColRight}>
-                    <Text style={styles.totalStatNum}>{summary?.monthly?.transactions || monthlyTransactions.length}</Text>
+                    <Text style={styles.totalStatNum}>{monthlyTransactions.length}</Text>
                     <Text style={styles.totalStatLabel}>Transactions</Text>
                   </View>
                 </View>
@@ -653,9 +722,22 @@ export default function FinancialRecordsScreen({ navigation }) {
 
             {activeTab === 'disbursements' ? (
               <>
-                <View style={styles.sectionTitleBlock}>
-                  <Text style={styles.sectionTitle}>Transaction History</Text>
-                  <Text style={styles.sectionSubtitle}>{new Date().getFullYear()}</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <View style={[styles.sectionTitleBlock, { marginBottom: 0 }]}>
+                    <Text style={styles.sectionTitle}>Transaction History</Text>
+                    <Text style={styles.sectionSubtitle}>{new Date().getFullYear()}</Text>
+                  </View>
+                  {disbursementYears.length > 0 && (
+                    <TouchableOpacity
+                      style={[styles.filterDropdown, { flex: 0, minWidth: 120, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8 }]}
+                      onPress={() => setActivePicker('disbursements')}
+                    >
+                      <Text style={[styles.filterDropdownText, { fontSize: 11 }]} numberOfLines={1}>
+                        {disbursementYearFilter === 'all' ? 'Select Year' : `AY ${disbursementYearFilter}`}
+                      </Text>
+                      <Ionicons name="chevron-down" size={12} color="#6b72aa" />
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {isLoadingRecords ? (
@@ -666,13 +748,13 @@ export default function FinancialRecordsScreen({ navigation }) {
                   <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 30 }]}>
                     <Text style={{ color: '#dc2626', fontWeight: '600', textAlign: 'center' }}>{recordsError}</Text>
                   </View>
-                ) : transactions.length === 0 ? (
+                ) : filteredTransactions.length === 0 ? (
                   <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 40, borderStyle: 'dashed' }]}>
                     <Text style={{ color: '#888', fontWeight: '600' }}>No financial records found.</Text>
                   </View>
                 ) : (
                   <>
-                    {(showAllTransactions ? transactions : transactions.slice(0, 3)).map((tx) => {
+                    {(showAllTransactions ? filteredTransactions : filteredTransactions.slice(0, 3)).map((tx) => {
                       const statusStyle = getStatusStyle(tx.status);
                       return (
                         <View key={tx.id} style={styles.txCard}>
@@ -709,14 +791,14 @@ export default function FinancialRecordsScreen({ navigation }) {
                       );
                     })}
 
-                    {transactions.length > 3 && (
+                    {filteredTransactions.length > 3 && (
                       <TouchableOpacity
                         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, marginBottom: 8, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e4e8f8' }}
                         onPress={() => setShowAllTransactions(!showAllTransactions)}
                         activeOpacity={0.7}
                       >
                         <Text style={{ fontSize: 14, fontWeight: '700', color: '#5b5f97', marginRight: 6 }}>
-                          {showAllTransactions ? 'Show Less' : `Show All (${transactions.length})`}
+                          {showAllTransactions ? 'Show Less' : `Show All (${filteredTransactions.length})`}
                         </Text>
                         <Ionicons name={showAllTransactions ? 'chevron-up' : 'chevron-down'} size={18} color="#5b5f97" />
                       </TouchableOpacity>
@@ -726,9 +808,22 @@ export default function FinancialRecordsScreen({ navigation }) {
               </>
             ) : (
               <>
-                <View style={styles.sectionTitleBlock}>
-                  <Text style={styles.sectionTitle}>Submission History</Text>
-                  <Text style={styles.sectionSubtitle}>Track your liquidation proofs</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <View style={[styles.sectionTitleBlock, { marginBottom: 0 }]}>
+                    <Text style={styles.sectionTitle}>Submission History</Text>
+                    <Text style={styles.sectionSubtitle}>Track your liquidation proofs</Text>
+                  </View>
+                  {proofYears.length > 0 && (
+                    <TouchableOpacity
+                      style={[styles.filterDropdown, { flex: 0, minWidth: 120, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8 }]}
+                      onPress={() => setActivePicker('proofs')}
+                    >
+                      <Text style={[styles.filterDropdownText, { fontSize: 11 }]} numberOfLines={1}>
+                        {proofYearFilter === 'all' ? 'Select Year' : `AY ${proofYearFilter}`}
+                      </Text>
+                      <Ionicons name="chevron-down" size={12} color="#6b72aa" />
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {isLoadingApps ? (
@@ -739,12 +834,12 @@ export default function FinancialRecordsScreen({ navigation }) {
                   <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 30 }]}>
                     <Text style={{ color: '#dc2626', fontWeight: '600', textAlign: 'center' }}>{appsError}</Text>
                   </View>
-                ) : applications.length === 0 ? (
+                ) : filteredApplications.length === 0 ? (
                   <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 40, borderStyle: 'dashed' }]}>
                     <Text style={{ color: '#888', fontWeight: '600' }}>No expense proofs submitted yet.</Text>
                   </View>
                 ) : (
-                  applications.map((sub) => {
+                  filteredApplications.map((sub) => {
                     const submissionData = Array.isArray(sub.expense_proof_submissions) 
                       ? sub.expense_proof_submissions[0] 
                       : sub.expense_proof_submissions;
@@ -1013,7 +1108,14 @@ export default function FinancialRecordsScreen({ navigation }) {
         <View style={[styles.landingHeaderTop, { paddingTop: insets.top + 16 }]}>
           <View style={styles.profileRow}>
             <View style={styles.userIconWrapper}>
-              <Ionicons name="person-outline" size={24} color="#6472d9" />
+              {user?.profilePictureUrl || user?.profile_picture_url ? (
+                <Image
+                  source={{ uri: user.profilePictureUrl || user.profile_picture_url }}
+                  style={{ width: "100%", height: "100%", borderRadius: 12.5 }}
+                />
+              ) : (
+                <Ionicons name="person-outline" size={24} color="#6472d9" />
+              )}
             </View>
             <View style={styles.headerTextCol}>
               <Text style={styles.userName}>{user?.firstName ? `${user.firstName} ${user.lastName}` : 'Juan dela Cruz'}</Text>
@@ -1068,6 +1170,63 @@ export default function FinancialRecordsScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Dynamic Filter Modal (Bottom Sheet Style) */}
+      <Modal
+        visible={activePicker !== null}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+      >
+        <View style={styles.filterModalOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setActivePicker(null)}
+          />
+          <View style={[styles.filterModalContent, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+            <View style={styles.filterModalHeader}>
+              <Text style={styles.filterModalTitle}>Select Academic Year</Text>
+              <TouchableOpacity onPress={() => setActivePicker(null)} style={styles.filterCloseBtn}>
+                <Ionicons name="close" size={20} color="#1c2131" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.filterModalScroll}>
+              {(activePicker === 'disbursements' ? disbursementYears : proofYears).map((option) => {
+                const isSelected = (activePicker === 'disbursements' ? disbursementYearFilter : proofYearFilter) === option;
+                return (
+                  <TouchableOpacity
+                    key={option}
+                    style={[
+                      styles.filterOptionItem,
+                      isSelected && styles.filterOptionItemActive
+                    ]}
+                    onPress={() => {
+                      if (activePicker === 'disbursements') {
+                        setDisbursementYearFilter(option);
+                      } else {
+                        setProofYearFilter(option);
+                      }
+                      setActivePicker(null);
+                    }}
+                  >
+                    <Text style={[
+                      styles.filterOptionText,
+                      isSelected && styles.filterOptionTextActive
+                    ]}>
+                      AY {option}
+                    </Text>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1205,5 +1364,103 @@ const styles = StyleSheet.create({
   receiptItemAmount: { fontSize: 13, fontWeight: '700', color: '#111827', marginBottom: 2 },
   ocrPill: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   ocrPillText: { fontSize: 9, fontWeight: '800' },
+  
+  filterBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 8,
+    marginBottom: 8,
+  },
+  filterDropdown: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#edf0f8',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.02,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
+  },
+  filterDropdownText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6b72aa',
+    marginRight: 4,
+  },
+  filterModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  filterModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+  },
+  filterModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eff1f8',
+  },
+  filterModalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1c2131',
+  },
+  filterCloseBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#f1f3f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterModalScroll: {
+    padding: 20,
+    gap: 12,
+  },
+  filterOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#f8f9fc',
+    borderWidth: 1,
+    borderColor: '#eff1f8',
+    marginBottom: 8,
+  },
+  filterOptionItemActive: {
+    backgroundColor: '#5b5f97',
+    borderColor: '#5b5f97',
+  },
+  filterOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#495057',
+  },
+  filterOptionTextActive: {
+    color: '#fff',
+  },
 });
 

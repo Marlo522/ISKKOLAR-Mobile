@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useContext, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, ActivityIndicator, RefreshControl, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, ActivityIndicator, RefreshControl, Linking, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
@@ -162,7 +162,14 @@ export default function ActivitiesScreen({ navigation }) {
         <View style={[styles.landingHeaderTop, { paddingTop: insets.top + 16 }]}> 
           <View style={styles.profileRow}>
             <View style={styles.userIconWrapper}>
-              <Ionicons name="person-outline" size={24} color="#6472d9" />
+              {user?.profilePictureUrl || user?.profile_picture_url ? (
+                <Image
+                  source={{ uri: user.profilePictureUrl || user.profile_picture_url }}
+                  style={{ width: "100%", height: "100%", borderRadius: 12.5 }}
+                />
+              ) : (
+                <Ionicons name="person-outline" size={24} color="#6472d9" />
+              )}
             </View>
             <View style={styles.headerTextCol}>
               <Text style={styles.userName}>
@@ -272,7 +279,14 @@ export default function ActivitiesScreen({ navigation }) {
       <View style={[styles.landingHeaderTop, { paddingTop: insets.top + 16 }]}>
         <View style={styles.profileRow}>
           <View style={styles.userIconWrapper}>
-            <Ionicons name="person-outline" size={24} color="#6472d9" />
+            {user?.profilePictureUrl || user?.profile_picture_url ? (
+              <Image
+                source={{ uri: user.profilePictureUrl || user.profile_picture_url }}
+                style={{ width: "100%", height: "100%", borderRadius: 12.5 }}
+              />
+            ) : (
+              <Ionicons name="person-outline" size={24} color="#6472d9" />
+            )}
           </View>
           <View style={styles.headerTextCol}>
             <Text style={styles.userName}>

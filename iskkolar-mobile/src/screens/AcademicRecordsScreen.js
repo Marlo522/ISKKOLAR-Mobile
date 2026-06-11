@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useContext } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useContext, useRef } from 'react';
 import {
   View,
   Text,
@@ -289,8 +289,9 @@ export default function AcademicRecordsScreen({ navigation }) {
   const [termLabels, setTermLabels] = useState([]);
   
   const [yearFilter, setYearFilter] = useState('all');
-  const [termFilter, setTermFilter] = useState('all');
-  const [activePicker, setActivePicker] = useState(null); // 'year' | 'term' | null
+  const termFilter = 'all';
+  const [activePicker, setActivePicker] = useState(null); // 'year' | null
+  const isInitializedRef = useRef(false);
 
   const fetchRecords = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
@@ -298,9 +299,22 @@ export default function AcademicRecordsScreen({ navigation }) {
     try {
       const res = await getScholarAcademicRecords();
       if (res.success) {
-        setRecords(res.data?.records || []);
-        setAcademicYears(res.data?.academicYears || []);
+        const fetchedRecords = res.data?.records || [];
+        const fetchedYears = res.data?.academicYears || [];
+        setRecords(fetchedRecords);
+        setAcademicYears(fetchedYears);
         setTermLabels(res.data?.termLabels || []);
+
+        // Default to the latest academic year on initial load
+        const yearsSet = new Set(fetchedYears);
+        if (user?.academicYear) {
+          yearsSet.add(user.academicYear);
+        }
+        const sortedYears = Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
+        if (!isInitializedRef.current && sortedYears.length > 0) {
+          setYearFilter(sortedYears[0]);
+          isInitializedRef.current = true;
+        }
       } else {
         setError(res.message || 'Failed to load academic records.');
       }
@@ -310,7 +324,7 @@ export default function AcademicRecordsScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchRecords();
@@ -336,11 +350,8 @@ export default function AcademicRecordsScreen({ navigation }) {
     if (yearFilter !== 'all') {
       result = result.filter((r) => r.academicYear === yearFilter);
     }
-    if (termFilter !== 'all') {
-      result = result.filter((r) => r.term === termFilter);
-    }
     return result;
-  }, [records, yearFilter, termFilter]);
+  }, [records, yearFilter]);
 
   // Group records by academic year for the "All Years" view
   const groupedByYear = useMemo(() => {
@@ -355,7 +366,7 @@ export default function AcademicRecordsScreen({ navigation }) {
     return groups;
   }, [yearFilter, allAcademicYears, filteredRecords]);
 
-  const hasActiveFilters = yearFilter !== 'all' || termFilter !== 'all';
+  const hasActiveFilters = yearFilter !== 'all';
 
   // Preview / Download PDF action sheet
   const handlePreview = async (record) => {
@@ -478,37 +489,14 @@ export default function AcademicRecordsScreen({ navigation }) {
           {/* Filters Bar */}
           <View style={styles.filterBar}>
             <TouchableOpacity
-              style={[styles.filterDropdown, yearFilter !== 'all' && styles.filterDropdownActive]}
+              style={styles.filterDropdown}
               onPress={() => setActivePicker('year')}
             >
-              <Text style={[styles.filterDropdownText, yearFilter !== 'all' && styles.filterDropdownTextActive]} numberOfLines={1}>
-                {yearFilter === 'all' ? 'All Years' : `AY ${yearFilter}`}
+              <Text style={styles.filterDropdownText} numberOfLines={1}>
+                {yearFilter === 'all' ? 'Select Academic Year' : `AY ${yearFilter}`}
               </Text>
-              <Ionicons name="chevron-down" size={14} color={yearFilter !== 'all' ? '#fff' : '#6b72aa'} />
+              <Ionicons name="chevron-down" size={14} color="#6b72aa" />
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.filterDropdown, termFilter !== 'all' && styles.filterDropdownActive]}
-              onPress={() => setActivePicker('term')}
-            >
-              <Text style={[styles.filterDropdownText, termFilter !== 'all' && styles.filterDropdownTextActive]} numberOfLines={1}>
-                {termFilter === 'all' ? 'All Terms' : termFilter}
-              </Text>
-              <Ionicons name="chevron-down" size={14} color={termFilter !== 'all' ? '#fff' : '#6b72aa'} />
-            </TouchableOpacity>
-
-            {hasActiveFilters ? (
-              <TouchableOpacity
-                style={styles.clearBtn}
-                onPress={() => {
-                  setYearFilter('all');
-                  setTermFilter('all');
-                }}
-              >
-                <Ionicons name="close-circle" size={20} color="#ef4444" />
-                <Text style={styles.clearBtnText}>Clear</Text>
-              </TouchableOpacity>
-            ) : null}
           </View>
 
           {/* Submissions List */}
@@ -523,8 +511,9 @@ export default function AcademicRecordsScreen({ navigation }) {
                 <Text style={styles.noMatchText}>No records match your filters</Text>
                 <TouchableOpacity
                   onPress={() => {
-                    setYearFilter('all');
-                    setTermFilter('all');
+                    if (allAcademicYears.length > 0) {
+                      setYearFilter(allAcademicYears[0]);
+                    }
                   }}
                 >
                   <Text style={styles.clearFiltersLink}>Reset Filter Settings</Text>
@@ -582,41 +571,17 @@ export default function AcademicRecordsScreen({ navigation }) {
           />
           <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {activePicker === 'year' ? 'Select Academic Year' : 'Select Academic Term'}
-              </Text>
+              <Text style={styles.modalTitle}>Select Academic Year</Text>
               <TouchableOpacity onPress={() => setActivePicker(null)} style={styles.closeBtn}>
                 <Ionicons name="close" size={20} color="#1c2131" />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScroll}>
-              {/* All Option */}
-              <TouchableOpacity
-                style={[
-                  styles.optionItem,
-                  (activePicker === 'year' ? yearFilter : termFilter) === 'all' && styles.optionItemActive
-                ]}
-                onPress={() => {
-                  if (activePicker === 'year') setYearFilter('all');
-                  else setTermFilter('all');
-                  setActivePicker(null);
-                }}
-              >
-                <Text style={[
-                  styles.optionText,
-                  (activePicker === 'year' ? yearFilter : termFilter) === 'all' && styles.optionTextActive
-                ]}>
-                  {activePicker === 'year' ? 'All Academic Years' : 'All Terms'}
-                </Text>
-                {(activePicker === 'year' ? yearFilter : termFilter) === 'all' && (
-                  <Ionicons name="checkmark-circle" size={18} color="#fff" />
-                )}
-              </TouchableOpacity>
 
               {/* Dynamic Items */}
-              {(activePicker === 'year' ? allAcademicYears : termLabels).map((option) => {
-                const isSelected = activePicker === 'year' ? yearFilter === option : termFilter === option;
+              {allAcademicYears.map((option) => {
+                const isSelected = yearFilter === option;
                 return (
                   <TouchableOpacity
                     key={option}
@@ -625,8 +590,7 @@ export default function AcademicRecordsScreen({ navigation }) {
                       isSelected && styles.optionItemActive
                     ]}
                     onPress={() => {
-                      if (activePicker === 'year') setYearFilter(option);
-                      else setTermFilter(option);
+                      setYearFilter(option);
                       setActivePicker(null);
                     }}
                   >
@@ -634,7 +598,7 @@ export default function AcademicRecordsScreen({ navigation }) {
                       styles.optionText,
                       isSelected && styles.optionTextActive
                     ]}>
-                      {activePicker === 'year' ? `AY ${option}` : option}
+                      AY {option}
                     </Text>
                     {isSelected && (
                       <Ionicons name="checkmark-circle" size={18} color="#fff" />

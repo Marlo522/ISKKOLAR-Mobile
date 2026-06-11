@@ -12,6 +12,7 @@ import {
   Pressable,
   Animated,
   Easing,
+  Alert,
 } from "react-native";
 import SafeTextInput from "../components/SafeTextInput";
 import { Ionicons } from "@expo/vector-icons";
@@ -252,9 +253,59 @@ export default function SignupScreen({ navigation }) {
   };
   const closePicker = () => setPickerConfig((p) => ({ ...p, visible: false }));
 
-  const pickProfilePhoto = async () => {
+  const pickProfilePhoto = () => {
+    Alert.alert(
+      "Change Profile Photo",
+      "Choose an option",
+      [
+        {
+          text: "Take Photo",
+          onPress: handleLaunchCamera,
+        },
+        {
+          text: "Choose from Library",
+          onPress: handleLaunchLibrary,
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ]
+    );
+  };
+
+  const handleLaunchCamera = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permission Denied", "Camera permission is required to take photos.");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (result.canceled) return;
+
+    const asset = result.assets?.[0];
+    if (!asset?.uri) return;
+
+    updateField("profilePhoto", {
+      uri: asset.uri,
+      fileName: asset.fileName || `profile-photo-${Date.now()}.jpg`,
+      mimeType: asset.mimeType || "image/jpeg",
+      fileSize: asset.fileSize,
+    });
+  };
+
+  const handleLaunchLibrary = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return;
+    if (!permission.granted) {
+      Alert.alert("Permission Denied", "Photos permission is required to select photos.");
+      return;
+    }
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
