@@ -104,14 +104,23 @@ export default function FinancialRecordsScreen({ navigation }) {
   const [summary, setSummary] = useState(null);
 
   // Filters State
-  const [disbursementYearFilter, setDisbursementYearFilter] = useState('all');
-  const [proofYearFilter, setProofYearFilter] = useState('all');
+  const [disbursementYearFilter, setDisbursementYearFilter] = useState(user?.academicYear || "2025-2026");
+  const [proofYearFilter, setProofYearFilter] = useState(user?.academicYear || "2025-2026");
   const [activePicker, setActivePicker] = useState(null); // 'disbursements' | 'proofs' | null
-  const isDisbInitializedRef = useRef(false);
-  const isProofInitializedRef = useRef(false);
+
+  // Update default filters when the active academic year resolves from API
+  useEffect(() => {
+    if (values.academicYear) {
+      setDisbursementYearFilter(values.academicYear);
+      setProofYearFilter(values.academicYear);
+    }
+  }, [values.academicYear]);
 
   const disbursementYears = useMemo(() => {
     const yearsSet = new Set();
+    if (values.academicYear) {
+      yearsSet.add(values.academicYear);
+    }
     transactions.forEach((tx) => {
       if (tx.periodYear) {
         if (tx.periodYear.includes('-')) {
@@ -122,10 +131,13 @@ export default function FinancialRecordsScreen({ navigation }) {
       }
     });
     return Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
-  }, [transactions]);
+  }, [transactions, values.academicYear]);
 
   const proofYears = useMemo(() => {
     const yearsSet = new Set();
+    if (values.academicYear) {
+      yearsSet.add(values.academicYear);
+    }
     applications.forEach((app) => {
       const submissionData = Array.isArray(app.expense_proof_submissions) 
         ? app.expense_proof_submissions[0] 
@@ -135,21 +147,7 @@ export default function FinancialRecordsScreen({ navigation }) {
       }
     });
     return Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
-  }, [applications]);
-
-  useEffect(() => {
-    if (!isDisbInitializedRef.current && disbursementYears.length > 0) {
-      setDisbursementYearFilter(disbursementYears[0]);
-      isDisbInitializedRef.current = true;
-    }
-  }, [disbursementYears]);
-
-  useEffect(() => {
-    if (!isProofInitializedRef.current && proofYears.length > 0) {
-      setProofYearFilter(proofYears[0]);
-      isProofInitializedRef.current = true;
-    }
-  }, [proofYears]);
+  }, [applications, values.academicYear]);
 
   const filteredTransactions = useMemo(() => {
     if (disbursementYearFilter === 'all') return transactions;
@@ -748,9 +746,13 @@ export default function FinancialRecordsScreen({ navigation }) {
                   <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 30 }]}>
                     <Text style={{ color: '#dc2626', fontWeight: '600', textAlign: 'center' }}>{recordsError}</Text>
                   </View>
-                ) : filteredTransactions.length === 0 ? (
+                ) : transactions.length === 0 ? (
                   <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 40, borderStyle: 'dashed' }]}>
                     <Text style={{ color: '#888', fontWeight: '600' }}>No financial records found.</Text>
+                  </View>
+                ) : filteredTransactions.length === 0 ? (
+                  <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 40, borderStyle: 'dashed' }]}>
+                    <Text style={{ color: '#888', fontWeight: '600' }}>No financial records for AY {disbursementYearFilter}.</Text>
                   </View>
                 ) : (
                   <>
@@ -834,9 +836,13 @@ export default function FinancialRecordsScreen({ navigation }) {
                   <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 30 }]}>
                     <Text style={{ color: '#dc2626', fontWeight: '600', textAlign: 'center' }}>{appsError}</Text>
                   </View>
-                ) : filteredApplications.length === 0 ? (
+                ) : applications.length === 0 ? (
                   <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 40, borderStyle: 'dashed' }]}>
                     <Text style={{ color: '#888', fontWeight: '600' }}>No expense proofs submitted yet.</Text>
+                  </View>
+                ) : filteredApplications.length === 0 ? (
+                  <View style={[styles.txCard, { alignItems: 'center', paddingVertical: 40, borderStyle: 'dashed' }]}>
+                    <Text style={{ color: '#888', fontWeight: '600' }}>No expense proofs for AY {proofYearFilter}.</Text>
                   </View>
                 ) : (
                   filteredApplications.map((sub) => {

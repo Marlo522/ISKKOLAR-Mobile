@@ -476,16 +476,8 @@ export const useTertiaryApplication = () => {
     (dynamicFamilyMembers || []).forEach((mem, idx) => {
       if (!mem.name || mem.name.trim() === "") errors[`dynFamily_${idx}_name`] = "Member Name is required.";
       if (!mem.relationship || mem.relationship.trim() === "") errors[`dynFamily_${idx}_relationship`] = "Relationship is required.";
-      if (!mem.status || mem.status === "--")
-        errors[`dynFamily_${idx}_status`] = "Employment Status is required.";
-      if (mem.status !== "Deceased") {
-        if (!mem.contactNo || mem.contactNo.length < 11)
-          errors[`dynFamily_${idx}_contactNo`] = "Contact Number must be 11 digits.";
-      }
-      if (requiresProof(mem.status)) {
-        if (!mem.occupation || mem.occupation.trim() === "") errors[`dynFamily_${idx}_occupation`] = "Occupation is required.";
-        if (!mem.income || mem.income.trim() === "") errors[`dynFamily_${idx}_income`] = "Monthly Income is required.";
-      }
+      if (!mem.contactNo || mem.contactNo.length < 11)
+        errors[`dynFamily_${idx}_contactNo`] = "Contact Number must be 11 digits.";
     });
 
     return errors;
@@ -517,13 +509,6 @@ export const useTertiaryApplication = () => {
       if (requiresProof(values.motherStatus) && !uploads.incomeMother) errors.incomeMother = "Income certificate required.";
       if (requiresIndigency(values.motherStatus) && !uploads.indigencyMother) errors.indigencyMother = "Certificate of indigency required.";
     }
-
-    (dynamicFamilyMembers || []).forEach((mem, idx) => {
-      if (requiresProof(mem.status) && !uploads[`incomeMember_${idx}`])
-        errors[`incomeMember_${idx}`] = "Income certificate required.";
-      if (requiresIndigency(mem.status) && !uploads[`indigencyMember_${idx}`])
-        errors[`indigencyMember_${idx}`] = "Certificate of indigency required.";
-    });
 
     return errors;
   }, []);

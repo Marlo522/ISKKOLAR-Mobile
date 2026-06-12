@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const FormDatePicker = ({ 
-  label, 
-  value, 
-  onDateChange, 
-  error, 
+const FormDatePicker = ({
+  label,
+  value,
+  onDateChange,
+  error,
   placeholder = "Select Date",
   minimumDate,
   maximumDate,
@@ -14,7 +14,7 @@ const FormDatePicker = ({
   dateFormat = 'mm/dd/yyyy'
 }) => {
   const [show, setShow] = useState(false);
-  
+
   const parseDate = (dateValue) => {
     if (!dateValue) return null;
     if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) {
@@ -37,7 +37,7 @@ const FormDatePicker = ({
   };
 
   const initialDate = parseDate(value) || new Date();
-  
+
   const [year, setYear] = useState(initialDate.getFullYear());
   const [month, setMonth] = useState(initialDate.getMonth());
   const [day, setDay] = useState(initialDate.getDate());
@@ -60,7 +60,7 @@ const FormDatePicker = ({
 
   const handleConfirm = () => {
     const selectedDate = new Date(year, month, day);
-    
+
     if (minimumDate) {
       const minVal = new Date(minimumDate);
       minVal.setHours(0, 0, 0, 0);
@@ -71,7 +71,7 @@ const FormDatePicker = ({
         return;
       }
     }
-    
+
     if (maximumDate) {
       const maxVal = new Date(maximumDate);
       maxVal.setDate(maxVal.getDate() + 1);
@@ -83,18 +83,18 @@ const FormDatePicker = ({
         return;
       }
     }
-    
+
     onDateChange(formatDate(selectedDate));
     setShow(false);
   };
 
   const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  
+
   const currentYear = new Date().getFullYear();
   const minYear = currentYear - 80;
-  const maxYear = currentYear + 10;
-  
+  const maxYear = currentYear + 5;
+
   const years = [];
   for (let y = maxYear; y >= minYear; y--) {
     years.push(y);
@@ -116,10 +116,10 @@ const FormDatePicker = ({
           {label} {required && <Text style={styles.required}>*</Text>}
         </Text>
       ) : null}
-      
-      <TouchableOpacity 
+
+      <TouchableOpacity
         activeOpacity={0.7}
-        style={[styles.input, error ? styles.errorInput : null]} 
+        style={[styles.input, error ? styles.errorInput : null]}
         onPress={() => setShow(true)}
       >
         <Text style={[styles.dateText, !value ? styles.placeholderText : null]}>
@@ -127,7 +127,7 @@ const FormDatePicker = ({
         </Text>
         <Ionicons name="calendar-outline" size={20} color="#4f5fc5" />
       </TouchableOpacity>
-      
+
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <Modal visible={show} transparent animationType="fade">
@@ -140,10 +140,10 @@ const FormDatePicker = ({
                   <TouchableOpacity
                     key={m}
                     style={[modalStyles.option, idx === month ? modalStyles.optionSelected : null]}
-                    onPress={() => { 
-                      setMonth(idx); 
-                      const max = daysInMonth(year, idx); 
-                      if (day > max) setDay(max); 
+                    onPress={() => {
+                      setMonth(idx);
+                      const max = daysInMonth(year, idx);
+                      if (day > max) setDay(max);
                     }}
                   >
                     <Text style={[modalStyles.optionText, idx === month ? modalStyles.optionTextSelected : null]}>
@@ -198,29 +198,29 @@ const FormDatePicker = ({
 };
 
 const styles = StyleSheet.create({
-  container: { 
+  container: {
     width: '100%',
-    marginBottom: 16 
+    marginBottom: 16
   },
-  label: { 
-    fontWeight: "700", 
-    color: "#2d3a7c", 
-    fontSize: 13, 
+  label: {
+    fontWeight: "700",
+    color: "#2d3a7c",
+    fontSize: 13,
     marginBottom: 8,
     letterSpacing: 0.2
   },
   required: {
     color: "#dc2626"
   },
-  input: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
+  input: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1.5, 
-    borderColor: "#e4e8f8", 
-    borderRadius: 12, 
-    paddingHorizontal: 16, 
-    backgroundColor: "#fcfdff", 
+    borderWidth: 1.5,
+    borderColor: "#e4e8f8",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#fcfdff",
     height: 52,
     shadowColor: "#4f5fc5",
     shadowOffset: { width: 0, height: 2 },
@@ -228,23 +228,23 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2
   },
-  dateText: { 
-    fontSize: 14, 
+  dateText: {
+    fontSize: 14,
     color: "#1c2131",
     fontWeight: "500"
   },
-  placeholderText: { 
-    color: "#8a94b5" 
+  placeholderText: {
+    color: "#8a94b5"
   },
-  errorInput: { 
+  errorInput: {
     borderColor: "#dc2626",
     backgroundColor: "#fff5f5",
     shadowOpacity: 0
   },
-  errorText: { 
-    color: "#dc2626", 
-    fontSize: 12, 
-    marginTop: 4, 
+  errorText: {
+    color: "#dc2626",
+    fontSize: 12,
+    marginTop: 4,
     fontWeight: "600",
     lineHeight: 14
   }
@@ -252,65 +252,65 @@ const styles = StyleSheet.create({
 
 const modalStyles = StyleSheet.create({
   overlay: {
-    flex: 1, 
+    flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center", 
-    alignItems: "center", 
+    justifyContent: "center",
+    alignItems: "center",
     padding: 24,
   },
-  dateModal: { 
-    width: "100%", 
-    backgroundColor: "#fff", 
-    borderRadius: 18, 
-    padding: 16 
+  dateModal: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 16
   },
-  modalTitle: { 
-    fontSize: 16, 
-    fontWeight: "700", 
-    marginBottom: 12, 
-    color: "#3d4076" 
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 12,
+    color: "#3d4076"
   },
-  option: { 
-    paddingVertical: 12, 
-    paddingHorizontal: 12, 
-    borderRadius: 14, 
-    marginBottom: 6 
+  option: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    marginBottom: 6
   },
-  optionSelected: { 
-    backgroundColor: "rgba(91,95,151,0.12)" 
+  optionSelected: {
+    backgroundColor: "rgba(91,95,151,0.12)"
   },
-  optionText: { 
-    fontSize: 14, 
+  optionText: {
+    fontSize: 14,
     color: "#333",
     textAlign: "center"
   },
-  optionTextSelected: { 
-    fontWeight: "700", 
-    color: "#3d4076" 
+  optionTextSelected: {
+    fontWeight: "700",
+    color: "#3d4076"
   },
-  pickerRow: { 
-    flexDirection: "row", 
-    justifyContent: "space-between" 
+  pickerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between"
   },
-  pickerColumn: { 
-    width: "30%", 
-    maxHeight: 260 
+  pickerColumn: {
+    width: "30%",
+    maxHeight: 260
   },
-  buttonRow: { 
-    flexDirection: "row", 
-    justifyContent: "flex-end", 
-    marginTop: 14 
+  buttonRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 14
   },
   modalButton: {
-    paddingVertical: 10, 
+    paddingVertical: 10,
     paddingHorizontal: 14,
-    borderRadius: 12, 
-    backgroundColor: "rgba(91,95,151,0.12)", 
+    borderRadius: 12,
+    backgroundColor: "rgba(91,95,151,0.12)",
     marginLeft: 8,
   },
-  modalButtonText: { 
-    color: "#3d4076", 
-    fontWeight: "700" 
+  modalButtonText: {
+    color: "#3d4076",
+    fontWeight: "700"
   },
 });
 

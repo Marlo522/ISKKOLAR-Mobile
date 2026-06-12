@@ -447,191 +447,199 @@ export default function ScholarshipRenewalScreen({ navigation }) {
             {/* Step 1: Scholar Status */}
             {!success && !submitting && currentStep === 1 && (
               <Animated.View style={{ opacity: stepAnim }}>
-                <View style={styles.sectionHeaderRow}>
-                  <View style={styles.verticalPill} />
-                  <Text style={styles.sectionHeader}>Scholar Status Evaluation</Text>
-                </View>
-
-                {(hasFailedSubjects || alreadyRenewed) && (
+                {alreadyRenewed ? (
                   <View style={styles.failedSubjectsBanner}>
                     <Ionicons name="alert-circle" size={24} color="#ef4444" />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.failedSubjectsTitle}>
-                        {alreadyRenewed ? 'Already Submitted' : 'Renewal Blocked'}
-                      </Text>
+                      <Text style={styles.failedSubjectsTitle}>Already Submitted</Text>
                       <Text style={styles.failedSubjectsText}>
-                        {alreadyRenewed
-                          ? 'Scholarship renewal can only be submitted once a year.'
-                          : 'You have failed subjects in your academic record.'}
+                        Renewal blocked: Scholarship renewal can only be submitted once a year.
                       </Text>
                     </View>
                   </View>
-                )}
+                ) : (
+                  <>
+                    <View style={styles.sectionHeaderRow}>
+                      <View style={styles.verticalPill} />
+                      <Text style={styles.sectionHeader}>Scholar Status Evaluation</Text>
+                    </View>
 
-                {/* AI Eligibility Card */}
-                <View
-                  style={[
-                    styles.evalCard,
-                    loadingEligibility
-                      ? styles.evalCardLoading
-                      : eligibility?.isQualified
-                        ? styles.evalCardSuccess
-                        : styles.evalCardWarning,
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.evalHeader,
-                      loadingEligibility
-                        ? styles.evalHeaderLoading
-                        : eligibility?.isQualified
-                          ? styles.evalHeaderSuccess
-                          : styles.evalHeaderWarning,
-                    ]}
-                  >
-                    <Text style={styles.evalHeaderIcon}>📋</Text>
-                    <Text style={styles.evalHeaderTitle}>Status Evaluation</Text>
-                    {!loadingEligibility && eligibility?.aiEvaluation && (
-                      <View
-                        style={[
-                          styles.aiBadge,
-                          eligibility.aiEvaluation.recommended_action === 'Approve'
-                            ? styles.aiBadgeSuccess
-                            : eligibility.aiEvaluation.recommended_action === 'Reject'
-                              ? styles.aiBadgeError
-                              : styles.aiBadgeWarning,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.aiBadgeText,
-                            eligibility.aiEvaluation.recommended_action === 'Approve'
-                              ? styles.aiBadgeTextSuccess
-                              : eligibility.aiEvaluation.recommended_action === 'Reject'
-                                ? styles.aiBadgeTextError
-                                : styles.aiBadgeTextWarning,
-                          ]}
-                        >
-                          {eligibility.aiEvaluation.recommended_action === 'Approve'
-                            ? '✓ '
-                            : eligibility.aiEvaluation.recommended_action === 'Reject'
-                              ? '✗ '
-                              : '⚠ '}
-                          AI: {eligibility.aiEvaluation.recommended_action}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  <View style={styles.evalBody}>
-                    {loadingEligibility ? (
-                      <Text style={styles.evalLoadingText}>Running smart eligibility checker...</Text>
-                    ) : eligibility ? (
-                      <>
-                        <Text style={styles.evalSubHeader}>SYSTEM CHECKS</Text>
-                        <View style={styles.tagList}>
-                          {eligibility.tags?.map((tag, idx) => {
-                            const isAttendance = tag.startsWith('Attendance:');
-                            const isNoRecord = tag.includes('No records');
-                            const isFlag =
-                              (!isNoRecord &&
-                                (tag.includes('Below') ||
-                                  tag.includes('Late') ||
-                                  tag.includes('Failed') ||
-                                  tag.includes('INC'))) ||
-                              (!isAttendance && isNoRecord);
-                            const isNeutral = isAttendance && isNoRecord;
-
-                            return (
-                              <View
-                                key={idx}
-                                style={[
-                                  styles.tagItem,
-                                  isNeutral
-                                    ? styles.tagItemNeutral
-                                    : isFlag
-                                      ? styles.tagItemError
-                                      : styles.tagItemSuccess,
-                                ]}
-                              >
-                                <Text
-                                  style={[
-                                    styles.tagIcon,
-                                    isNeutral
-                                      ? styles.tagTextNeutral
-                                      : isFlag
-                                        ? styles.tagTextError
-                                        : styles.tagTextSuccess,
-                                  ]}
-                                >
-                                  {isNeutral ? '–' : isFlag ? '✗' : '✓'}
-                                </Text>
-                                <Text
-                                  style={[
-                                    styles.tagText,
-                                    isNeutral
-                                      ? styles.tagTextNeutral
-                                      : isFlag
-                                        ? styles.tagTextError
-                                        : styles.tagTextSuccess,
-                                    isFlag && { fontWeight: '700' },
-                                  ]}
-                                >
-                                  {tag}
-                                </Text>
-                              </View>
-                            );
-                          })}
-                        </View>
-
-                        <View
-                          style={[
-                            styles.verdictBox,
-                            eligibility.isQualified
-                              ? styles.verdictSuccess
-                              : (hasFailedSubjects || alreadyRenewed)
-                                ? styles.verdictError
-                                : styles.verdictWarning,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.verdictText,
-                              eligibility.isQualified
-                                ? styles.verdictTextSuccess
-                                : (hasFailedSubjects || alreadyRenewed)
-                                  ? styles.verdictTextError
-                                  : styles.verdictTextWarning,
-                            ]}
-                          >
-                            {eligibility.isQualified
-                              ? '✓ You meet the baseline requirements and may proceed.'
-                              : alreadyRenewed
-                                ? '❌ Renewal blocked: Scholarship renewal can only be submitted once a year.'
-                                : hasFailedSubjects
-                                  ? '❌ Renewal blocked: You have failed subjects in your academic record.'
-                                  : '⚠ You have flags on your record. You may still proceed, but your renewal is subject to admin review.'}
+                    {hasFailedSubjects && (
+                      <View style={styles.failedSubjectsBanner}>
+                        <Ionicons name="alert-circle" size={24} color="#ef4444" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.failedSubjectsTitle}>Renewal Blocked</Text>
+                          <Text style={styles.failedSubjectsText}>
+                            You have failed subjects in your academic record.
                           </Text>
                         </View>
+                      </View>
+                    )}
 
-                        {eligibility.aiEvaluation && (
-                          <View style={styles.aiSummarySection}>
-                            <Text style={styles.evalSubHeader}>🤖 AI SMART EVALUATION</Text>
-                            <Text style={styles.aiSummaryText}>{eligibility.aiEvaluation.summary}</Text>
-                            {eligibility.aiEvaluation.reasoning && (
-                              <Text style={styles.aiReasoningText}>
-                                <Text style={styles.aiReasoningLabel}>Basis: </Text>
-                                {eligibility.aiEvaluation.reasoning}
-                              </Text>
-                            )}
+                    {/* AI Eligibility Card */}
+                    <View
+                      style={[
+                        styles.evalCard,
+                        loadingEligibility
+                          ? styles.evalCardLoading
+                          : eligibility?.isQualified
+                            ? styles.evalCardSuccess
+                            : styles.evalCardWarning,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.evalHeader,
+                          loadingEligibility
+                            ? styles.evalHeaderLoading
+                            : eligibility?.isQualified
+                              ? styles.evalHeaderSuccess
+                              : styles.evalHeaderWarning,
+                        ]}
+                      >
+                        <Text style={styles.evalHeaderIcon}>📋</Text>
+                        <Text style={styles.evalHeaderTitle}>Status Evaluation</Text>
+                        {!loadingEligibility && eligibility?.aiEvaluation && (
+                          <View
+                            style={[
+                              styles.aiBadge,
+                              eligibility.aiEvaluation.recommended_action === 'Approve'
+                                ? styles.aiBadgeSuccess
+                                : eligibility.aiEvaluation.recommended_action === 'Reject'
+                                  ? styles.aiBadgeError
+                                  : styles.aiBadgeWarning,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.aiBadgeText,
+                                eligibility.aiEvaluation.recommended_action === 'Approve'
+                                  ? styles.aiBadgeTextSuccess
+                                  : eligibility.aiEvaluation.recommended_action === 'Reject'
+                                    ? styles.aiBadgeTextError
+                                    : styles.aiBadgeTextWarning,
+                              ]}
+                            >
+                              {eligibility.aiEvaluation.recommended_action === 'Approve'
+                                ? '✓ '
+                                : eligibility.aiEvaluation.recommended_action === 'Reject'
+                                  ? '✗ '
+                                  : '⚠ '}
+                              AI: {eligibility.aiEvaluation.recommended_action}
+                            </Text>
                           </View>
                         )}
-                      </>
-                    ) : (
-                      <Text style={styles.evalLoadingText}>Eligibility feedback unavailable right now.</Text>
-                    )}
-                  </View>
-                </View>
+                      </View>
+
+                      <View style={styles.evalBody}>
+                        {loadingEligibility ? (
+                          <Text style={styles.evalLoadingText}>Running smart eligibility checker...</Text>
+                        ) : eligibility ? (
+                          <>
+                            <Text style={styles.evalSubHeader}>SYSTEM CHECKS</Text>
+                            <View style={styles.tagList}>
+                              {eligibility.tags?.map((tag, idx) => {
+                                const isAttendance = tag.startsWith('Attendance:');
+                                const isNoRecord = tag.includes('No records');
+                                const isFlag =
+                                  (!isNoRecord &&
+                                    (tag.includes('Below') ||
+                                      tag.includes('Late') ||
+                                      tag.includes('Failed') ||
+                                      tag.includes('INC'))) ||
+                                  (!isAttendance && isNoRecord);
+                                const isNeutral = isAttendance && isNoRecord;
+
+                                return (
+                                  <View
+                                    key={idx}
+                                    style={[
+                                      styles.tagItem,
+                                      isNeutral
+                                        ? styles.tagItemNeutral
+                                        : isFlag
+                                          ? styles.tagItemError
+                                          : styles.tagItemSuccess,
+                                    ]}
+                                  >
+                                    <Text
+                                      style={[
+                                        styles.tagIcon,
+                                        isNeutral
+                                          ? styles.tagTextNeutral
+                                          : isFlag
+                                            ? styles.tagTextError
+                                            : styles.tagTextSuccess,
+                                      ]}
+                                    >
+                                      {isNeutral ? '–' : isFlag ? '✗' : '✓'}
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.tagText,
+                                        isNeutral
+                                          ? styles.tagTextNeutral
+                                          : isFlag
+                                            ? styles.tagTextError
+                                            : styles.tagTextSuccess,
+                                        isFlag && { fontWeight: '700' },
+                                      ]}
+                                    >
+                                      {tag}
+                                    </Text>
+                                  </View>
+                                );
+                              })}
+                            </View>
+
+                            <View
+                              style={[
+                                styles.verdictBox,
+                                eligibility.isQualified
+                                  ? styles.verdictSuccess
+                                  : hasFailedSubjects
+                                    ? styles.verdictError
+                                    : styles.verdictWarning,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.verdictText,
+                                  eligibility.isQualified
+                                    ? styles.verdictTextSuccess
+                                    : hasFailedSubjects
+                                      ? styles.verdictTextError
+                                      : styles.verdictTextWarning,
+                                ]}
+                              >
+                                {eligibility.isQualified
+                                  ? '✓ You meet the baseline requirements and may proceed.'
+                                  : hasFailedSubjects
+                                    ? '❌ Renewal blocked: You have failed subjects in your academic record.'
+                                    : '⚠ You have flags on your record. You may still proceed, but your renewal is subject to admin review.'}
+                              </Text>
+                            </View>
+
+                            {eligibility.aiEvaluation && (
+                              <View style={styles.aiSummarySection}>
+                                <Text style={styles.evalSubHeader}>🤖 AI SMART EVALUATION</Text>
+                                <Text style={styles.aiSummaryText}>{eligibility.aiEvaluation.summary}</Text>
+                                {eligibility.aiEvaluation.reasoning && (
+                                  <Text style={styles.aiReasoningText}>
+                                    <Text style={styles.aiReasoningLabel}>Basis: </Text>
+                                    {eligibility.aiEvaluation.reasoning}
+                                  </Text>
+                                )}
+                              </View>
+                            )}
+                          </>
+                        ) : (
+                          <Text style={styles.evalLoadingText}>Eligibility feedback unavailable right now.</Text>
+                        )}
+                      </View>
+                    </View>
+                  </>
+                )}
 
                 <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
                   <View style={styles.verticalPill} />

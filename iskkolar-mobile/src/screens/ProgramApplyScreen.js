@@ -526,7 +526,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const addFamilyMember = () => {
     setFamilyMembers((prev) => [
       ...prev,
-      { name: "", relationship: "", contactNo: "", status: "--", occupation: "", income: "", birthday: "" },
+      { name: "", relationship: "", contactNo: "", status: "", occupation: "", income: "", birthday: "" },
     ]);
   };
 
@@ -851,7 +851,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
             <Text style={styles.label}>Relationship</Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6, marginBottom: 6 }}>
               {(() => {
-                const standardOptions = ["Siblings", "Aunt/Uncle", "Grandparents", "Cousin"];
+                const standardOptions = ["Siblings"];
                 const isStandard = standardOptions.includes(member.relationship);
                 const isOthersActive = !isStandard && member.relationship !== "";
 
@@ -980,64 +980,29 @@ export default function ProgramApplyScreen({ navigation, route }) {
             )}
           </View>
 
-          {member.status !== "Deceased" && (
-            <View style={styles.row}>
-              <Text style={styles.label}>Contact No.</Text>
-              <SafeTextInput placeholderTextColor="#888"
-                style={[styles.input, fieldErrors["dynFamily_" + idx + "_contactNo"] && styles.errorInput]}
-                value={member.contactNo}
-                placeholder="09XXXXXXXXX"
-                keyboardType="phone-pad"
-                maxLength={11}
-                onFocus={() => {
-                  if (!member.contactNo) updateFamilyMember(idx, "contactNo", "09");
-                }}
-                onChangeText={(text) => {
-                  let digits = text.replace(/[^0-9]/g, "");
-                  if (!digits.startsWith("09")) {
-                    digits = digits.startsWith("0") ? "09" + digits.slice(1) : "09" + digits;
-                  }
-                  updateFamilyMember(idx, "contactNo", digits.slice(0, 11));
-                }}
-              />
-              {fieldErrors["dynFamily_" + idx + "_contactNo"] && (
-                <Text style={styles.errorText}>{fieldErrors["dynFamily_" + idx + "_contactNo"]}</Text>
-              )}
-            </View>
-          )}
-
-          {renderMemberSelect("Employment Status", "status", idx, ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
-
-          {requiresIncomeProof(member.status) && (
-            <>
-              <View style={styles.row}>
-                <Text style={styles.label}>Occupation</Text>
-                <SafeTextInput placeholderTextColor="#888"
-                  style={[styles.input, fieldErrors["dynFamily_" + idx + "_occupation"] && styles.errorInput]}
-                  value={member.occupation}
-                  placeholder="Enter Occupation"
-                  onChangeText={(text) => updateFamilyMember(idx, "occupation", text)}
-                />
-                {fieldErrors["dynFamily_" + idx + "_occupation"] && (
-                  <Text style={styles.errorText}>{fieldErrors["dynFamily_" + idx + "_occupation"]}</Text>
-                )}
-              </View>
-
-              <View style={styles.row}>
-                <Text style={styles.label}>Monthly Income</Text>
-                <SafeTextInput placeholderTextColor="#888"
-                  style={[styles.input, fieldErrors["dynFamily_" + idx + "_income"] && styles.errorInput]}
-                  value={member.income}
-                  placeholder="Enter Monthly Income"
-                  keyboardType="numeric"
-                  onChangeText={(text) => updateFamilyMember(idx, "income", text.replace(/[^0-9]/g, ""))}
-                />
-                {fieldErrors["dynFamily_" + idx + "_income"] && (
-                  <Text style={styles.errorText}>{fieldErrors["dynFamily_" + idx + "_income"]}</Text>
-                )}
-              </View>
-            </>
-          )}
+          <View style={styles.row}>
+            <Text style={styles.label}>Contact No.</Text>
+            <SafeTextInput placeholderTextColor="#888"
+              style={[styles.input, fieldErrors["dynFamily_" + idx + "_contactNo"] && styles.errorInput]}
+              value={member.contactNo}
+              placeholder="09XXXXXXXXX"
+              keyboardType="phone-pad"
+              maxLength={11}
+              onFocus={() => {
+                if (!member.contactNo) updateFamilyMember(idx, "contactNo", "09");
+              }}
+              onChangeText={(text) => {
+                let digits = text.replace(/[^0-9]/g, "");
+                if (!digits.startsWith("09")) {
+                  digits = digits.startsWith("0") ? "09" + digits.slice(1) : "09" + digits;
+                }
+                updateFamilyMember(idx, "contactNo", digits.slice(0, 11));
+              }}
+            />
+            {fieldErrors["dynFamily_" + idx + "_contactNo"] && (
+              <Text style={styles.errorText}>{fieldErrors["dynFamily_" + idx + "_contactNo"]}</Text>
+            )}
+          </View>
         </View>
       ))}
     </>
@@ -1699,7 +1664,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
       familyMembers.forEach((member, idx) => {
         familyItems.push({
           label: `Family Member ${idx + 1} (${member.name || 'Unnamed'})`,
-          value: `${member.relationship} - ${member.status}`,
+          value: `${member.relationship}`,
           icon: "person-outline"
         });
       });
@@ -1764,16 +1729,6 @@ export default function ProgramApplyScreen({ navigation, route }) {
               ] : values.motherStatus === "Unemployed" ? [
                 { label: "Indigency (Mother)", value: uploadText.indigencyMother ? "Attached" : "Not Attached", icon: uploadText.indigencyMother ? "checkmark-circle" : "close-circle" }
               ] : []),
-              ...familyMembers.filter(m => requiresIncomeProof(m.status) || m.status === "Unemployed").map((member, idx) => {
-                const isUnemp = member.status === "Unemployed";
-                const key = isUnemp ? `indigencyMember_${idx}` : `incomeMember_${idx}`;
-                const label = isUnemp ? `Indigency Certificate (${member.name || `Member ${idx + 1}`})` : `Income Certificate (${member.name || `Member ${idx + 1}`})`;
-                return {
-                  label,
-                  value: uploadText[key] ? "Attached" : "Not Attached",
-                  icon: uploadText[key] ? "checkmark-circle" : "close-circle"
-                };
-              }),
               { label: "Recommendation Letter Form (Optional)", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
               { label: "Personal Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
               { label: "Letter of Intent (Applicant)", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" },
@@ -1818,16 +1773,6 @@ export default function ProgramApplyScreen({ navigation, route }) {
               ] : values.motherStatus === "Unemployed" ? [
                 { label: "Indigency (Mother)", value: uploadText.indigencyMother ? "Attached" : "Not Attached", icon: uploadText.indigencyMother ? "checkmark-circle" : "close-circle" }
               ] : []),
-              ...familyMembers.filter(m => requiresIncomeProof(m.status) || m.status === "Unemployed").map((member, idx) => {
-                const isUnemp = member.status === "Unemployed";
-                const key = isUnemp ? `indigencyMember_${idx}` : `incomeMember_${idx}`;
-                const label = isUnemp ? `Indigency Certificate (${member.name || `Member ${idx + 1}`})` : `Income Certificate (${member.name || `Member ${idx + 1}`})`;
-                return {
-                  label,
-                  value: uploadText[key] ? "Attached" : "Not Attached",
-                  icon: uploadText[key] ? "checkmark-circle" : "close-circle"
-                };
-              }),
               { label: "Recommendation Letter Form (Optional)", value: uploadText.recommendation ? "Attached" : "Not Attached", icon: uploadText.recommendation ? "checkmark-circle" : "close-circle" },
               { label: "Essay", value: uploadText.essay ? "Attached" : "Not Attached", icon: uploadText.essay ? "checkmark-circle" : "close-circle" },
               { label: "Letter of Intent (Applicant)", value: uploadText.letterOfIntentApplicant ? "Attached" : "Not Attached", icon: uploadText.letterOfIntentApplicant ? "checkmark-circle" : "close-circle" },
