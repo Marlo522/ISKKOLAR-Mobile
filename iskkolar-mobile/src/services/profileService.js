@@ -36,9 +36,26 @@ export const updateProfile = async (data) => {
   }
 
   try {
-    const response = await api.patch("/auth/me", {
-      email: normalizedEmail,
-      mobileNumber: normalizedMobile,
+    const formData = new FormData();
+    formData.append("email", normalizedEmail);
+    formData.append("mobileNumber", normalizedMobile);
+
+    if (data.profilePhoto) {
+      formData.append("profilePhoto", {
+        uri: data.profilePhoto.uri,
+        name: data.profilePhoto.name || "profile.jpg",
+        type: data.profilePhoto.type || "image/jpeg",
+      });
+    }
+
+    if (data.removePhoto) {
+      formData.append("removePhoto", "true");
+    }
+
+    const response = await api.patch("/auth/me", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
     });
 
     const updatedProfile = response.data?.data || response.data;

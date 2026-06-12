@@ -140,6 +140,29 @@ export const login = async (email, password) => {
       throw createAuthError('Your account is inactive. Please contact support.', 'ACCOUNT_INACTIVE');
     }
 
+    // Handle terminated accounts — backend may return 403 with ACCOUNT_TERMINATED
+    // or include role/userType = 'terminated' in error data. Surface as a valid
+    // structured response so useLogin can redirect to TerminatedScreen.
+    const isTerminated =
+      (status === 403 && code === 'ACCOUNT_TERMINATED') ||
+      String(code || '').toLowerCase().includes('terminated') ||
+      String(message).toLowerCase().includes('terminated');
+
+    if (isTerminated) {
+      const profile = error.data?.user || error.data?.account || error.data || {};
+      return {
+        user: {
+          ...profile,
+          id: profile.userId || profile.id,
+          firstName: profile.firstName,
+          lastName: profile.lastName,
+          email: profile.email || email,
+          userType: 'terminated',
+        },
+        rawRole: 'terminated',
+      };
+    }
+
     throw createAuthError(
       message || 'Invalid credentials. Please check your email and password.',
       code || 'LOGIN_FAILED',

@@ -21,15 +21,18 @@ export const useLogin = (navigation) => {
   };
 
   const resolveAllowedRole = (rawRole) => {
-    const value = String(rawRole || "")
+    const value = String(rawRole || '')
       .trim()
       .toLowerCase()
-      .replace(/[_-]+/g, " ");
+      .replace(/[_\-\s]+/g, ' ');
 
-    if (!value) return "";
-    if (value.includes("scholar")) return "scholar";
-    if (value.includes("applicant")) return "applicant";
-    return "";
+    if (!value) return '';
+    // Check terminated BEFORE scholar since 'scholar terminated' contains 'scholar'
+    if (value.includes('scholar') && value.includes('terminated')) return 'terminated';
+    if (value.includes('terminated')) return 'terminated';
+    if (value.includes('scholar')) return 'scholar';
+    if (value.includes('applicant')) return 'applicant';
+    return '';
   };
 
   // ─── HANDLE LOGIN ────────────────────────────────────────────
@@ -43,7 +46,7 @@ export const useLogin = (navigation) => {
 
       const normalizedRole = resolveAllowedRole(response.rawRole || response.user.userType);
 
-      if (normalizedRole !== "applicant" && normalizedRole !== "scholar") {
+      if (normalizedRole !== "applicant" && normalizedRole !== "scholar" && normalizedRole !== "terminated") {
         setApiError("Invalid account.");
         setLoading(false);
         return;
@@ -55,10 +58,13 @@ export const useLogin = (navigation) => {
 
       switch (normalizedRole) {
         case "applicant":
-          navigation.replace("Main");
+          navigation.reset({ index: 0, routes: [{ name: "Main" }] });
           break;
         case "scholar":
-          navigation.replace("ScholarTabs");
+          navigation.reset({ index: 0, routes: [{ name: "ScholarTabs" }] });
+          break;
+        case "terminated":
+          navigation.reset({ index: 0, routes: [{ name: "Terminated" }] });
           break;
         default:
           setApiError("Login failed.");

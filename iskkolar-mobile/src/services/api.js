@@ -1,10 +1,10 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '../config/constants';
 
 // ─── CONFIG ───────────────────────────────────────────────────
-// Deployed backend on Render
-const BASE_URL = 'https://iskkolar-backend.onrender.com/api';
+const BASE_URL = API_URL;
 
 
 const api = axios.create({

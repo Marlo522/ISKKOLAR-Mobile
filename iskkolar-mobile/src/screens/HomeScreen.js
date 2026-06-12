@@ -53,9 +53,14 @@ export default function HomeScreen({ navigation }) {
         return null;
       });
 
-      if (updatedUser && updatedUser.role === "scholar") {
-        navigation.replace("ScholarTabs");
-        return;
+      if (updatedUser) {
+        if (updatedUser.role === "scholar") {
+          navigation.replace("ScholarTabs");
+          return;
+        } else if (updatedUser.role === "terminated") {
+          navigation.replace("Terminated");
+          return;
+        }
       }
 
       setLoading(true);
@@ -110,10 +115,16 @@ export default function HomeScreen({ navigation }) {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     const updatedUser = await refreshSession().catch(() => null);
-    if (updatedUser && updatedUser.role === "scholar") {
-      navigation.replace("ScholarTabs");
-      setRefreshing(false);
-      return;
+    if (updatedUser) {
+      if (updatedUser.role === "scholar") {
+        navigation.replace("ScholarTabs");
+        setRefreshing(false);
+        return;
+      } else if (updatedUser.role === "terminated") {
+        navigation.replace("Terminated");
+        setRefreshing(false);
+        return;
+      }
     }
     // Re-trigger entry animations for visual feedback
     runEntryAnimations();

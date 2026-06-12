@@ -6,16 +6,30 @@ import api from "../services/api";
 
 export const AuthContext = createContext();
 
+const normalizeRole = (rawRole) => {
+  const value = String(rawRole || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_\-\s]+/g, ' ');
+
+  if (value.includes('scholar') && value.includes('terminated')) return 'terminated';
+  if (value.includes('terminated')) return 'terminated';
+  if (value.includes('scholar')) return 'scholar';
+  if (value.includes('applicant')) return 'applicant';
+  return value || '';
+};
+
 const normalizeUser = (value) => {
-  if (!value || typeof value !== "object") return null;
-  const role = value.role || value.userType || "";
+  if (!value || typeof value !== 'object') return null;
+  const rawRole = value.role || value.userType || '';
+  const role = normalizeRole(rawRole);
   return {
     ...value,
     role,
     userType: role,
-    firstName: value.firstName || value.first_name || "",
-    middleName: value.middleName || value.middle_name || "",
-    lastName: value.lastName || value.last_name || "",
+    firstName: value.firstName || value.first_name || '',
+    middleName: value.middleName || value.middle_name || '',
+    lastName: value.lastName || value.last_name || '',
   };
 };
 

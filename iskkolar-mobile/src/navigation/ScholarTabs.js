@@ -19,6 +19,7 @@ import FinancialRecordsScreen from "../screens/FinancialRecordsScreen";
 import TransferSchoolScreen from "../screens/TransferSchoolScreen";
 import VocationalDashboardScreen from "../screens/VocationalDashboardScreen";
 import VocationalCompletionScreen from "../screens/VocationalCompletionScreen";
+import AcademicRecordsScreen from "../screens/AcademicRecordsScreen";
 
 const Tab = createBottomTabNavigator();
 const DashboardStack = createNativeStackNavigator();
@@ -52,6 +53,7 @@ function ScholarDashboardStackScreen() {
       <DashboardStack.Screen name="Activities" component={ActivitiesScreen} />
       <DashboardStack.Screen name="Application" component={ApplicationScreen} />
       <DashboardStack.Screen name="VocationalCompletion" component={VocationalCompletionScreen} />
+      <DashboardStack.Screen name="AcademicRecords" component={AcademicRecordsScreen} />
     </DashboardStack.Navigator>
   );
 }

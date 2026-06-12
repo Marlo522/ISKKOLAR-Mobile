@@ -11,6 +11,7 @@ import ResetPasswordScreen from "../screens/ResetPasswordScreen";
 import RoleSelectionScreen from "../screens/RoleSelectionScreen";
 import ScholarTabs from "./ScholarTabs";
 import MainTabs from "./MainTabs";
+import TerminatedScreen from "../screens/TerminatedScreen";
 import { AuthProvider } from "../context/AuthContext";
 import { NotificationProvider } from "../context/NotificationContext";
 
@@ -70,6 +71,7 @@ function NavigationWrapper() {
         <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
         <Stack.Screen name="ScholarTabs" component={ScholarTabs} />
         <Stack.Screen name="Main" component={MainTabs} />
+        <Stack.Screen name="Terminated" component={TerminatedScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

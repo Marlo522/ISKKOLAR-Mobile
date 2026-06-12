@@ -492,19 +492,8 @@ export const useVocationalApplication = () => {
           preFlightErrors[`dynFamily_${idx}_name`] = "Member Name is required.";
         if (!mem.relationship || mem.relationship.trim() === "")
           preFlightErrors[`dynFamily_${idx}_relationship`] = "Relationship is required.";
-        if (!mem.status || mem.status === "--") {
-          preFlightErrors[`dynFamily_${idx}_status`] = "Employment Status is required.";
-        }
-        if (mem.status !== "Deceased") {
-          if (!mem.contactNo || mem.contactNo.length < 11)
-            preFlightErrors[`dynFamily_${idx}_contactNo`] = "Contact Number must be 11 digits.";
-        }
-        if (requiresProof(mem.status)) {
-          if (!mem.occupation || mem.occupation.trim() === "")
-            preFlightErrors[`dynFamily_${idx}_occupation`] = "Occupation is required.";
-          if (!mem.income || mem.income.trim() === "")
-            preFlightErrors[`dynFamily_${idx}_income`] = "Monthly Income is required.";
-        }
+        if (!mem.contactNo || mem.contactNo.length < 11)
+          preFlightErrors[`dynFamily_${idx}_contactNo`] = "Contact Number must be 11 digits.";
       });
     }
 
@@ -547,14 +536,6 @@ export const useVocationalApplication = () => {
           preFlightErrors.indigencyMother = "Certificate of indigency required.";
       }
 
-      (dynamicFamilyMembers || []).forEach((mem, idx) => {
-        if (requiresProof(mem.status) && !uploads[`incomeMember_${idx}`]) {
-          preFlightErrors[`incomeMember_${idx}`] = "Income certificate required.";
-        }
-        if (requiresIndigency(mem.status) && !uploads[`indigencyMember_${idx}`]) {
-          preFlightErrors[`indigencyMember_${idx}`] = "Certificate of indigency required.";
-        }
-      });
     }
 
     // If any pre-flight errors were found, surface them immediately without a network call
