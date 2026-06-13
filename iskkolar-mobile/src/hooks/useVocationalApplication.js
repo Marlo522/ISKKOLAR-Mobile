@@ -64,6 +64,12 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
       if (prop === "occupation") return "fatherOccupation";
       if (prop === "monthly_income") return "fatherIncome";
       if (prop === "contact_number") return "fatherContact";
+      if (prop === "street") return "fatherStreet";
+      if (prop === "province") return "fatherProvince";
+      if (prop === "city") return "fatherCity";
+      if (prop === "barangay") return "fatherBarangay";
+      if (prop === "country") return "fatherCountry";
+      if (prop === "zip_code") return "fatherZip";
       return null;
     }
     if (index === 1) {
@@ -73,6 +79,12 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
       if (prop === "occupation") return "motherOccupation";
       if (prop === "monthly_income") return "motherIncome";
       if (prop === "contact_number") return "motherContact";
+      if (prop === "street") return "motherStreet";
+      if (prop === "province") return "motherProvince";
+      if (prop === "city") return "motherCity";
+      if (prop === "barangay") return "motherBarangay";
+      if (prop === "country") return "motherCountry";
+      if (prop === "zip_code") return "motherZip";
       return null;
     }
     const dynIndex = index - 2;
@@ -95,6 +107,12 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
     if (prop === "occupation") return "fatherOccupation";
     if (prop === "monthly_income") return "fatherIncome";
     if (prop === "contact_number") return "fatherContact";
+    if (prop === "street") return "fatherStreet";
+    if (prop === "province") return "fatherProvince";
+    if (prop === "city") return "fatherCity";
+    if (prop === "barangay") return "fatherBarangay";
+    if (prop === "country") return "fatherCountry";
+    if (prop === "zip_code") return "fatherZip";
     return null;
   }
 
@@ -105,6 +123,12 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
     if (prop === "occupation") return "motherOccupation";
     if (prop === "monthly_income") return "motherIncome";
     if (prop === "contact_number") return "motherContact";
+    if (prop === "street") return "motherStreet";
+    if (prop === "province") return "motherProvince";
+    if (prop === "city") return "motherCity";
+    if (prop === "barangay") return "motherBarangay";
+    if (prop === "country") return "motherCountry";
+    if (prop === "zip_code") return "motherZip";
     return null;
   }
 
@@ -115,6 +139,12 @@ const mapFamilyFieldToUi = (normalizedField, rolesArray) => {
     if (prop === "occupation") return "guardianOccupation";
     if (prop === "monthly_income") return "guardianIncome";
     if (prop === "contact_number") return "guardianContact";
+    if (prop === "street") return "guardianStreet";
+    if (prop === "province") return "guardianProvince";
+    if (prop === "city") return "guardianCity";
+    if (prop === "barangay") return "guardianBarangay";
+    if (prop === "country") return "guardianCountry";
+    if (prop === "zip_code") return "guardianZip";
     return null;
   }
 
@@ -410,11 +440,37 @@ export const useVocationalApplication = () => {
       const requiresProof = (status) =>
         ["Employed", "Self-Employed"].includes(status);
 
-      const checkMember = (name, status, occ, inc, prefix, niceName) => {
+      const isAddressStarted = (prefix) => {
+        const street = values[prefix + "Street"];
+        const province = values[prefix + "Province"];
+        const city = values[prefix + "City"];
+        const barangay = values[prefix + "Barangay"];
+        const zip = values[prefix + "Zip"];
+        return !!(
+          (street && street.trim() !== "") ||
+          (province && province.trim() !== "") ||
+          (city && city.trim() !== "") ||
+          (barangay && barangay.trim() !== "") ||
+          (zip && zip.trim() !== "")
+        );
+      };
+
+      const checkMember = (name, status, occ, inc, prefix, niceName, validateAddress) => {
         if (!name || name.trim() === "")
           preFlightErrors[prefix + "Name"] = `${niceName} Name is required.`;
         if (!status || status === "--") {
           preFlightErrors[prefix + "Status"] = `${niceName} Employment Status is required.`;
+        }
+        if (status !== "Deceased" && validateAddress) {
+          if (!values[prefix + "Street"] || values[prefix + "Street"].trim() === "") preFlightErrors[prefix + "Street"] = "Street/Unit is required.";
+          if (!values[prefix + "Province"] || values[prefix + "Province"].trim() === "") preFlightErrors[prefix + "Province"] = "Province is required.";
+          if (!values[prefix + "City"] || values[prefix + "City"].trim() === "") preFlightErrors[prefix + "City"] = "City/Municipality is required.";
+          if (!values[prefix + "Barangay"] || values[prefix + "Barangay"].trim() === "") preFlightErrors[prefix + "Barangay"] = "Barangay is required.";
+          if (!values[prefix + "Zip"] || values[prefix + "Zip"].trim() === "") {
+            preFlightErrors[prefix + "Zip"] = "Zip Code is required.";
+          } else if (!/^\d{4}$/.test(values[prefix + "Zip"])) {
+            preFlightErrors[prefix + "Zip"] = "Zip Code must contain exactly 4 digits.";
+          }
         }
         if (requiresProof(status)) {
           if (!occ || occ.trim() === "")
@@ -426,10 +482,48 @@ export const useVocationalApplication = () => {
 
       const isFatherStarted = !isFatherEmpty(values);
       const isMotherStarted = !isMotherEmpty(values);
+      const fatherAddressStarted = isAddressStarted("father");
+      const motherAddressStarted = isAddressStarted("mother");
+
+      let validateFatherAddress = false;
+      let validateMotherAddress = false;
+      let validateGuardianAddress = false;
 
       if (values.hasGuardian) {
         if (values.guardianStatus !== "Deceased") {
-          checkMember(values.guardianName, values.guardianStatus, values.guardianOccupation, values.guardianIncome, "guardian", "Guardian's");
+          validateGuardianAddress = true;
+        }
+        if (isFatherStarted && values.fatherStatus !== "Deceased" && fatherAddressStarted) {
+          validateFatherAddress = true;
+        }
+        if (isMotherStarted && values.motherStatus !== "Deceased" && motherAddressStarted) {
+          validateMotherAddress = true;
+        }
+      } else {
+        const fatherAlive = isFatherStarted && values.fatherStatus !== "Deceased";
+        const motherAlive = isMotherStarted && values.motherStatus !== "Deceased";
+
+        if (fatherAlive && motherAlive) {
+          if (fatherAddressStarted && motherAddressStarted) {
+            validateFatherAddress = true;
+            validateMotherAddress = true;
+          } else if (fatherAddressStarted) {
+            validateFatherAddress = true;
+          } else if (motherAddressStarted) {
+            validateMotherAddress = true;
+          } else {
+            validateFatherAddress = true;
+          }
+        } else if (fatherAlive) {
+          validateFatherAddress = true;
+        } else if (motherAlive) {
+          validateMotherAddress = true;
+        }
+      }
+
+      if (values.hasGuardian) {
+        if (values.guardianStatus !== "Deceased") {
+          checkMember(values.guardianName, values.guardianStatus, values.guardianOccupation, values.guardianIncome, "guardian", "Guardian's", validateGuardianAddress);
           if (!values.guardianContact || values.guardianContact.length < 11) preFlightErrors.guardianContact = "Contact Number must be 11 digits.";
         }
 
@@ -462,7 +556,7 @@ export const useVocationalApplication = () => {
         checkMember(
           values.fatherName, values.fatherStatus,
           values.fatherOccupation, values.fatherIncome,
-          "father", "Father's"
+          "father", "Father's", validateFatherAddress
         );
         if (!values.fatherContact || values.fatherContact.length < 11)
           preFlightErrors.fatherContact = "Contact Number must be 11 digits.";
@@ -476,7 +570,7 @@ export const useVocationalApplication = () => {
         checkMember(
           values.motherName, values.motherStatus,
           values.motherOccupation, values.motherIncome,
-          "mother", "Mother's"
+          "mother", "Mother's", validateMotherAddress
         );
         if (!values.motherContact || values.motherContact.length < 11)
           preFlightErrors.motherContact = "Contact Number must be 11 digits.";

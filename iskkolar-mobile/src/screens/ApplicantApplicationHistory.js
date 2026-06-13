@@ -502,20 +502,7 @@ const EvaluationModal = ({ visible, onClose, evaluation }) => {
             )}
           </ScrollView>
 
-          <View style={modalStyles.modalFooter}>
-            <Text style={modalStyles.confidenceLabel}>Confidence Level:</Text>
-            <View style={[
-              modalStyles.confidenceBadge,
-              confidenceLevel.toLowerCase() === "high" ? modalStyles.badgeHigh :
-              confidenceLevel.toLowerCase() === "medium" ? modalStyles.badgeMedium : modalStyles.badgeLow
-            ]}>
-              <Text style={[
-                modalStyles.confidenceBadgeText,
-                confidenceLevel.toLowerCase() === "high" ? modalStyles.badgeTextHigh :
-                confidenceLevel.toLowerCase() === "medium" ? modalStyles.badgeTextMedium : modalStyles.badgeTextLow
-              ]}>{confidenceLevel.toUpperCase()}</Text>
-            </View>
-          </View>
+          {/* Removed confidence level footer */}
         </View>
       </View>
     </Modal>
@@ -608,23 +595,29 @@ const SubmittedInfoModal = ({ visible, onClose, application }) => {
             </View>
 
             {/* KKFI Employee Information (for Staff/Child Designation programs) */}
-            {details.staff_id ? (
+            {(details.staff || details.staff_id || details.staffId) ? (
               <View style={styles.reviewCard}>
                 <Text style={styles.reviewCardTitle}>KKFI Employee Information</Text>
                 <View style={styles.reviewGrid}>
                   <View style={styles.reviewRow}>
                     <Text style={styles.reviewLabel}>Staff ID</Text>
-                    <Text style={styles.reviewValue}>{formatValue(details.staff_id)}</Text>
+                    <Text style={styles.reviewValue}>
+                      {formatValue(details.staff?.staff_id || details.staff_id || details.staffId)}
+                    </Text>
                   </View>
                   <View style={styles.reviewRow}>
                     <Text style={styles.reviewLabel}>Employee Name</Text>
                     <Text style={styles.reviewValue}>
-                      {`${details.first_name || ''} ${details.middle_name || ''} ${details.last_name || ''} ${details.suffix || ''}`.trim().replace(/\s+/g, ' ') || '--'}
+                      {details.staff 
+                        ? `${details.staff.first_name || ''} ${details.staff.middle_name || ''} ${details.staff.last_name || ''} ${details.staff.suffix || ''}`.trim().replace(/\s+/g, ' ')
+                        : `${details.first_name || ''} ${details.middle_name || ''} ${details.last_name || ''} ${details.suffix || ''}`.trim().replace(/\s+/g, ' ') || '--'}
                     </Text>
                   </View>
                   <View style={styles.reviewRow}>
                     <Text style={styles.reviewLabel}>Position</Text>
-                    <Text style={styles.reviewValue}>{formatValue(details.position)}</Text>
+                    <Text style={styles.reviewValue}>
+                      {formatValue(details.staff?.position || details.position)}
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -732,7 +725,7 @@ const SubmittedInfoModal = ({ visible, onClose, application }) => {
             {/* Masters Education (if present) */}
             {Object.keys(masters).length > 0 && (
               <View style={styles.reviewCard}>
-                <Text style={styles.reviewCardTitle}>Master's Education Information</Text>
+                <Text style={styles.reviewCardTitle}>{"Master's Education Information"}</Text>
                 <View style={styles.reviewGrid}>
                   <View style={styles.reviewRow}>
                     <Text style={styles.reviewLabel}>School Name</Text>
@@ -803,6 +796,14 @@ const SubmittedInfoModal = ({ visible, onClose, application }) => {
                       <Text style={styles.reviewLabel}>Contact Number</Text>
                       <Text style={styles.reviewValue}>{formatValue(member.contact_number || member.contactNo)}</Text>
                     </View>
+                    {member.employment_status !== "Deceased" && (
+                      <View style={styles.reviewRow}>
+                        <Text style={styles.reviewLabel}>Address</Text>
+                        <Text style={[styles.reviewValue, { textAlign: 'right', flex: 1.5 }]}>
+                          {`${member.street || ""}, ${member.barangay || ""}, ${member.city || ""}, ${member.province || ""}, ${member.country || "Philippines"} ${member.zip_code || ""}`.trim().replace(/^,\s*|,\s*$/, "").replace(/,\s*,/g, ",")}
+                        </Text>
+                      </View>
+                    )}
                     <View style={styles.reviewRow}>
                       <Text style={styles.reviewLabel}>Occupation</Text>
                       <Text style={styles.reviewValue}>{formatValue(member.occupation)}</Text>

@@ -43,6 +43,15 @@ const buildFamilyMembers = (values, dynamicFamilyMembers) => {
       delete member.occupation;
       delete member.monthly_income;
     }
+    if (member.employment_status === "Deceased") {
+      delete member.contact_number;
+      delete member.street;
+      delete member.province;
+      delete member.city;
+      delete member.barangay;
+      delete member.country;
+      delete member.zip_code;
+    }
     return member;
   };
 
@@ -57,6 +66,12 @@ const buildFamilyMembers = (values, dynamicFamilyMembers) => {
       occupation: values.fatherOccupation || "",
       monthly_income: values.fatherIncome || "",
       contact_number: values.fatherContact || "",
+      street: values.fatherStreet || "",
+      province: values.fatherProvince || "",
+      city: values.fatherCity || "",
+      barangay: values.fatherBarangay || "",
+      country: values.fatherCountry || "Philippines",
+      zip_code: values.fatherZip || "",
     }));
   }
 
@@ -69,6 +84,12 @@ const buildFamilyMembers = (values, dynamicFamilyMembers) => {
       occupation: values.motherOccupation || "",
       monthly_income: values.motherIncome || "",
       contact_number: values.motherContact || "",
+      street: values.motherStreet || "",
+      province: values.motherProvince || "",
+      city: values.motherCity || "",
+      barangay: values.motherBarangay || "",
+      country: values.motherCountry || "Philippines",
+      zip_code: values.motherZip || "",
     }));
   }
 
@@ -81,6 +102,12 @@ const buildFamilyMembers = (values, dynamicFamilyMembers) => {
       occupation: values.guardianOccupation || "",
       monthly_income: values.guardianIncome || "",
       contact_number: values.guardianContact || "",
+      street: values.guardianStreet || "",
+      province: values.guardianProvince || "",
+      city: values.guardianCity || "",
+      barangay: values.guardianBarangay || "",
+      country: values.guardianCountry || "Philippines",
+      zip_code: values.guardianZip || "",
     }));
   }
 

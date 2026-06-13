@@ -153,6 +153,22 @@ export default function VocationalDashboardScreen({ navigation }) {
     .join(' ')
     .trim() || 'Scholar';
 
+  const scholarTypeLabel = (() => {
+    const type = user?.scholarshipType || user?.scholar_type || dashboardSummary?.academicStatus?.scholarshipType;
+    if (!type) return 'Vocational / Certification Scholar';
+
+    const mapping = {
+      'Self-Advancement': 'Self-Advancement Scholar',
+      'Child-Designated': 'Child-Designated Scholar',
+      'Vocational/Tech Scholar': 'Vocational / Tech Scholar',
+      'Manila Scholar': 'Manila Scholar',
+      'Bulacan Scholar': 'Bulacan Scholar',
+      'Nationwide Scholar': 'Nationwide Scholar',
+    };
+
+    return mapping[type] || `${type} Scholar`;
+  })();
+
   return (
     <View style={styles.container}>
       <Animated.ScrollView
@@ -169,7 +185,7 @@ export default function VocationalDashboardScreen({ navigation }) {
               <Text style={styles.heroLabel}>VOCATIONAL DASHBOARD</Text>
               <Text style={styles.heroName} numberOfLines={2}>{fullName}</Text>
               <View style={styles.heroBadge}>
-                <Text style={styles.heroBadgeText}>Vocational / Certification Scholar</Text>
+                <Text style={styles.heroBadgeText}>{scholarTypeLabel}</Text>
               </View>
             </View>
 

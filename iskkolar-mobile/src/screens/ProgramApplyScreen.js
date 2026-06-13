@@ -64,12 +64,24 @@ const infoFields = {
   fatherOccupation: "",
   fatherIncome: "",
   fatherContact: "",
+  fatherStreet: "",
+  fatherProvince: "",
+  fatherCity: "",
+  fatherBarangay: "",
+  fatherCountry: "Philippines",
+  fatherZip: "",
   motherName: "",
   motherBirthday: "",
   motherStatus: "--",
   motherContact: "",
   motherOccupation: "",
   motherIncome: "",
+  motherStreet: "",
+  motherProvince: "",
+  motherCity: "",
+  motherBarangay: "",
+  motherCountry: "Philippines",
+  motherZip: "",
   vocationalSchoolName: "",
   vocationalProgram: "",
   courseDuration: "3 months",
@@ -81,6 +93,12 @@ const infoFields = {
   guardianContact: "",
   guardianOccupation: "",
   guardianIncome: "",
+  guardianStreet: "",
+  guardianProvince: "",
+  guardianCity: "",
+  guardianBarangay: "",
+  guardianCountry: "Philippines",
+  guardianZip: "",
 };
 
 const isFatherEmpty = (vals) => {
@@ -158,6 +176,14 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const [closedYear, setClosedYear] = useState(new Date().getFullYear());
   const [examplesModalVisible, setExamplesModalVisible] = useState(false);
 
+  const [provinces, setProvinces] = useState([]);
+  const [fatherCities, setFatherCities] = useState([]);
+  const [fatherBarangays, setFatherBarangays] = useState([]);
+  const [motherCities, setMotherCities] = useState([]);
+  const [motherBarangays, setMotherBarangays] = useState([]);
+  const [guardianCities, setGuardianCities] = useState([]);
+  const [guardianBarangays, setGuardianBarangays] = useState([]);
+
   const {
     submitting: tertiarySubmitting,
     error: tertiaryError,
@@ -225,6 +251,21 @@ export default function ProgramApplyScreen({ navigation, route }) {
     selectedProgram === "tertiary" ? tertiaryQualificationOutcome :
       isVocationalFlow ? vocationalQualificationOutcome :
         isEmployeeChildFlow ? staffQualificationOutcome : null;
+
+  useEffect(() => {
+    const fetchProvinces = async () => {
+      try {
+        const res = await fetch("https://psgc.gitlab.io/api/provinces.json");
+        const data = await res.json();
+        data.push({ code: "130000000", name: "Metro Manila (NCR)", isNcr: true });
+        data.sort((a, b) => a.name.localeCompare(b.name));
+        setProvinces(data);
+      } catch (e) {
+        console.error("Error fetching provinces in ProgramApplyScreen:", e);
+      }
+    };
+    fetchProvinces();
+  }, []);
 
   const isSubmittingNow = localSubmitting || apiSubmitting;
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -444,6 +485,108 @@ export default function ProgramApplyScreen({ navigation, route }) {
     clearFieldError(key);
   };
 
+  const handleProvinceSelect = async (role, provinceName) => {
+    updateValue(role + "Province", provinceName);
+    updateValue(role + "City", "");
+    updateValue(role + "Barangay", "");
+
+    const prov = provinces.find(p => p.name === provinceName);
+    if (!prov) return;
+
+    try {
+      const url = prov.isNcr
+        ? `https://psgc.gitlab.io/api/regions/${prov.code}/cities-municipalities.json`
+        : `https://psgc.gitlab.io/api/provinces/${prov.code}/cities-municipalities.json`;
+      const res = await fetch(url);
+      const data = await res.json();
+      data.sort((a, b) => a.name.localeCompare(b.name));
+      if (role === "father") {
+        setFatherCities(data);
+        setFatherBarangays([]);
+      } else if (role === "mother") {
+        setMotherCities(data);
+        setMotherBarangays([]);
+      } else if (role === "guardian") {
+        setGuardianCities(data);
+        setGuardianBarangays([]);
+      }
+    } catch (e) {
+      console.error(`Error fetching cities for ${role}:`, e);
+    }
+  };
+
+  const handleCitySelect = async (role, cityName) => {
+    updateValue(role + "City", cityName);
+    updateValue(role + "Barangay", "");
+
+    const citiesSource = role === "father" ? fatherCities : role === "mother" ? motherCities : guardianCities;
+    const city = citiesSource.find(c => c.name === cityName);
+    if (!city) return;
+
+    try {
+      const res = await fetch(`https://psgc.gitlab.io/api/cities-municipalities/${city.code}/barangays.json`);
+      let data = await res.json();
+      if (!data || data.length === 0) {
+        const res2 = await fetch(`https://psgc.gitlab.io/api/cities/${city.code}/barangays.json`);
+        data = await res2.json();
+      }
+      if (data) {
+        data.sort((a, b) => a.name.localeCompare(b.name));
+        if (role === "father") {
+          setFatherBarangays(data);
+        } else if (role === "mother") {
+          setMotherBarangays(data);
+        } else if (role === "guardian") {
+          setGuardianBarangays(data);
+        }
+      }
+    } catch (e) {
+      console.error(`Error fetching barangays for ${role}:`, e);
+    }
+  };
+
+  const renderAddressSelect = (label, role, fieldType) => {
+    const key = role + fieldType;
+    let options = [];
+    if (fieldType === "Province") {
+      options = provinces.map(p => p.name);
+    } else if (fieldType === "City") {
+      const cities = role === "father" ? fatherCities : role === "mother" ? motherCities : guardianCities;
+      options = cities.map(c => c.name);
+    } else if (fieldType === "Barangay") {
+      const barangays = role === "father" ? fatherBarangays : role === "mother" ? motherBarangays : guardianBarangays;
+      options = barangays.map(b => b.name);
+    }
+
+    const value = values[key];
+
+    return (
+      <View style={styles.row}>
+        <Text style={styles.label}>{label}</Text>
+        <TouchableOpacity
+          style={[styles.pickerInput, fieldErrors[key] && styles.errorInput]}
+          onPress={() => {
+            if (fieldType === "City" && options.length === 0) {
+              Alert.alert("Notice", `Please select a Province first.`);
+              return;
+            }
+            if (fieldType === "Barangay" && options.length === 0) {
+              Alert.alert("Notice", `Please select a City/Municipality first.`);
+              return;
+            }
+            openSelect({ type: "address" + fieldType, role, key, options });
+          }}
+        >
+          <Text style={[styles.pickerText, !value && { color: "#888" }]}>
+            {value || `Select ${label}`}
+          </Text>
+          <Ionicons name="chevron-down" size={20} color="#5b6095" style={{ flexShrink: 0 }} />
+        </TouchableOpacity>
+        {fieldErrors[key] && <Text style={styles.errorText}>{fieldErrors[key]}</Text>}
+      </View>
+    );
+  };
+
   const applyStaffRecordToForm = (record) => {
     const valueOf = (...keys) => {
       for (const key of keys) {
@@ -614,8 +757,17 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
   const applySelect = (value) => {
     if (!selectContext) return;
-    if (selectContext.type === "value") updateValue(selectContext.key, value);
-    if (selectContext.type === "member") updateFamilyMember(selectContext.index, selectContext.key, value);
+    if (selectContext.type === "value") {
+      updateValue(selectContext.key, value);
+    } else if (selectContext.type === "addressProvince") {
+      handleProvinceSelect(selectContext.role, value);
+    } else if (selectContext.type === "addressCity") {
+      handleCitySelect(selectContext.role, value);
+    } else if (selectContext.type === "addressBarangay") {
+      updateValue(selectContext.role + "Barangay", value);
+    } else if (selectContext.type === "member") {
+      updateFamilyMember(selectContext.index, selectContext.key, value);
+    }
     closeSelect();
   };
 
@@ -1136,6 +1288,12 @@ export default function ProgramApplyScreen({ navigation, route }) {
                   {renderNumericInput("Monthly Income", "guardianIncome", "Enter Monthly Income")}
                 </>
               )}
+              {renderInput("Street/Unit", "guardianStreet", "Enter Street/Unit")}
+              {renderAddressSelect("Province", "guardian", "Province")}
+              {renderAddressSelect("City/Municipality", "guardian", "City")}
+              {renderAddressSelect("Barangay", "guardian", "Barangay")}
+              {renderReadonlyValue("Country", "Philippines")}
+              {renderNumericInput("Zip Code", "guardianZip", "Enter Zip Code")}
             </View>
           )}
 
@@ -1150,6 +1308,16 @@ export default function ProgramApplyScreen({ navigation, route }) {
               {renderNumericInput("Monthly Income", "fatherIncome", "Enter Monthly Income")}
             </>
           )}
+          {values.fatherStatus !== "Deceased" && (
+            <>
+              {renderInput("Street/Unit", "fatherStreet", "Enter Street/Unit")}
+              {renderAddressSelect("Province", "father", "Province")}
+              {renderAddressSelect("City/Municipality", "father", "City")}
+              {renderAddressSelect("Barangay", "father", "Barangay")}
+              {renderReadonlyValue("Country", "Philippines")}
+              {renderNumericInput("Zip Code", "fatherZip", "Enter Zip Code")}
+            </>
+          )}
 
           <Text style={styles.sectionHeader}>{"| Mother's Information"}{values.hasGuardian ? " (Optional)" : ""}</Text>
           {renderInput("Mother's Name", "motherName", "Enter Mother's Name")}
@@ -1160,6 +1328,16 @@ export default function ProgramApplyScreen({ navigation, route }) {
             <>
               {renderInput("Occupation", "motherOccupation", "Enter Occupation")}
               {renderNumericInput("Monthly Income", "motherIncome", "Enter Monthly Income")}
+            </>
+          )}
+          {values.motherStatus !== "Deceased" && (
+            <>
+              {renderInput("Street/Unit", "motherStreet", "Enter Street/Unit")}
+              {renderAddressSelect("Province", "mother", "Province")}
+              {renderAddressSelect("City/Municipality", "mother", "City")}
+              {renderAddressSelect("Barangay", "mother", "Barangay")}
+              {renderReadonlyValue("Country", "Philippines")}
+              {renderNumericInput("Zip Code", "motherZip", "Enter Zip Code")}
             </>
           )}
 
@@ -1319,6 +1497,12 @@ export default function ProgramApplyScreen({ navigation, route }) {
                   {renderNumericInput("Monthly Income", "guardianIncome", "Enter Monthly Income")}
                 </>
               )}
+              {renderInput("Street/Unit", "guardianStreet", "Enter Street/Unit")}
+              {renderAddressSelect("Province", "guardian", "Province")}
+              {renderAddressSelect("City/Municipality", "guardian", "City")}
+              {renderAddressSelect("Barangay", "guardian", "Barangay")}
+              {renderReadonlyValue("Country", "Philippines")}
+              {renderNumericInput("Zip Code", "guardianZip", "Enter Zip Code")}
             </View>
           )}
 
@@ -1333,6 +1517,16 @@ export default function ProgramApplyScreen({ navigation, route }) {
               {renderNumericInput("Monthly Income", "fatherIncome", "Enter Monthly Income")}
             </>
           )}
+          {values.fatherStatus !== "Deceased" && (
+            <>
+              {renderInput("Street/Unit", "fatherStreet", "Enter Street/Unit")}
+              {renderAddressSelect("Province", "father", "Province")}
+              {renderAddressSelect("City/Municipality", "father", "City")}
+              {renderAddressSelect("Barangay", "father", "Barangay")}
+              {renderReadonlyValue("Country", "Philippines")}
+              {renderNumericInput("Zip Code", "fatherZip", "Enter Zip Code")}
+            </>
+          )}
 
           <Text style={styles.sectionHeader}>{"| Mother's Information"}{values.hasGuardian ? " (Optional)" : ""}</Text>
           {renderInput("Mother's Name", "motherName", "Enter Mother's Name")}
@@ -1343,6 +1537,16 @@ export default function ProgramApplyScreen({ navigation, route }) {
             <>
               {renderInput("Occupation", "motherOccupation", "Enter Occupation")}
               {renderNumericInput("Monthly Income", "motherIncome", "Enter Monthly Income")}
+            </>
+          )}
+          {values.motherStatus !== "Deceased" && (
+            <>
+              {renderInput("Street/Unit", "motherStreet", "Enter Street/Unit")}
+              {renderAddressSelect("Province", "mother", "Province")}
+              {renderAddressSelect("City/Municipality", "mother", "City")}
+              {renderAddressSelect("Barangay", "mother", "Barangay")}
+              {renderReadonlyValue("Country", "Philippines")}
+              {renderNumericInput("Zip Code", "motherZip", "Enter Zip Code")}
             </>
           )}
 
@@ -1626,6 +1830,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
       familyItems.push(
         { label: "Guardian's Name", value: values.guardianName, icon: "person-outline" },
         { label: "Guardian Status", value: values.guardianStatus, icon: "information-circle-outline" },
+        { label: "Guardian Address", value: `${values.guardianStreet || ""}, ${values.guardianBarangay || ""}, ${values.guardianCity || ""}, ${values.guardianProvince || ""}, ${values.guardianCountry || "Philippines"} ${values.guardianZip || ""}`, icon: "location-outline" },
         ...(requiresIncomeProof(values.guardianStatus) ? [
           { label: "Guardian Income", value: values.guardianIncome, icon: "cash-outline" }
         ] : [])
@@ -1637,6 +1842,9 @@ export default function ProgramApplyScreen({ navigation, route }) {
       familyItems.push(
         { label: "Father's Name", value: values.fatherName, icon: "man-outline" },
         { label: "Father Status", value: values.fatherStatus, icon: "information-circle-outline" },
+        ...(values.fatherStatus !== "Deceased" ? [
+          { label: "Father Address", value: `${values.fatherStreet || ""}, ${values.fatherBarangay || ""}, ${values.fatherCity || ""}, ${values.fatherProvince || ""}, ${values.fatherCountry || "Philippines"} ${values.fatherZip || ""}`, icon: "location-outline" }
+        ] : []),
         ...(values.fatherStatus !== "Deceased" && requiresIncomeProof(values.fatherStatus) ? [
           { label: "Father Income", value: values.fatherIncome, icon: "cash-outline" }
         ] : [])
@@ -1648,6 +1856,9 @@ export default function ProgramApplyScreen({ navigation, route }) {
       familyItems.push(
         { label: "Mother's Name", value: values.motherName, icon: "woman-outline" },
         { label: "Mother Status", value: values.motherStatus, icon: "information-circle-outline" },
+        ...(values.motherStatus !== "Deceased" ? [
+          { label: "Mother Address", value: `${values.motherStreet || ""}, ${values.motherBarangay || ""}, ${values.motherCity || ""}, ${values.motherProvince || ""}, ${values.motherCountry || "Philippines"} ${values.motherZip || ""}`, icon: "location-outline" }
+        ] : []),
         ...(values.motherStatus !== "Deceased" && requiresIncomeProof(values.motherStatus) ? [
           { label: "Mother Income", value: values.motherIncome, icon: "cash-outline" }
         ] : [])
@@ -2589,28 +2800,44 @@ const ExamplesModal = ({ visible, onClose }) => {
           {/* Body */}
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* 1.0 - 5.00 System */}
-            <View style={{ marginBottom: 20 }}>
+            <View style={{ marginBottom: 24 }}>
               <Text style={{ fontSize: 15, fontWeight: "800", color: "#4f5fc5", marginBottom: 10 }}>
                 {"1.0 - 5.00 Grading System"}
               </Text>
+              
+              <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, padding: 10 }}>
+                {/* Table Header */}
+                <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1.5, borderBottomColor: "#cbd5e1", marginBottom: 4 }}>
+                  <Text style={{ flex: 1.2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Grade</Text>
+                  <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Percentage</Text>
+                  <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Description</Text>
+                </View>
 
-              <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>1.00 - 1.75</Text>
-                  <Text style={{ fontWeight: "600", color: "#16a34a", fontSize: 13 }}>Excellent</Text>
-                </View>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>2.00 - 2.50</Text>
-                  <Text style={{ fontWeight: "600", color: "#2563eb", fontSize: 13 }}>Very Good</Text>
-                </View>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>2.75 - 3.00</Text>
-                  <Text style={{ fontWeight: "600", color: "#4f46e5", fontSize: 13 }}>Satisfactory</Text>
-                </View>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10 }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>5.00</Text>
-                  <Text style={{ fontWeight: "700", color: "#dc2626", fontSize: 13 }}>Failed</Text>
-                </View>
+                {/* Rows */}
+                {[
+                  ["1.00", "97% - 100%", "Excellent", "#16a34a"],
+                  ["1.25", "93% - 96%", "Superior", "#16a34a"],
+                  ["1.50", "89% - 92%", "Very Good", "#2563eb"],
+                  ["1.75", "85% - 88%", "Good", "#2563eb"],
+                  ["2.00", "81% - 84%", "Satisfactory", "#4f46e5"],
+                  ["2.50", "78% - 80%", "Fair", "#b45309"],
+                  ["3.00", "75% - 77%", "Pass", "#64748b"],
+                  ["5.00", "Below 75%", "Fail", "#dc2626"],
+                ].map(([grade, pct, desc, color], idx, arr) => (
+                  <View 
+                    key={grade} 
+                    style={{ 
+                      flexDirection: "row", 
+                      paddingVertical: 8, 
+                      borderBottomWidth: idx === arr.length - 1 ? 0 : 1, 
+                      borderBottomColor: "#f1f5f9" 
+                    }}
+                  >
+                    <Text style={{ flex: 1.2, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
+                    <Text style={{ flex: 2, color: "#334155", fontSize: 12 }}>{pct}</Text>
+                    <Text style={{ flex: 2, fontWeight: "600", color: color, fontSize: 12 }}>{desc}</Text>
+                  </View>
+                ))}
               </View>
             </View>
 
@@ -2619,28 +2846,40 @@ const ExamplesModal = ({ visible, onClose }) => {
               <Text style={{ fontSize: 15, fontWeight: "800", color: "#4f5fc5", marginBottom: 10 }}>
                 {"4.00 GPA System"}
               </Text>
+              
+              <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, padding: 10 }}>
+                {/* Table Header */}
+                <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1.5, borderBottomColor: "#cbd5e1", marginBottom: 4 }}>
+                  <Text style={{ flex: 1.2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Grade</Text>
+                  <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Percentage</Text>
+                  <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Description</Text>
+                </View>
 
-              <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>4.00</Text>
-                  <Text style={{ fontWeight: "700", color: "#16a34a", fontSize: 13 }}>A</Text>
-                </View>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>3.00</Text>
-                  <Text style={{ fontWeight: "600", color: "#2563eb", fontSize: 13 }}>B</Text>
-                </View>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>2.00</Text>
-                  <Text style={{ fontWeight: "600", color: "#475569", fontSize: 13 }}>C</Text>
-                </View>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>1.00</Text>
-                  <Text style={{ fontWeight: "600", color: "#b45309", fontSize: 13 }}>D</Text>
-                </View>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10 }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>0.00</Text>
-                  <Text style={{ fontWeight: "700", color: "#dc2626", fontSize: 13 }}>F</Text>
-                </View>
+                {/* Rows */}
+                {[
+                  ["4.00", "97% - 100%", "Excellent", "#16a34a"],
+                  ["3.50", "93% - 96%", "Superior", "#16a34a"],
+                  ["3.00", "89% - 92%", "Very Good", "#2563eb"],
+                  ["2.50", "85% - 88%", "Good", "#2563eb"],
+                  ["2.00", "81% - 84%", "Satisfactory", "#4f46e5"],
+                  ["1.50", "78% - 80%", "Fair", "#b45309"],
+                  ["1.00", "75% - 77%", "Pass", "#64748b"],
+                  ["0.50", "Below 75%", "Fail", "#dc2626"],
+                ].map(([grade, pct, desc, color], idx, arr) => (
+                  <View 
+                    key={grade} 
+                    style={{ 
+                      flexDirection: "row", 
+                      paddingVertical: 8, 
+                      borderBottomWidth: idx === arr.length - 1 ? 0 : 1, 
+                      borderBottomColor: "#f1f5f9" 
+                    }}
+                  >
+                    <Text style={{ flex: 1.2, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
+                    <Text style={{ flex: 2, color: "#334155", fontSize: 12 }}>{pct}</Text>
+                    <Text style={{ flex: 2, fontWeight: "600", color: color, fontSize: 12 }}>{desc}</Text>
+                  </View>
+                ))}
               </View>
             </View>
 

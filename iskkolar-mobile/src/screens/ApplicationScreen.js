@@ -40,11 +40,9 @@ const CATEGORY_ICONS = {
 const CATEGORY_FILTERS = [
   { key: "all", label: "All Applications" },
   { key: "grade_compliance", label: "Grade Compliance" },
-  { key: "transfer_school", label: "Transfer of School" },
   { key: "exam_assistance", label: "Exam Assistance" },
   { key: "renewal", label: "Renewal" },
   { key: "receipt_submission", label: "Receipt Submission" },
-  { key: "vocational_completion", label: "Vocational Completion" },
 ];
 
 const normalizeStatus = (raw) => {
@@ -129,7 +127,9 @@ export default function ApplicationScreen({ navigation }) {
     try {
       setLoading(true);
       const res = await getScholarApplicationHistory();
-      setApplicationItems(extractApplicationItems(res));
+      const rawItems = extractApplicationItems(res) || [];
+      const filteredItems = rawItems.filter(i => i.category !== "transfer_school" && i.category !== "vocational_completion");
+      setApplicationItems(filteredItems);
     } catch (error) {
       console.error("Failed to fetch application history", error);
     } finally {
@@ -495,7 +495,7 @@ export default function ApplicationScreen({ navigation }) {
           return (
             <View 
               key={item.id} 
-              style={[styles.cardContainer, blockNavigation && styles.cardDisabled]}
+              style={[styles.cardContainer, (!isStarted && blockNavigation) && styles.cardDisabled]}
             >
               <View style={[styles.cardTopBorder, { backgroundColor: theme.topColor }]} />
 

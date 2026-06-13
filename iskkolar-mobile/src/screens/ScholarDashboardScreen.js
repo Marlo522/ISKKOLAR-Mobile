@@ -218,6 +218,22 @@ export default function ScholarDashboardScreen({ navigation }) {
     .join(' ')
     .trim() || 'Scholar';
 
+  const scholarTypeLabel = (() => {
+    const type = user?.scholarshipType || user?.scholar_type || dashboardSummary?.academicStatus?.scholarshipType;
+    if (!type) return 'Active Scholar';
+
+    const mapping = {
+      'Self-Advancement': 'Self-Advancement Scholar',
+      'Child-Designated': 'Child-Designated Scholar',
+      'Vocational/Tech Scholar': 'Vocational / Tech Scholar',
+      'Manila Scholar': 'Manila Scholar',
+      'Bulacan Scholar': 'Bulacan Scholar',
+      'Nationwide Scholar': 'Nationwide Scholar',
+    };
+
+    return mapping[type] || `${type} Scholar`;
+  })();
+
   return (
     <View style={styles.container}>
       <Animated.ScrollView
@@ -232,7 +248,7 @@ export default function ScholarDashboardScreen({ navigation }) {
             <Text style={styles.heroGreeting}>Good day,</Text>
             <Text style={styles.heroName}>{fullName}</Text>
             <View style={styles.heroBadge}>
-              <Text style={styles.heroBadgeText}>Active Scholar</Text>
+              <Text style={styles.heroBadgeText}>{scholarTypeLabel}</Text>
             </View>
           </View>
           <View style={styles.heroIconWatermark}>
