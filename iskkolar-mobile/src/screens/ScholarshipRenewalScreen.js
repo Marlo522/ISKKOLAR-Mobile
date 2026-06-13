@@ -97,25 +97,28 @@ export default function ScholarshipRenewalScreen({ navigation }) {
   const [eligibility, setEligibility] = useState(null);
   const [loadingEligibility, setLoadingEligibility] = useState(true);
 
-  const hasFailedSubjects = Boolean(
-    eligibility?.detailedData?.hasFailedSubjects ||
-    eligibility?.tags?.some((tag) => tag.toLowerCase().includes('failed')) ||
-    eligibility?.aiEvaluation?.recommended_action === 'Reject'
+  const detailed = eligibility?.detailedData;
+  const hasFailedGrades = detailed?.hasFailedSubjects === true;
+  const hasIncGrades = detailed?.hasIncSubjects === true;
+  const isGwaBelow85 = detailed?.latestGwa !== null && detailed?.latestGwa !== undefined && detailed?.meets85Percent === false;
+  const isGwaMissing = detailed?.latestGwa === null || detailed?.latestGwa === undefined;
+  const alreadySubmittedThisYear = detailed?.alreadySubmittedThisYear === true;
+
+  const cannotSubmit = Boolean(
+    hasFailedGrades ||
+    hasIncGrades ||
+    isGwaBelow85 ||
+    alreadySubmittedThisYear
   );
 
-  const alreadyRenewed = Boolean(
-    eligibility?.alreadyRenewed ||
-    eligibility?.detailedData?.alreadyRenewed
-  );
-
-  const isContinueDisabled = loadingEligibility || hasFailedSubjects || alreadyRenewed;
+  const isContinueDisabled = loadingEligibility || cannotSubmit;
 
   useEffect(() => {
     console.log('Eligibility state:', eligibility);
-    console.log('hasFailedSubjects:', hasFailedSubjects);
-    console.log('alreadyRenewed:', alreadyRenewed);
+    console.log('cannotSubmit:', cannotSubmit);
+    console.log('alreadySubmittedThisYear:', alreadySubmittedThisYear);
     console.log('isContinueDisabled:', isContinueDisabled);
-  }, [eligibility, hasFailedSubjects, alreadyRenewed, isContinueDisabled]);
+  }, [eligibility, cannotSubmit, alreadySubmittedThisYear, isContinueDisabled]);
 
   // Animations
   const stepAnim = useRef(new Animated.Value(0)).current;
@@ -247,10 +250,12 @@ export default function ScholarshipRenewalScreen({ navigation }) {
   const validate = (step) => {
     const nextErrors = {};
     if (step === 1) {
-      if (hasFailedSubjects) {
-        nextErrors.eligibility = 'Renewal blocked: You have failed subjects in your academic record.';
-      } else if (alreadyRenewed) {
-        nextErrors.eligibility = 'Renewal blocked: Scholarship renewal can only be submitted once a year.';
+      if (cannotSubmit) {
+        if (alreadySubmittedThisYear) {
+          nextErrors.eligibility = 'Renewal blocked: Scholarship renewal can only be submitted once a year.';
+        } else {
+          nextErrors.eligibility = 'Renewal blocked: You have incomplete/failing grades or your GWA is below 85%.';
+        }
       }
 
       if (!form.academicYear.trim()) {
@@ -272,7 +277,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
       }
 
       const gwaValue = Number(form.gwa);
-      if (!form.gwa.trim() || Number.isNaN(gwaValue) || gwaValue <= 0 || gwaValue > 5) {
+      if (!form.gwa.trim() || Number.isNaN(gwaValue) || gwaValue <= 0 || gwaValue > 100) {
         nextErrors.gwa = 'Auto-filled from grade compliance. Submit grade compliance to proceed.';
       }
 
@@ -447,7 +452,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
             {/* Step 1: Scholar Status */}
             {!success && !submitting && currentStep === 1 && (
               <Animated.View style={{ opacity: stepAnim }}>
-                {alreadyRenewed ? (
+                {alreadySubmittedThisYear ? (
                   <View style={styles.failedSubjectsBanner}>
                     <Ionicons name="alert-circle" size={24} color="#ef4444" />
                     <View style={{ flex: 1 }}>
@@ -463,18 +468,6 @@ export default function ScholarshipRenewalScreen({ navigation }) {
                       <View style={styles.verticalPill} />
                       <Text style={styles.sectionHeader}>Scholar Status Evaluation</Text>
                     </View>
-
-                    {hasFailedSubjects && (
-                      <View style={styles.failedSubjectsBanner}>
-                        <Ionicons name="alert-circle" size={24} color="#ef4444" />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.failedSubjectsTitle}>Renewal Blocked</Text>
-                          <Text style={styles.failedSubjectsText}>
-                            You have failed subjects in your academic record.
-                          </Text>
-                        </View>
-                      </View>
-                    )}
 
                     {/* AI Eligibility Card */}
                     <View
@@ -540,14 +533,10 @@ export default function ScholarshipRenewalScreen({ navigation }) {
                             <View style={styles.tagList}>
                               {eligibility.tags?.map((tag, idx) => {
                                 const isAttendance = tag.startsWith('Attendance:');
-                                const isNoRecord = tag.includes('No records');
-                                const isFlag =
-                                  (!isNoRecord &&
-                                    (tag.includes('Below') ||
-                                      tag.includes('Late') ||
-                                      tag.includes('Failed') ||
-                                      tag.includes('INC'))) ||
-                                  (!isAttendance && isNoRecord);
+                                const isNoRecord = tag.includes('No records') || tag.toLowerCase().includes('no activites') || tag.toLowerCase().includes('no activities') || tag.toLowerCase().includes('no record');
+                                const isFlag = (!isNoRecord && (
+                                  tag.includes('Below') || tag.includes('Late') || tag.includes('Failed') || tag.includes('INC')
+                                )) || (!isAttendance && isNoRecord);
                                 const isNeutral = isAttendance && isNoRecord;
 
                                 return (
@@ -595,28 +584,30 @@ export default function ScholarshipRenewalScreen({ navigation }) {
                             <View
                               style={[
                                 styles.verdictBox,
-                                eligibility.isQualified
-                                  ? styles.verdictSuccess
-                                  : hasFailedSubjects
-                                    ? styles.verdictError
+                                cannotSubmit
+                                  ? styles.verdictError
+                                  : eligibility?.isQualified
+                                    ? styles.verdictSuccess
                                     : styles.verdictWarning,
                               ]}
                             >
                               <Text
                                 style={[
                                   styles.verdictText,
-                                  eligibility.isQualified
-                                    ? styles.verdictTextSuccess
-                                    : hasFailedSubjects
-                                      ? styles.verdictTextError
+                                  cannotSubmit
+                                    ? styles.verdictTextError
+                                    : eligibility?.isQualified
+                                      ? styles.verdictTextSuccess
                                       : styles.verdictTextWarning,
                                 ]}
                               >
-                                {eligibility.isQualified
-                                  ? '✓ You meet the baseline requirements and may proceed.'
-                                  : hasFailedSubjects
-                                    ? '❌ Renewal blocked: You have failed subjects in your academic record.'
-                                    : '⚠ You have flags on your record. You may still proceed, but your renewal is subject to admin review.'}
+                                {cannotSubmit
+                                  ? (alreadySubmittedThisYear
+                                      ? '✗ Cannot submit renewal: You have already submitted a scholarship renewal this year.'
+                                      : '✗ Cannot submit renewal: You have incomplete/failing grades or your GWA is below 85%.')
+                                  : (eligibility?.isQualified
+                                      ? '✓ You meet all requirements. Your renewal will be automatically approved upon submission.'
+                                      : '⚠ You have attendance or late submission flags. Your renewal will be submitted for manual review.')}
                               </Text>
                             </View>
 

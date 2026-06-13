@@ -502,20 +502,7 @@ const EvaluationModal = ({ visible, onClose, evaluation }) => {
             )}
           </ScrollView>
 
-          <View style={modalStyles.modalFooter}>
-            <Text style={modalStyles.confidenceLabel}>Confidence Level:</Text>
-            <View style={[
-              modalStyles.confidenceBadge,
-              confidenceLevel.toLowerCase() === "high" ? modalStyles.badgeHigh :
-              confidenceLevel.toLowerCase() === "medium" ? modalStyles.badgeMedium : modalStyles.badgeLow
-            ]}>
-              <Text style={[
-                modalStyles.confidenceBadgeText,
-                confidenceLevel.toLowerCase() === "high" ? modalStyles.badgeTextHigh :
-                confidenceLevel.toLowerCase() === "medium" ? modalStyles.badgeTextMedium : modalStyles.badgeTextLow
-              ]}>{confidenceLevel.toUpperCase()}</Text>
-            </View>
-          </View>
+          {/* Removed confidence level footer */}
         </View>
       </View>
     </Modal>
@@ -554,11 +541,25 @@ const SubmittedInfoModal = ({ visible, onClose, application }) => {
   // 7. Documents
   const documents = Array.isArray(raw.application_documents) ? raw.application_documents : [];
 
+  const isKkfiGrant = type === "child-designation" || type === "staff-advancement" || Boolean(raw.kkfi_grant_details);
+
   // Formatter helpers
   const formatValue = (val) => {
     if (val === null || val === undefined || val === '') return '--';
     if (typeof val === 'boolean') return val ? 'Yes' : 'No';
     return String(val);
+  };
+
+  const formatCategoryValue = (val) => {
+    if (val === null || val === undefined || val === '') return '--';
+    const clean = String(val).replace(/_/g, ' ');
+    return clean.replace(/\b\w/g, c => c.toUpperCase());
+  };
+
+  const formatEducationPath = (val) => {
+    if (val === null || val === undefined || val === '') return '--';
+    const clean = String(val).replace(/[-_]/g, ' ');
+    return clean.replace(/\b\w/g, c => c.toUpperCase());
   };
 
   return (
@@ -576,16 +577,18 @@ const SubmittedInfoModal = ({ visible, onClose, application }) => {
               <Ionicons name="close" size={24} color="#6b7280" />
             </TouchableOpacity>
           </View>
-
+ 
           <ScrollView style={modalStyles.modalBody} showsVerticalScrollIndicator={false}>
             {/* Scholarship Information */}
             <View style={styles.reviewCard}>
               <Text style={styles.reviewCardTitle}>Scholarship Information</Text>
               <View style={styles.reviewGrid}>
-                <View style={styles.reviewRow}>
-                  <Text style={styles.reviewLabel}>Scholarship Type</Text>
-                  <Text style={styles.reviewValue}>{formatValue(details.scholarship_type || details.scholarshipType)}</Text>
-                </View>
+                {!isKkfiGrant && (
+                  <View style={styles.reviewRow}>
+                    <Text style={styles.reviewLabel}>Scholarship Type</Text>
+                    <Text style={styles.reviewValue}>{formatValue(details.scholarship_type || details.scholarshipType)}</Text>
+                  </View>
+                )}
                 {details.incoming_freshman !== undefined && (
                   <View style={styles.reviewRow}>
                     <Text style={styles.reviewLabel}>Incoming Freshman?</Text>
@@ -595,40 +598,127 @@ const SubmittedInfoModal = ({ visible, onClose, application }) => {
                 {details.applicant_category !== undefined && (
                   <View style={styles.reviewRow}>
                     <Text style={styles.reviewLabel}>Category</Text>
-                    <Text style={styles.reviewValue}>{formatValue(details.applicant_category)}</Text>
+                    <Text style={styles.reviewValue}>{formatCategoryValue(details.applicant_category)}</Text>
                   </View>
                 )}
                 {(details.educ_path || details.education_path) ? (
                   <View style={styles.reviewRow}>
                     <Text style={styles.reviewLabel}>Education Path</Text>
-                    <Text style={styles.reviewValue}>{formatValue(details.educ_path || details.education_path)}</Text>
+                    <Text style={styles.reviewValue}>{formatEducationPath(details.educ_path || details.education_path)}</Text>
                   </View>
                 ) : null}
               </View>
             </View>
-
+ 
             {/* KKFI Employee Information (for Staff/Child Designation programs) */}
-            {details.staff_id ? (
+            {(details.staff || details.staff_id || details.staffId) ? (
               <View style={styles.reviewCard}>
                 <Text style={styles.reviewCardTitle}>KKFI Employee Information</Text>
                 <View style={styles.reviewGrid}>
                   <View style={styles.reviewRow}>
                     <Text style={styles.reviewLabel}>Staff ID</Text>
-                    <Text style={styles.reviewValue}>{formatValue(details.staff_id)}</Text>
+                    <Text style={styles.reviewValue}>
+                      {formatValue(details.staff?.staff_id || details.staff_id || details.staffId)}
+                    </Text>
                   </View>
                   <View style={styles.reviewRow}>
                     <Text style={styles.reviewLabel}>Employee Name</Text>
                     <Text style={styles.reviewValue}>
-                      {`${details.first_name || ''} ${details.middle_name || ''} ${details.last_name || ''} ${details.suffix || ''}`.trim().replace(/\s+/g, ' ') || '--'}
+                      {details.staff 
+                        ? `${details.staff.first_name || ''} ${details.staff.middle_name || ''} ${details.staff.last_name || ''} ${details.staff.suffix || ''}`.trim().replace(/\s+/g, ' ')
+                        : `${details.first_name || ''} ${details.middle_name || ''} ${details.last_name || ''} ${details.suffix || ''}`.trim().replace(/\s+/g, ' ') || '--'}
                     </Text>
                   </View>
                   <View style={styles.reviewRow}>
                     <Text style={styles.reviewLabel}>Position</Text>
-                    <Text style={styles.reviewValue}>{formatValue(details.position)}</Text>
+                    <Text style={styles.reviewValue}>
+                      {formatValue(details.staff?.position || details.position)}
+                    </Text>
                   </View>
                 </View>
               </View>
             ) : null}
+
+            {/* KKFI Grant Education Information */}
+            {isKkfiGrant && (
+              <View style={styles.reviewCard}>
+                <Text style={styles.reviewCardTitle}>
+                  {details.education_path === "Vocational / Tech" ? "Vocational Education Information" :
+                   details.education_path === "Masters / Graduate" ? "Master's Education Information" :
+                   "Academic Information"}
+                </Text>
+                <View style={styles.reviewGrid}>
+                  {details.school_name ? (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>School Name</Text>
+                      <Text style={styles.reviewValue}>{formatValue(details.school_name)}</Text>
+                    </View>
+                  ) : null}
+                  {details.program ? (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Program / Course</Text>
+                      <Text style={styles.reviewValue}>{formatValue(details.program)}</Text>
+                    </View>
+                  ) : null}
+                  {details.year_level ? (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Year Level</Text>
+                      <Text style={styles.reviewValue}>{formatValue(details.year_level)}</Text>
+                    </View>
+                  ) : null}
+                  {details.term_type ? (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Term Type</Text>
+                      <Text style={styles.reviewValue}>{formatValue(details.term_type)}</Text>
+                    </View>
+                  ) : null}
+                  {details.grade_scale ? (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Grade Scale</Text>
+                      <Text style={styles.reviewValue}>{formatValue(details.grade_scale)}</Text>
+                    </View>
+                  ) : null}
+                  {details.term ? (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Term</Text>
+                      <Text style={styles.reviewValue}>{formatValue(details.term)}</Text>
+                    </View>
+                  ) : null}
+                  {(details.term_start_date || details.term_end_date) ? (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Term Duration</Text>
+                      <Text style={styles.reviewValue}>
+                        {formatDate(details.term_start_date)} - {formatDate(details.term_end_date)}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {details.gwa ? (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Current GWA</Text>
+                      <Text style={styles.reviewValue}>{formatValue(details.gwa)}</Text>
+                    </View>
+                  ) : null}
+                  {details.expected_graduation_year ? (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Expected Graduation</Text>
+                      <Text style={styles.reviewValue}>{formatValue(details.expected_graduation_year)}</Text>
+                    </View>
+                  ) : null}
+                  {details.course_duration ? (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Duration</Text>
+                      <Text style={styles.reviewValue}>{formatValue(details.course_duration)}</Text>
+                    </View>
+                  ) : null}
+                  {details.completion_date ? (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Completion Date</Text>
+                      <Text style={styles.reviewValue}>{formatDate(details.completion_date)}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            )}
 
             {/* Secondary Education (if present) */}
             {Object.keys(secondary).length > 0 && (
@@ -732,7 +822,7 @@ const SubmittedInfoModal = ({ visible, onClose, application }) => {
             {/* Masters Education (if present) */}
             {Object.keys(masters).length > 0 && (
               <View style={styles.reviewCard}>
-                <Text style={styles.reviewCardTitle}>Master's Education Information</Text>
+                <Text style={styles.reviewCardTitle}>{"Master's Education Information"}</Text>
                 <View style={styles.reviewGrid}>
                   <View style={styles.reviewRow}>
                     <Text style={styles.reviewLabel}>School Name</Text>
@@ -803,6 +893,14 @@ const SubmittedInfoModal = ({ visible, onClose, application }) => {
                       <Text style={styles.reviewLabel}>Contact Number</Text>
                       <Text style={styles.reviewValue}>{formatValue(member.contact_number || member.contactNo)}</Text>
                     </View>
+                    {member.employment_status !== "Deceased" && (
+                      <View style={styles.reviewRow}>
+                        <Text style={styles.reviewLabel}>Address</Text>
+                        <Text style={[styles.reviewValue, { textAlign: 'right', flex: 1.5 }]}>
+                          {`${member.street || ""}, ${member.barangay || ""}, ${member.city || ""}, ${member.province || ""}, ${member.country || "Philippines"} ${member.zip_code || ""}`.trim().replace(/^,\s*|,\s*$/, "").replace(/,\s*,/g, ",")}
+                        </Text>
+                      </View>
+                    )}
                     <View style={styles.reviewRow}>
                       <Text style={styles.reviewLabel}>Occupation</Text>
                       <Text style={styles.reviewValue}>{formatValue(member.occupation)}</Text>

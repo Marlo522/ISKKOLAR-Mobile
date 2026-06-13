@@ -803,28 +803,44 @@ const ExamplesModal = ({ visible, onClose }) => {
           {/* Body */}
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* 1.0 - 5.00 System */}
-            <View style={{ marginBottom: 20 }}>
+            <View style={{ marginBottom: 24 }}>
               <Text style={{ fontSize: 15, fontWeight: "800", color: "#4f5fc5", marginBottom: 10 }}>
                 {"1.0 - 5.00 Grading System"}
               </Text>
               
-              <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>1.00 - 1.75</Text>
-                  <Text style={{ fontWeight: "600", color: "#16a34a", fontSize: 13 }}>Excellent</Text>
+              <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, padding: 10 }}>
+                {/* Table Header */}
+                <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1.5, borderBottomColor: "#cbd5e1", marginBottom: 4 }}>
+                  <Text style={{ flex: 1.2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Grade</Text>
+                  <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Percentage</Text>
+                  <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Description</Text>
                 </View>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>2.00 - 2.50</Text>
-                  <Text style={{ fontWeight: "600", color: "#2563eb", fontSize: 13 }}>Very Good</Text>
-                </View>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>2.75 - 3.00</Text>
-                  <Text style={{ fontWeight: "600", color: "#4f46e5", fontSize: 13 }}>Satisfactory</Text>
-                </View>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10 }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>5.00</Text>
-                  <Text style={{ fontWeight: "700", color: "#dc2626", fontSize: 13 }}>Failed</Text>
-                </View>
+
+                {/* Rows */}
+                {[
+                  ["1.00", "97% - 100%", "Excellent", "#16a34a"],
+                  ["1.25", "93% - 96%", "Superior", "#16a34a"],
+                  ["1.50", "89% - 92%", "Very Good", "#2563eb"],
+                  ["1.75", "85% - 88%", "Good", "#2563eb"],
+                  ["2.00", "81% - 84%", "Satisfactory", "#4f46e5"],
+                  ["2.50", "78% - 80%", "Fair", "#b45309"],
+                  ["3.00", "75% - 77%", "Pass", "#64748b"],
+                  ["5.00", "Below 75%", "Fail", "#dc2626"],
+                ].map(([grade, pct, desc, color], idx, arr) => (
+                  <View 
+                    key={grade} 
+                    style={{ 
+                      flexDirection: "row", 
+                      paddingVertical: 8, 
+                      borderBottomWidth: idx === arr.length - 1 ? 0 : 1, 
+                      borderBottomColor: "#f1f5f9" 
+                    }}
+                  >
+                    <Text style={{ flex: 1.2, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
+                    <Text style={{ flex: 2, color: "#334155", fontSize: 12 }}>{pct}</Text>
+                    <Text style={{ flex: 2, fontWeight: "600", color: color, fontSize: 12 }}>{desc}</Text>
+                  </View>
+                ))}
               </View>
             </View>
 
@@ -834,27 +850,39 @@ const ExamplesModal = ({ visible, onClose }) => {
                 {"4.00 GPA System"}
               </Text>
               
-              <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>4.00</Text>
-                  <Text style={{ fontWeight: "700", color: "#16a34a", fontSize: 13 }}>A</Text>
+              <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, padding: 10 }}>
+                {/* Table Header */}
+                <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1.5, borderBottomColor: "#cbd5e1", marginBottom: 4 }}>
+                  <Text style={{ flex: 1.2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Grade</Text>
+                  <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Percentage</Text>
+                  <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Description</Text>
                 </View>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>3.00</Text>
-                  <Text style={{ fontWeight: "600", color: "#2563eb", fontSize: 13 }}>B</Text>
-                </View>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>2.00</Text>
-                  <Text style={{ fontWeight: "600", color: "#475569", fontSize: 13 }}>C</Text>
-                </View>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>1.00</Text>
-                  <Text style={{ fontWeight: "600", color: "#b45309", fontSize: 13 }}>D</Text>
-                </View>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10 }}>
-                  <Text style={{ fontWeight: "700", color: "#334155", fontSize: 13 }}>0.00</Text>
-                  <Text style={{ fontWeight: "700", color: "#dc2626", fontSize: 13 }}>F</Text>
-                </View>
+
+                {/* Rows */}
+                {[
+                  ["4.00", "97% - 100%", "Excellent", "#16a34a"],
+                  ["3.50", "93% - 96%", "Superior", "#16a34a"],
+                  ["3.00", "89% - 92%", "Very Good", "#2563eb"],
+                  ["2.50", "85% - 88%", "Good", "#2563eb"],
+                  ["2.00", "81% - 84%", "Satisfactory", "#4f46e5"],
+                  ["1.50", "78% - 80%", "Fair", "#b45309"],
+                  ["1.00", "75% - 77%", "Pass", "#64748b"],
+                  ["0.50", "Below 75%", "Fail", "#dc2626"],
+                ].map(([grade, pct, desc, color], idx, arr) => (
+                  <View 
+                    key={grade} 
+                    style={{ 
+                      flexDirection: "row", 
+                      paddingVertical: 8, 
+                      borderBottomWidth: idx === arr.length - 1 ? 0 : 1, 
+                      borderBottomColor: "#f1f5f9" 
+                    }}
+                  >
+                    <Text style={{ flex: 1.2, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
+                    <Text style={{ flex: 2, color: "#334155", fontSize: 12 }}>{pct}</Text>
+                    <Text style={{ flex: 2, fontWeight: "600", color: color, fontSize: 12 }}>{desc}</Text>
+                  </View>
+                ))}
               </View>
             </View>
 

@@ -32,27 +32,9 @@ export default function ScholarDashboardScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [renewalsOpen, setRenewalsOpen] = useState(true);
 
-  const currentYearLevel = dashboardSummary?.academicStatus?.yearLevel || user?.yearLevel + 'Year' || 'Not set';
   const currentProgram = dashboardSummary?.academicStatus?.program || user?.program || user?.scholarshipType || '--';
   const currentGwaValue = dashboardSummary?.academicStatus?.latestGwa;
   const currentGwa = Number.isFinite(Number(currentGwaValue)) ? Number(currentGwaValue).toFixed(2) : '--';
-
-  const sourceSummary = dashboardSummary?.sourceSummary;
-  const historyItems = applicationHistory || [];
-
-  // Exclude empty placeholders from count if they exist
-  const actualApplications = historyItems.filter(item => item.id && !item.id.includes('_empty') && item.status !== 'not_started');
-
-  // Total applications submitted (Renewal, Tertiary, Vocational, KKFI, Exam Assistance, Financial Assistance, etc.)
-  const submittedApplicationsCount = (sourceSummary ? (
-    (sourceSummary.renewalsCount || 0) +
-    (sourceSummary.tertiaryApplicationsCount || 0) +
-    (sourceSummary.vocationalApplicationsCount || 0) +
-    (sourceSummary.kkfiChildApplicationsCount || 0) +
-    (sourceSummary.kkfiStaffApplicationsCount || 0)
-  ) : 0) + actualApplications.filter(a => ['exam_assistance', 'receipt_submission'].includes(a.category)).length;
-
-  const applicationsSubmitted = String(submittedApplicationsCount);
 
   const gradeComplianceLatest = gradeComplianceSummary?.latestSubmission || null;
   const gradeComplianceTerms = gradeComplianceSummary?.terms || [];
@@ -62,29 +44,27 @@ export default function ScholarDashboardScreen({ navigation }) {
 
   const currentTerm = nextPendingGradeComplianceTerm || gradeComplianceLatest?.term || dashboardSummary?.academicStatus?.term || user?.term || '--';
 
-  const latestApp = actualApplications[0];
-  const appsSubText = latestApp
-    ? `Latest: ${latestApp.title || latestApp.category || 'Application'} (${latestApp.status ? latestApp.status.split(/[_ -]+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ") : 'Under Review'})`
-    : 'View and track your submitted applications';
+  const yearLevelLabel = dashboardSummary?.academicStatus?.yearLevel || user?.yearLevel || 'Not set';
+  const isGraduate = Boolean(
+    dashboardSummary?.isGraduate ||
+    dashboardSummary?.academicStatus?.isGraduate ||
+    dashboardSummary?.academicStatus?.is_graduate ||
+    user?.isGraduate ||
+    user?.is_graduate
+  );
+
+  const displayYearLevel = (yearLevelLabel === 'Graduate' || isGraduate) ? 'Graduate' : `${yearLevelLabel} Year`;
+  const displayTerm = (currentTerm === 'Graduate' || isGraduate) ? 'Graduate' : currentTerm;
+  const expectedGraduationYear = dashboardSummary?.academicStatus?.expectedGraduationYear || user?.expectedGraduationYear || '--';
 
   const stats = useMemo(
     () => [
-      { title: currentYearLevel, sub: currentProgram, icon: 'book-outline', iconBg: '#f4effe', iconColor: '#7e52d8', fullWidth: true },
+      { title: displayYearLevel, sub: currentProgram, icon: 'school-outline', iconBg: '#f4effe', iconColor: '#7e52d8', fullWidth: true },
       { title: currentGwa, sub: 'Current GWA', icon: 'checkmark-circle-outline', iconBg: '#e7f6ea', iconColor: '#39a751', fullWidth: false },
-      { title: currentTerm, sub: 'Current Term', icon: 'book-outline', iconBg: '#f4effe', iconColor: '#7e52d8', fullWidth: false },
-      {
-        title: applicationsSubmitted,
-        sub: 'Applications Submitted',
-        desc: appsSubText,
-        icon: 'calendar-outline',
-        iconBg: '#eefafc',
-        iconColor: '#41b5bd',
-        fullWidth: true,
-        interactive: true,
-        onPress: () => navigation.navigate('Application')
-      },
+      { title: expectedGraduationYear, sub: 'Year of Graduation', icon: 'calendar-outline', iconBg: '#eefafc', iconColor: '#41b5bd', fullWidth: false },
+      { title: displayTerm, sub: 'Current Term', icon: 'layers-outline', iconBg: '#fcefe9', iconColor: '#e96e5e', fullWidth: true },
     ],
-    [applicationsSubmitted, currentGwa, currentProgram, currentTerm, currentYearLevel, appsSubText, navigation]
+    [displayYearLevel, currentProgram, currentGwa, expectedGraduationYear, displayTerm]
   );
 
   const quickLinks = [
@@ -218,6 +198,22 @@ export default function ScholarDashboardScreen({ navigation }) {
     .join(' ')
     .trim() || 'Scholar';
 
+  const scholarTypeLabel = (() => {
+    const type = user?.scholarshipType || user?.scholar_type || dashboardSummary?.academicStatus?.scholarshipType;
+    if (!type) return 'Active Scholar';
+
+    const mapping = {
+      'Self-Advancement': 'Self-Advancement Scholar',
+      'Child-Designated': 'Child-Designated Scholar',
+      'Vocational/Tech Scholar': 'Vocational / Tech Scholar',
+      'Manila Scholar': 'Manila Scholar',
+      'Bulacan Scholar': 'Bulacan Scholar',
+      'Nationwide Scholar': 'Nationwide Scholar',
+    };
+
+    return mapping[type] || `${type} Scholar`;
+  })();
+
   return (
     <View style={styles.container}>
       <Animated.ScrollView
@@ -232,7 +228,7 @@ export default function ScholarDashboardScreen({ navigation }) {
             <Text style={styles.heroGreeting}>Good day,</Text>
             <Text style={styles.heroName}>{fullName}</Text>
             <View style={styles.heroBadge}>
-              <Text style={styles.heroBadgeText}>Active Scholar</Text>
+              <Text style={styles.heroBadgeText}>{scholarTypeLabel}</Text>
             </View>
           </View>
           <View style={styles.heroIconWatermark}>

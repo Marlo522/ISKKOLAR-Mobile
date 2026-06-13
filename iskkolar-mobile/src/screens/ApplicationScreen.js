@@ -40,11 +40,9 @@ const CATEGORY_ICONS = {
 const CATEGORY_FILTERS = [
   { key: "all", label: "All Applications" },
   { key: "grade_compliance", label: "Grade Compliance" },
-  { key: "transfer_school", label: "Transfer of School" },
   { key: "exam_assistance", label: "Exam Assistance" },
   { key: "renewal", label: "Renewal" },
   { key: "receipt_submission", label: "Receipt Submission" },
-  { key: "vocational_completion", label: "Vocational Completion" },
 ];
 
 const normalizeStatus = (raw) => {
@@ -102,9 +100,17 @@ export default function ApplicationScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [yearFilter, setYearFilter] = useState("");
 
   const [applicationItems, setApplicationItems] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const academicYears = useMemo(
+    () =>
+      [...new Set(applicationItems.filter(item => item.category !== "exam_assistance").map((item) => item.academicYear).filter(Boolean))]
+        .sort((a, b) => b.localeCompare(a)),
+    [applicationItems]
+  );
 
   // Vocational specific states (Mirroring web's VocationalScholarApplicationTab)
   const [vocSubmission, setVocSubmission] = useState(undefined);
@@ -129,7 +135,14 @@ export default function ApplicationScreen({ navigation }) {
     try {
       setLoading(true);
       const res = await getScholarApplicationHistory();
-      setApplicationItems(extractApplicationItems(res));
+      const rawItems = extractApplicationItems(res) || [];
+      const filteredItems = rawItems.filter(i => i.category !== "transfer_school" && i.category !== "vocational_completion");
+      setApplicationItems(filteredItems);
+      const years = [...new Set(filteredItems.filter(item => item.category !== "exam_assistance").map((item) => item.academicYear).filter(Boolean))]
+        .sort((a, b) => b.localeCompare(a));
+      if (years.length > 0) {
+        setYearFilter(prev => prev || years[0]);
+      }
     } catch (error) {
       console.error("Failed to fetch application history", error);
     } finally {
@@ -183,6 +196,10 @@ export default function ApplicationScreen({ navigation }) {
       result = result.filter(i => i.category === categoryFilter);
     }
 
+    if (yearFilter) {
+      result = result.filter((item) => item.category === "exam_assistance" || item.academicYear === yearFilter);
+    }
+
     if (statusFilter === "under_review") {
       result = result.filter(i => {
         const s = normalizeStatus(i.status);
@@ -195,9 +212,15 @@ export default function ApplicationScreen({ navigation }) {
     }
 
     return result;
-  }, [applicationItems, statusFilter, categoryFilter]);
+  }, [applicationItems, statusFilter, categoryFilter, yearFilter]);
 
-  const validItems = applicationItems.filter(i => i.status !== "not_started");
+  const validItems = useMemo(() => {
+    let result = applicationItems.filter(i => i.status !== "not_started");
+    if (yearFilter) {
+      result = result.filter((item) => item.category === "exam_assistance" || item.academicYear === yearFilter);
+    }
+    return result;
+  }, [applicationItems, yearFilter]);
 
   const underReviewCount = validItems.filter(i => {
     const s = normalizeStatus(i.status);
@@ -425,8 +448,8 @@ export default function ApplicationScreen({ navigation }) {
             {[
               { key: "all", label: "All" },
               { key: "under_review", label: "Under Review" },
-              { key: "approved", label: "Approved" },
-              { key: "disapproved", label: "Disapproved" },
+              { key: "approved", label: categoryFilter === "grade_compliance" ? "Compliant" : "Approved" },
+              ...(categoryFilter === "grade_compliance" ? [] : [{ key: "disapproved", label: "Disapproved" }]),
             ].map((tab) => (
               <TouchableOpacity
                 key={tab.key}
@@ -446,13 +469,35 @@ export default function ApplicationScreen({ navigation }) {
               <TouchableOpacity 
                 key={opt.key} 
                 style={[styles.categoryPill, categoryFilter === opt.key && styles.categoryPillActive]} 
-                onPress={() => setCategoryFilter(opt.key)}
+                onPress={() => {
+                  setCategoryFilter(opt.key);
+                  if (opt.key === "grade_compliance" && statusFilter === "disapproved") {
+                    setStatusFilter("all");
+                  }
+                }}
               >
                 <Text style={[styles.categoryPillText, categoryFilter === opt.key && styles.categoryPillTextActive]}>{opt.label}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
+
+        {/* Academic Year Filters */}
+        {academicYears.length > 0 && (
+          <View style={styles.yearRow}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.yearScroll}>
+              {academicYears.map((year) => (
+                <TouchableOpacity 
+                  key={year} 
+                  style={[styles.yearPill, yearFilter === year && styles.yearPillActive]} 
+                  onPress={() => setYearFilter(year)}
+                >
+                  <Text style={[styles.yearPillText, yearFilter === year && styles.yearPillTextActive]}>{year}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </View>
 
       <Animated.ScrollView
@@ -474,7 +519,7 @@ export default function ApplicationScreen({ navigation }) {
         ) : null}
 
         {filteredItems.map((item) => {
-          const isRestrictedCategory = ["exam_assistance", "transfer_school", "renewal", "grade_compliance"].includes(item.category);
+          const isRestrictedCategory = ["exam_assistance", "renewal", "grade_compliance"].includes(item.category);
           const currentStatus = normalizeStatus(item.status);
           const blockNavigation = isRestrictedCategory && item.hasActiveApplication && currentStatus !== "rejected";
           
@@ -495,7 +540,7 @@ export default function ApplicationScreen({ navigation }) {
           return (
             <View 
               key={item.id} 
-              style={[styles.cardContainer, blockNavigation && styles.cardDisabled]}
+              style={[styles.cardContainer, (!isStarted && blockNavigation) && styles.cardDisabled]}
             >
               <View style={[styles.cardTopBorder, { backgroundColor: theme.topColor }]} />
 
@@ -766,4 +811,32 @@ const styles = StyleSheet.create({
   stepLabelActive: { color: "#5b5f97" },
   stepLabelCompleted: { color: "#16a34a" },
   stepLabelRejected: { color: "#ef4444" },
+  yearRow: {
+    marginTop: 12,
+  },
+  yearScroll: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  yearPill: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  yearPillActive: {
+    backgroundColor: "#5b5f97",
+    borderColor: "#5b5f97",
+  },
+  yearPillText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#6b7280",
+  },
+  yearPillTextActive: {
+    color: "#fff",
+  },
 });

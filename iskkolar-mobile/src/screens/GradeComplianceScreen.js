@@ -442,7 +442,7 @@ export default function GradeComplianceScreen({ navigation }) {
           }
 
           if (!windowStatus.canSubmit) {
-            const opensOnStr = windowStatus.windowOpensOn ? windowStatus.windowOpensOn.toLocaleDateString() : "";
+            const opensOnStr = windowStatus.windowOpensOn ? windowStatus.windowOpensOn.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : "";
             return (
               <View style={[styles.submitBtnAction, styles.disabledBtnAction]}>
                 <Ionicons name="calendar-outline" size={15} color="#8c95b7" style={{ marginRight: 6 }} />
@@ -465,6 +465,7 @@ export default function GradeComplianceScreen({ navigation }) {
             </TouchableOpacity>
           );
         })()}
+
       </View>
     );
   };
