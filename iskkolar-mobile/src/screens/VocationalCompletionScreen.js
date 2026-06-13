@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
-  
-  Alert, 
-  ActivityIndicator 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import SafeTextInput from "../components/SafeTextInput";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -95,7 +95,7 @@ export default function VocationalCompletionScreen({ navigation, route }) {
         console.warn('Failed to load completion date', err);
       }
     };
-    
+
     loadCompletionDate();
   }, [route.params?.completionDate]);
 
@@ -113,7 +113,7 @@ export default function VocationalCompletionScreen({ navigation, route }) {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const file = result.assets[0];
-        
+
         // Validate file size (10 MB limit matching web)
         const maxSize = 10 * 1024 * 1024;
         if (file.size && file.size > maxSize) {
@@ -126,7 +126,7 @@ export default function VocationalCompletionScreen({ navigation, route }) {
           name: file.name || file.uri.split('/').pop(),
           type: file.mimeType || file.type || 'application/pdf',
         };
-        
+
         setFiles(prev => ({ ...prev, [key]: formattedFile }));
         setError('');
       }
@@ -139,11 +139,11 @@ export default function VocationalCompletionScreen({ navigation, route }) {
   const handleSubmit = async () => {
     setError("");
     setFieldErrors({});
-    
+
     const errs = {};
     if (!form.completionDate) errs.completionDate = "Completion date is required.";
     if (!files.completion_certificate) errs.completion_certificate = "Please upload your completion certificate.";
-    
+
     if (Object.keys(errs).length) {
       setFieldErrors(errs);
       return;
@@ -181,23 +181,23 @@ export default function VocationalCompletionScreen({ navigation, route }) {
   const renderFilePicker = (key, label, isOptional = false, isHalfWidth = false) => {
     const hasFile = !!files[key];
     const hasError = !!fieldErrors[key];
-    
+
     return (
       <View style={isHalfWidth ? styles.uploadRowItemHalf : styles.uploadRowItemFull}>
         <Text style={styles.fieldLabel} numberOfLines={1} ellipsizeMode="tail">
           {label} {isOptional ? <Text style={styles.optionalText}>(Optional)</Text> : <Text style={styles.requiredAsterisk}>*</Text>}
         </Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
-            styles.unifiedUploadContainer, 
+            styles.unifiedUploadContainer,
             hasError && styles.errorInput
-          ]} 
+          ]}
           onPress={() => pickDocument(key)}
         >
-          <Ionicons 
-            name="share-outline" 
-            size={18} 
-            color={hasFile ? "#5b5f97" : "#848baf"} 
+          <Ionicons
+            name="share-outline"
+            size={18}
+            color={hasFile ? "#5b5f97" : "#848baf"}
             style={{ marginRight: 8 }}
           />
           <Text
@@ -240,7 +240,7 @@ export default function VocationalCompletionScreen({ navigation, route }) {
     const sub = existingSubmission;
     const status = sub.status?.toLowerCase() || 'pending';
     const badgeColors = STATUS_COLORS[status] || STATUS_COLORS.pending;
-    
+
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
@@ -258,7 +258,6 @@ export default function VocationalCompletionScreen({ navigation, route }) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.sectionHeaderTitle}>Certification of Completion</Text>
-              <Text style={styles.sectionHeaderSubtitle}>Your submission is under review</Text>
             </View>
           </View>
 
@@ -269,7 +268,7 @@ export default function VocationalCompletionScreen({ navigation, route }) {
                 <Text style={[styles.statusBadgeText, { color: badgeColors.text }]}>{status.toUpperCase()}</Text>
               </View>
             </View>
-            
+
             <View style={styles.reviewRow}>
               <Text style={styles.reviewLabel}>Completion Date</Text>
               <Text style={styles.reviewValue}>{formatDisplayDate(sub.completion_date)}</Text>
@@ -430,8 +429,8 @@ export default function VocationalCompletionScreen({ navigation, route }) {
             </View>
           )}
 
-          <TouchableOpacity 
-            style={[styles.submitBtn, (submitting || isBeforeEndDate) && styles.submitBtnDisabled]} 
+          <TouchableOpacity
+            style={[styles.submitBtn, (submitting || isBeforeEndDate) && styles.submitBtnDisabled]}
             onPress={handleSubmit}
             disabled={submitting || isBeforeEndDate}
           >
@@ -466,7 +465,7 @@ const styles = StyleSheet.create({
   backButton: { padding: 8 },
   headerTitle: { fontSize: 17, fontWeight: '800', color: '#1e293b' },
   scrollContent: { padding: 16, paddingBottom: 40 },
-  
+
   // Info Cards
   infoCard: {
     backgroundColor: '#fff', borderRadius: 16, padding: 16,
@@ -480,7 +479,7 @@ const styles = StyleSheet.create({
   },
   infoCardTitle: { fontSize: 16, fontWeight: '800', color: '#1e293b' },
   infoCardSub: { fontSize: 12, color: '#64748b', marginTop: 2, fontWeight: '500' },
-  
+
   infoCardSubmitted: {
     backgroundColor: '#fff', borderRadius: 16, padding: 16,
     flexDirection: 'row', alignItems: 'center', marginBottom: 20,
@@ -581,8 +580,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 12
   },
   reviewRow: {
-    flexDirection: 'row', justifyContent: 'space-between', 
-    alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, 
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9'
   },
   reviewLabel: { fontSize: 13, fontWeight: '600', color: '#64748b' },
@@ -607,7 +606,7 @@ const styles = StyleSheet.create({
   successIconOuter: { marginBottom: 24 },
   successTitle: { fontSize: 22, fontWeight: '800', color: '#16a34a', marginBottom: 8 },
   successSubtitle: { fontSize: 14, color: '#64748b', textAlign: 'center', lineHeight: 22, paddingHorizontal: 16 },
-  
+
   errorBox: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fef2f2',
     borderColor: '#fca5a5', borderWidth: 1, borderRadius: 10,
@@ -621,7 +620,7 @@ const styles = StyleSheet.create({
     padding: 12, marginTop: 16
   },
   tipBoxText: { color: '#5b5f97', fontSize: 12, lineHeight: 18, marginLeft: 8, flex: 1, fontWeight: '500' },
-  
+
   lockedBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',

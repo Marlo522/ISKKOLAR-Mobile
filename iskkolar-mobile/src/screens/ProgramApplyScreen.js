@@ -1332,6 +1332,42 @@ export default function ProgramApplyScreen({ navigation, route }) {
           )}
           {values.motherStatus !== "Deceased" && (
             <>
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "#f4f5fa",
+                  padding: 10,
+                  borderRadius: 8,
+                  marginBottom: 16,
+                  borderWidth: 1,
+                  borderColor: "#e1e5f2",
+                  alignSelf: "flex-start",
+                }}
+                onPress={() => {
+                  setValues((prev) => ({
+                    ...prev,
+                    motherStreet: prev.fatherStreet || "",
+                    motherProvince: prev.fatherProvince || "",
+                    motherCity: prev.fatherCity || "",
+                    motherBarangay: prev.fatherBarangay || "",
+                    motherCountry: prev.fatherCountry || "Philippines",
+                    motherZip: prev.fatherZip || "",
+                  }));
+                  setMotherCities(fatherCities);
+                  setMotherBarangays(fatherBarangays);
+                  clearFieldError("motherStreet");
+                  clearFieldError("motherProvince");
+                  clearFieldError("motherCity");
+                  clearFieldError("motherBarangay");
+                  clearFieldError("motherZip");
+                }}
+              >
+                <Ionicons name="copy-outline" size={16} color="#5b6095" style={{ marginRight: 8 }} />
+                <Text style={{ fontSize: 13, fontWeight: "600", color: "#5b6095" }}>
+                  {"Copy Father's Address"}
+                </Text>
+              </TouchableOpacity>
               {renderInput("Street/Unit", "motherStreet", "Enter Street/Unit")}
               {renderAddressSelect("Province", "mother", "Province")}
               {renderAddressSelect("City/Municipality", "mother", "City")}
@@ -1352,7 +1388,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
           <Text style={styles.sectionHeader}>| Supporting Documents</Text>
           <View style={{ backgroundColor: "#eaf2fe", padding: 13, borderRadius: 8, marginBottom: 18 }}>
             <Text style={{ color: "#305fce", fontSize: 13 }}>
-              Upload clear and readable files only. Accepted formats: PDF, PNG, JPEG. Max file size: 10MB each.
+              Upload clear and readable files only. Accepted formats: PDF, PNG, JPEG. Max file size: 5MB each.
             </Text>
           </View>
 
@@ -1541,6 +1577,42 @@ export default function ProgramApplyScreen({ navigation, route }) {
           )}
           {values.motherStatus !== "Deceased" && (
             <>
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "#f4f5fa",
+                  padding: 10,
+                  borderRadius: 8,
+                  marginBottom: 16,
+                  borderWidth: 1,
+                  borderColor: "#e1e5f2",
+                  alignSelf: "flex-start",
+                }}
+                onPress={() => {
+                  setValues((prev) => ({
+                    ...prev,
+                    motherStreet: prev.fatherStreet || "",
+                    motherProvince: prev.fatherProvince || "",
+                    motherCity: prev.fatherCity || "",
+                    motherBarangay: prev.fatherBarangay || "",
+                    motherCountry: prev.fatherCountry || "Philippines",
+                    motherZip: prev.fatherZip || "",
+                  }));
+                  setMotherCities(fatherCities);
+                  setMotherBarangays(fatherBarangays);
+                  clearFieldError("motherStreet");
+                  clearFieldError("motherProvince");
+                  clearFieldError("motherCity");
+                  clearFieldError("motherBarangay");
+                  clearFieldError("motherZip");
+                }}
+              >
+                <Ionicons name="copy-outline" size={16} color="#5b6095" style={{ marginRight: 8 }} />
+                <Text style={{ fontSize: 13, fontWeight: "600", color: "#5b6095" }}>
+                  {"Copy Father's Address"}
+                </Text>
+              </TouchableOpacity>
               {renderInput("Street/Unit", "motherStreet", "Enter Street/Unit")}
               {renderAddressSelect("Province", "mother", "Province")}
               {renderAddressSelect("City/Municipality", "mother", "City")}
@@ -2804,7 +2876,7 @@ const ExamplesModal = ({ visible, onClose }) => {
               <Text style={{ fontSize: 15, fontWeight: "800", color: "#4f5fc5", marginBottom: 10 }}>
                 {"1.0 - 5.00 Grading System"}
               </Text>
-              
+
               <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, padding: 10 }}>
                 {/* Table Header */}
                 <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1.5, borderBottomColor: "#cbd5e1", marginBottom: 4 }}>
@@ -2824,13 +2896,13 @@ const ExamplesModal = ({ visible, onClose }) => {
                   ["3.00", "75% - 77%", "Pass", "#64748b"],
                   ["5.00", "Below 75%", "Fail", "#dc2626"],
                 ].map(([grade, pct, desc, color], idx, arr) => (
-                  <View 
-                    key={grade} 
-                    style={{ 
-                      flexDirection: "row", 
-                      paddingVertical: 8, 
-                      borderBottomWidth: idx === arr.length - 1 ? 0 : 1, 
-                      borderBottomColor: "#f1f5f9" 
+                  <View
+                    key={grade}
+                    style={{
+                      flexDirection: "row",
+                      paddingVertical: 8,
+                      borderBottomWidth: idx === arr.length - 1 ? 0 : 1,
+                      borderBottomColor: "#f1f5f9"
                     }}
                   >
                     <Text style={{ flex: 1.2, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
@@ -2846,7 +2918,7 @@ const ExamplesModal = ({ visible, onClose }) => {
               <Text style={{ fontSize: 15, fontWeight: "800", color: "#4f5fc5", marginBottom: 10 }}>
                 {"4.00 GPA System"}
               </Text>
-              
+
               <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, padding: 10 }}>
                 {/* Table Header */}
                 <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1.5, borderBottomColor: "#cbd5e1", marginBottom: 4 }}>
@@ -2866,13 +2938,13 @@ const ExamplesModal = ({ visible, onClose }) => {
                   ["1.00", "75% - 77%", "Pass", "#64748b"],
                   ["0.50", "Below 75%", "Fail", "#dc2626"],
                 ].map(([grade, pct, desc, color], idx, arr) => (
-                  <View 
-                    key={grade} 
-                    style={{ 
-                      flexDirection: "row", 
-                      paddingVertical: 8, 
-                      borderBottomWidth: idx === arr.length - 1 ? 0 : 1, 
-                      borderBottomColor: "#f1f5f9" 
+                  <View
+                    key={grade}
+                    style={{
+                      flexDirection: "row",
+                      paddingVertical: 8,
+                      borderBottomWidth: idx === arr.length - 1 ? 0 : 1,
+                      borderBottomColor: "#f1f5f9"
                     }}
                   >
                     <Text style={{ flex: 1.2, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
