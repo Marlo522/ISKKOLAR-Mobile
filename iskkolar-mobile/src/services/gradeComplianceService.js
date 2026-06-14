@@ -1,4 +1,5 @@
 import api from './api';
+import { sanitizeFilename } from '../utils/fileSanitizer';
 
 export const getGradeComplianceTerms = async () => {
   try {
@@ -30,7 +31,7 @@ export const submitGradeCompliance = async ({ term, scholarshipName, remarks, ne
       data.append('gradeReport', {
         uri: files.gradeReport.uri,
         type: files.gradeReport.mimeType || files.gradeReport.type || 'application/pdf',
-        name: files.gradeReport.name || 'gradeReport.pdf',
+        name: sanitizeFilename(files.gradeReport.name || 'gradeReport.pdf'),
       });
     }
 
@@ -38,7 +39,7 @@ export const submitGradeCompliance = async ({ term, scholarshipName, remarks, ne
       data.append('cor', {
         uri: files.cor.uri,
         type: files.cor.mimeType || files.cor.type || 'application/pdf',
-        name: files.cor.name || 'cor.pdf',
+        name: sanitizeFilename(files.cor.name || 'cor.pdf'),
       });
     }
 

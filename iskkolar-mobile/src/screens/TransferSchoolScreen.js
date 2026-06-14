@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { programOptions, vocationalProgramOptions, heiSchoolNames } from "../utils/programConstants";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
+import { validateAndSanitizeFile } from "../utils/fileSanitizer";
 import { AuthContext } from "../context/AuthContext";
 import { useSchoolTransfer } from "../hooks/useSchoolTransfer";
 import { getMyApplications as getMyTertiaryApplications } from "../services/tertiaryAppService";
@@ -233,7 +234,9 @@ export default function TransferSchoolScreen({ navigation }) {
         if (!file.name) {
           file = { ...file, name: file.uri.split('/').pop(), type: file.mimeType || 'image/jpeg' };
         }
-        setCorFile(file);
+        const sanitized = validateAndSanitizeFile(file);
+        if (!sanitized) return;
+        setCorFile(sanitized);
         clearFieldError("corNewSchool");
       }
     };

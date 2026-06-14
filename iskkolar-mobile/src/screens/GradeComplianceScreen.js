@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
+import { validateAndSanitizeFile } from "../utils/fileSanitizer";
 import FormDatePicker from "../components/FormDatePicker";
 import GraduationCelebration from "../components/GraduationCelebration";
 import { getGradeComplianceTerms, submitGradeCompliance } from "../services/gradeComplianceService";
@@ -186,11 +187,13 @@ export default function GradeComplianceScreen({ navigation }) {
         if (!file.name) {
           file = { ...file, name: file.uri.split('/').pop(), type: file.mimeType || 'image/jpeg' };
         }
+        const sanitized = validateAndSanitizeFile(file);
+        if (!sanitized) return;
         if (type === "gradeReport") {
-          setGradeReportFile(file);
+          setGradeReportFile(sanitized);
           clearFieldError("gradeReport");
         } else if (type === "cor") {
-          setCorFile(file);
+          setCorFile(sanitized);
           clearFieldError("cor");
         }
       }

@@ -1,4 +1,5 @@
 import api from './api';
+import { sanitizeFilename } from '../utils/fileSanitizer';
 
 /**
  * Submits a school transfer request via multipart/form-data.
@@ -25,7 +26,7 @@ export const submitTransferRequest = async (payload, corFile) => {
     data.append('corNewSchool', {
       uri: corFile.uri,
       type: corFile.mimeType || corFile.type || 'application/pdf',
-      name: corFile.name || 'cor_new_school.pdf',
+      name: sanitizeFilename(corFile.name || 'cor_new_school.pdf'),
     });
   }
 

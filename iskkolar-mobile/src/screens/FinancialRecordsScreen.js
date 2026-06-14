@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
+import { validateAndSanitizeFile } from "../utils/fileSanitizer";
 import FormDatePicker from "../components/FormDatePicker";
 import { AuthContext } from "../context/AuthContext";
 import { useFinancialAssistance } from "../hooks/useFinancialAssistance";
@@ -272,7 +273,9 @@ export default function FinancialRecordsScreen({ navigation }) {
         if (!file.name) {
           file = { ...file, name: file.uri.split('/').pop(), type: file.mimeType || 'image/jpeg' };
         }
-        setSupportingDocument(file);
+        const sanitized = validateAndSanitizeFile(file);
+        if (!sanitized) return;
+        setSupportingDocument(sanitized);
       }
     };
 
@@ -305,7 +308,7 @@ export default function FinancialRecordsScreen({ navigation }) {
           onPress: async () => {
             try {
               const result = await DocumentPicker.getDocumentAsync({
-                type: "*/*",
+                type: ["application/pdf", "image/*"],
                 copyToCacheDirectory: true,
               });
               handleResult(result);
@@ -329,8 +332,10 @@ export default function FinancialRecordsScreen({ navigation }) {
         if (!file.name) {
           file = { ...file, name: file.uri.split('/').pop(), type: file.mimeType || 'image/jpeg' };
         }
+        const sanitized = validateAndSanitizeFile(file);
+        if (!sanitized) return;
         const newReceiptItems = [...receiptItems];
-        newReceiptItems[index].file = file;
+        newReceiptItems[index].file = sanitized;
         setReceiptItems(newReceiptItems);
         clearFieldError(`receipt_file_${index}`);
       }

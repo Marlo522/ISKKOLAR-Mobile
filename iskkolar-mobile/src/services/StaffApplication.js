@@ -1,4 +1,5 @@
 import api from "./api";
+import { sanitizeFilename } from "../utils/fileSanitizer";
 
 const appendPayload = (formData, payload) => {
 	if (!payload || typeof payload !== "object") return;
@@ -18,7 +19,7 @@ const appendFile = (formData, apiField, file) => {
 	formData.append(apiField, {
 		uri: file.uri,
 		type: file.mimeType || file.type || "application/pdf",
-		name: file.name || file.fileName || apiField + ".pdf",
+		name: sanitizeFilename(file.name || file.fileName || apiField + ".pdf"),
 	});
 };
 

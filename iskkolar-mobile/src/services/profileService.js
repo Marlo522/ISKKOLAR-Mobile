@@ -1,4 +1,5 @@
 import api from "./api";
+import { sanitizeFilename } from "../utils/fileSanitizer";
 
 const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
 const MOBILE_PATTERN = /^0\d{10}$/;
@@ -43,7 +44,7 @@ export const updateProfile = async (data) => {
     if (data.profilePhoto) {
       formData.append("profilePhoto", {
         uri: data.profilePhoto.uri,
-        name: data.profilePhoto.name || "profile.jpg",
+        name: sanitizeFilename(data.profilePhoto.name || "profile.jpg"),
         type: data.profilePhoto.type || "image/jpeg",
       });
     }

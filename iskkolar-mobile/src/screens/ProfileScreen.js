@@ -2,6 +2,7 @@ import React, { useState, useContext, useEffect, useRef } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Platform, Image, Switch, NativeModules, RefreshControl, Alert } from "react-native";
 import SafeTextInput from "../components/SafeTextInput";
 import * as ImagePicker from "expo-image-picker";
+import { validateAndSanitizeFile } from "../utils/fileSanitizer";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -287,16 +288,22 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleUploadProfilePhoto = async (asset) => {
+    const file = {
+      uri: asset.uri,
+      name: asset.fileName || `profile-photo-${Date.now()}.jpg`,
+      fileName: asset.fileName || `profile-photo-${Date.now()}.jpg`,
+      type: asset.mimeType || "image/jpeg",
+      mimeType: asset.mimeType || "image/jpeg",
+    };
+    const sanitized = validateAndSanitizeFile(file);
+    if (!sanitized) return;
+
     setLoading(true);
     try {
       const updated = await profileService.updateProfile({
         email: user?.email || form.email,
         mobileNumber: user?.mobileNumber || user?.mobile_number || form.mobileNumber,
-        profilePhoto: {
-          uri: asset.uri,
-          name: asset.fileName || `profile-photo-${Date.now()}.jpg`,
-          type: asset.mimeType || "image/jpeg",
-        },
+        profilePhoto: sanitized,
       });
       setSuccessConfig({
         visible: true,
