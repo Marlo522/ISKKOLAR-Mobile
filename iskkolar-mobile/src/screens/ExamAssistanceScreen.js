@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
+import { validateAndSanitizeFile } from "../utils/fileSanitizer";
 import FormDatePicker from "../components/FormDatePicker";
 import { useExamAssistance } from "../hooks/useExamAssistance";
 import ApplicationResultState from "../components/ApplicationResultState";
@@ -248,8 +249,10 @@ export default function ExamAssistanceScreen({ navigation }) {
         if (!selectedFile.name) {
           selectedFile = { ...selectedFile, name: selectedFile.uri.split('/').pop(), type: selectedFile.mimeType || 'image/jpeg' };
         }
-        setUploadText(prev => ({ ...prev, [key]: selectedFile.name }));
-        setUploadFiles((prev) => ({ ...prev, [key]: selectedFile }));
+        const sanitized = validateAndSanitizeFile(selectedFile);
+        if (!sanitized) return;
+        setUploadText(prev => ({ ...prev, [key]: sanitized.name }));
+        setUploadFiles((prev) => ({ ...prev, [key]: sanitized }));
         clearFieldError(key);
       }
     };

@@ -13,6 +13,7 @@ import SafeTextInput from "../components/SafeTextInput";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
+import { validateAndSanitizeFile } from '../utils/fileSanitizer';
 import { AuthContext } from '../context/AuthContext';
 import { submitVocationalCompletion, getMyVocationalCompletion } from '../services/vocationalDashboardService';
 import { getScholarDashboardSummary } from '../services/scholarDashboardService';
@@ -127,7 +128,10 @@ export default function VocationalCompletionScreen({ navigation, route }) {
           type: file.mimeType || file.type || 'application/pdf',
         };
 
-        setFiles(prev => ({ ...prev, [key]: formattedFile }));
+        const sanitized = validateAndSanitizeFile(formattedFile);
+        if (!sanitized) return;
+
+        setFiles(prev => ({ ...prev, [key]: sanitized }));
         setError('');
       }
     } catch (err) {

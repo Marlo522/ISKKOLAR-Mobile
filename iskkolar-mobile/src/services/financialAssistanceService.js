@@ -1,4 +1,5 @@
 import api from './api';
+import { sanitizeFilename } from '../utils/fileSanitizer';
 
 const appendFile = (data, key, file, defaultName, defaultType) => {
   if (!file) return;
@@ -12,7 +13,7 @@ const appendFile = (data, key, file, defaultName, defaultType) => {
     data.append(key, {
       uri: file.uri,
       type: file.type || file.mimeType || defaultType,
-      name: file.name || defaultName,
+      name: sanitizeFilename(file.name || defaultName),
     });
     return;
   }

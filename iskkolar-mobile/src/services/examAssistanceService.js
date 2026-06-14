@@ -1,4 +1,5 @@
 import api from './api';
+import { sanitizeFilename } from '../utils/fileSanitizer';
 
 const toReadableError = (error) => {
   const payload = error?.response?.data || error;
@@ -29,7 +30,7 @@ const appendFile = (formData, field, file) => {
   formData.append(field, {
     uri: file.uri,
     type: file.mimeType || file.type || 'application/octet-stream',
-    name: file.name || file.fileName || `${field}.dat`,
+    name: sanitizeFilename(file.name || file.fileName || `${field}.dat`),
   });
 };
 

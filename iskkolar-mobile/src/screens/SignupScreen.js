@@ -17,6 +17,7 @@ import {
 import SafeTextInput from "../components/SafeTextInput";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import { validateAndSanitizeFile } from "../utils/fileSanitizer";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSignup } from "../hooks/useSignup";
 
@@ -292,12 +293,18 @@ export default function SignupScreen({ navigation }) {
     const asset = result.assets?.[0];
     if (!asset?.uri) return;
 
-    updateField("profilePhoto", {
+    const file = {
       uri: asset.uri,
+      name: asset.fileName || `profile-photo-${Date.now()}.jpg`,
       fileName: asset.fileName || `profile-photo-${Date.now()}.jpg`,
+      type: asset.mimeType || "image/jpeg",
       mimeType: asset.mimeType || "image/jpeg",
-      fileSize: asset.fileSize,
-    });
+      size: asset.fileSize,
+    };
+    const sanitized = validateAndSanitizeFile(file);
+    if (!sanitized) return;
+
+    updateField("profilePhoto", sanitized);
   };
 
   const handleLaunchLibrary = async () => {
@@ -318,12 +325,18 @@ export default function SignupScreen({ navigation }) {
     const asset = result.assets?.[0];
     if (!asset?.uri) return;
 
-    updateField("profilePhoto", {
+    const file = {
       uri: asset.uri,
+      name: asset.fileName || `profile-photo-${Date.now()}.jpg`,
       fileName: asset.fileName || `profile-photo-${Date.now()}.jpg`,
+      type: asset.mimeType || "image/jpeg",
       mimeType: asset.mimeType || "image/jpeg",
-      fileSize: asset.fileSize,
-    });
+      size: asset.fileSize,
+    };
+    const sanitized = validateAndSanitizeFile(file);
+    if (!sanitized) return;
+
+    updateField("profilePhoto", sanitized);
   };
 
   // ─── STEP 0: Account Setup ───────────────────────────────

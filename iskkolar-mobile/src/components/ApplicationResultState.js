@@ -117,289 +117,284 @@ export default function ApplicationResultState({
     return (
       // Main report card
       <View style={styles.reportCard}>
-        {/* Card header */ }
-        < View style = { styles.reportCardHeader } >
+        {/* Card header */}
+        < View style={styles.reportCardHeader} >
           <View style={styles.reportCardTitleRow}>
             <View style={styles.reportCardIconWrap}>
               <Ionicons name="sparkles" size={16} color="#fff" />
             </View>
             <Text style={styles.reportCardTitle}>AI Qualification Report</Text>
           </View>
-    {
-      !!reportData?.summary && (
-        <Text style={styles.reportCardSub}>{reportData.summary}</Text>
-      )
-    }
-          </View >
+        </View >
 
-    {/* Card body */ }
-    < View style = { styles.reportCardBody } >
+        {/* Card body */}
+        < View style={styles.reportCardBody} >
 
-      {/* ── Smart Eval Section ── */ }
-  {
-    detailedAiSummary && (
-      <View style={styles.smartEvalContainer}>
-        <Text style={styles.smartEvalTitle}>🤖 AI Smart Evaluation</Text>
+          {/* ── Smart Eval Section ── */}
+          {
+            detailedAiSummary && (
+              <View style={styles.smartEvalContainer}>
+                <Text style={styles.smartEvalTitle}>🤖 AI Smart Evaluation</Text>
 
-        {/* Strengths */}
-        {(detailedAiSummary?.strengths || []).length > 0 && (
-          <View style={styles.evalSection}>
-            <View style={styles.evalSectionHeader}>
-              <Ionicons
-                name="checkmark-circle"
-                size={14}
-                color="#059669"
-              />
-              <Text style={styles.evalHeadingStrengths}>Strengths</Text>
-            </View>
-            {detailedAiSummary.strengths.map((item, index) => (
-              <View key={`s-${index}`} style={styles.evalBulletRow}>
-                <View
-                  style={[
-                    styles.evalBulletDot,
-                    { backgroundColor: "#059669" },
-                  ]}
-                />
-                <Text style={styles.bulletText}>{item}</Text>
+                {/* Strengths */}
+                {(detailedAiSummary?.strengths || []).length > 0 && (
+                  <View style={styles.evalSection}>
+                    <View style={styles.evalSectionHeader}>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={14}
+                        color="#059669"
+                      />
+                      <Text style={styles.evalHeadingStrengths}>Strengths</Text>
+                    </View>
+                    {detailedAiSummary.strengths.map((item, index) => (
+                      <View key={`s-${index}`} style={styles.evalBulletRow}>
+                        <View
+                          style={[
+                            styles.evalBulletDot,
+                            { backgroundColor: "#059669" },
+                          ]}
+                        />
+                        <Text style={styles.bulletText}>{item}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Red Flags */}
+                {(detailedAiSummary?.red_flags || []).length > 0 && (
+                  <View style={styles.evalSection}>
+                    <View style={styles.evalSectionHeader}>
+                      <Ionicons name="warning" size={14} color="#dc2626" />
+                      <Text style={styles.evalHeadingFlags}>Red Flags</Text>
+                    </View>
+                    {detailedAiSummary.red_flags.map((item, index) => (
+                      <View key={`f-${index}`} style={styles.evalBulletRow}>
+                        <View
+                          style={[
+                            styles.evalBulletDot,
+                            { backgroundColor: "#dc2626" },
+                          ]}
+                        />
+                        <Text style={styles.bulletText}>{item}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Summary + Recommendation – stacked vertically */}
+                {(detailedAiSummary?.summary ||
+                  detailedAiSummary?.recommendation) && (
+                    <View style={styles.evalInfoStack}>
+                      {detailedAiSummary?.summary ? (
+                        <View style={styles.evalInfoCard}>
+                          <Text style={styles.evalInfoLabel}>Summary</Text>
+                          <Text style={styles.evalInfoText}>
+                            {detailedAiSummary.summary}
+                          </Text>
+                        </View>
+                      ) : null}
+                      {detailedAiSummary?.recommendation ? (
+                        <View
+                          style={[styles.evalInfoCard, { borderColor: "#c7d2fe" }]}
+                        >
+                          <Text
+                            style={[styles.evalInfoLabel, { color: "#4338ca" }]}
+                          >
+                            Recommendation
+                          </Text>
+                          <Text style={styles.evalInfoText}>
+                            {detailedAiSummary.recommendation}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  )}
               </View>
-            ))}
-          </View>
-        )}
-
-        {/* Red Flags */}
-        {(detailedAiSummary?.red_flags || []).length > 0 && (
-          <View style={styles.evalSection}>
-            <View style={styles.evalSectionHeader}>
-              <Ionicons name="warning" size={14} color="#dc2626" />
-              <Text style={styles.evalHeadingFlags}>Red Flags</Text>
-            </View>
-            {detailedAiSummary.red_flags.map((item, index) => (
-              <View key={`f-${index}`} style={styles.evalBulletRow}>
-                <View
-                  style={[
-                    styles.evalBulletDot,
-                    { backgroundColor: "#dc2626" },
-                  ]}
-                />
-                <Text style={styles.bulletText}>{item}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Summary + Recommendation – stacked vertically */}
-        {(detailedAiSummary?.summary ||
-          detailedAiSummary?.recommendation) && (
-            <View style={styles.evalInfoStack}>
-              {detailedAiSummary?.summary ? (
-                <View style={styles.evalInfoCard}>
-                  <Text style={styles.evalInfoLabel}>Summary</Text>
-                  <Text style={styles.evalInfoText}>
-                    {detailedAiSummary.summary}
-                  </Text>
-                </View>
-              ) : null}
-              {detailedAiSummary?.recommendation ? (
-                <View
-                  style={[styles.evalInfoCard, { borderColor: "#c7d2fe" }]}
-                >
-                  <Text
-                    style={[styles.evalInfoLabel, { color: "#4338ca" }]}
-                  >
-                    Recommendation
-                  </Text>
-                  <Text style={styles.evalInfoText}>
-                    {detailedAiSummary.recommendation}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          )}
-      </View>
-    )
-  }
-
-  {/* ── Empty state ── */ }
-  {
-    qualificationRuleEntries.length === 0 && !detailedAiSummary && (
-      <View style={styles.emptyState}>
-        <Ionicons
-          name="document-text-outline"
-          size={48}
-          color="#e0e7f5"
-        />
-        <Text style={styles.emptyStateText}>
-          Application submitted successfully.
-        </Text>
-      </View>
-    )
-  }
-
-  {/* ── Rule Cards (vertical, mobile-safe) ── */ }
-  {
-    qualificationRuleEntries.length > 0 && (
-      <View>
-        <Text style={styles.sectionLabel}>QUALIFICATION RULES</Text>
-        {qualificationRuleEntries.map(([ruleCode, result], idx) => {
-          const passed = Boolean(result?.passed);
-          const state =
-            result?.status || (passed ? "passed" : "failed");
-
-          let pillBg, pillText, pillIcon, accentColor;
-          if (state === "for_review") {
-            pillBg = "#fffbeb";
-            pillText = "#b45309";
-            pillIcon = "time-outline";
-            accentColor = "#d97706";
-          } else if (passed) {
-            pillBg = "#ecfdf5";
-            pillText = "#059669";
-            pillIcon = "checkmark-circle";
-            accentColor = "#059669";
-          } else {
-            pillBg = "#fef2f2";
-            pillText = "#dc2626";
-            pillIcon = "close-circle";
-            accentColor = "#dc2626";
+            )
           }
 
-          const formattedCode = ruleCode
-            .split("_")
-            .map(
-              (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
-            )
-            .join(" ");
-
-          return (
-            <View
-              key={ruleCode}
-              style={[
-                styles.ruleCard,
-                { borderLeftColor: accentColor },
-              ]}
-            >
-              <View style={styles.ruleCardHeader}>
-                <Text style={styles.ruleCardName} numberOfLines={2}>
-                  {formattedCode}
+          {/* ── Empty state ── */}
+          {
+            qualificationRuleEntries.length === 0 && !detailedAiSummary && (
+              <View style={styles.emptyState}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={48}
+                  color="#e0e7f5"
+                />
+                <Text style={styles.emptyStateText}>
+                  Application submitted successfully.
                 </Text>
-                <View
-                  style={[
-                    styles.ruleStatusPill,
-                    { backgroundColor: pillBg },
-                  ]}
-                >
-                  <Ionicons
-                    name={pillIcon}
-                    size={12}
-                    color={pillText}
-                    style={{ marginRight: 4 }}
-                  />
-                  <Text
-                    style={[styles.ruleStatusText, { color: pillText }]}
-                  >
-                    {state === "for_review"
-                      ? "Review"
-                      : state.charAt(0).toUpperCase() + state.slice(1)}
-                  </Text>
-                </View>
               </View>
-              {!!result?.message && (
-                <Text style={styles.ruleCardFeedback}>
-                  {result.message}
-                </Text>
-              )}
-            </View>
-          );
-        })}
-      </View>
-    )
-  }
-          </View >
+            )
+          }
 
-    {/* Final Status Footer */ }
-    < View
-  style = {
-    [
-      styles.reportFooter,
-      { backgroundColor: statusBg, borderTopColor: statusBorder },
-            ]}
-    >
-            <View
-              style={[
-                styles.reportFooterIconWrap,
-                { backgroundColor: statusColor },
-              ]}
-            >
-              <Ionicons name={statusIcon} size={20} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.reportFooterLabel}>Final Status</Text>
-              <Text style={[styles.reportFooterValue, { color: statusColor }]}>
-                {finalStatusText}
-              </Text>
-            </View>
-          </View >
+          {/* ── Rule Cards (vertical, mobile-safe) ── */}
+          {
+            qualificationRuleEntries.length > 0 && (
+              <View>
+                <Text style={styles.sectionLabel}>QUALIFICATION RULES</Text>
+                {qualificationRuleEntries.map(([ruleCode, result], idx) => {
+                  const passed = Boolean(result?.passed);
+                  const state =
+                    result?.status || (passed ? "passed" : "failed");
+
+                  let pillBg, pillText, pillIcon, accentColor;
+                  if (state === "for_review") {
+                    pillBg = "#fffbeb";
+                    pillText = "#b45309";
+                    pillIcon = "time-outline";
+                    accentColor = "#d97706";
+                  } else if (passed) {
+                    pillBg = "#ecfdf5";
+                    pillText = "#059669";
+                    pillIcon = "checkmark-circle";
+                    accentColor = "#059669";
+                  } else {
+                    pillBg = "#fef2f2";
+                    pillText = "#dc2626";
+                    pillIcon = "close-circle";
+                    accentColor = "#dc2626";
+                  }
+
+                  const formattedCode = ruleCode
+                    .split("_")
+                    .map(
+                      (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+                    )
+                    .join(" ");
+
+                  return (
+                    <View
+                      key={ruleCode}
+                      style={[
+                        styles.ruleCard,
+                        { borderLeftColor: accentColor },
+                      ]}
+                    >
+                      <View style={styles.ruleCardHeader}>
+                        <Text style={styles.ruleCardName} numberOfLines={2}>
+                          {formattedCode}
+                        </Text>
+                        <View
+                          style={[
+                            styles.ruleStatusPill,
+                            { backgroundColor: pillBg },
+                          ]}
+                        >
+                          <Ionicons
+                            name={pillIcon}
+                            size={12}
+                            color={pillText}
+                            style={{ marginRight: 4 }}
+                          />
+                          <Text
+                            style={[styles.ruleStatusText, { color: pillText }]}
+                          >
+                            {state === "for_review"
+                              ? "Review"
+                              : state.charAt(0).toUpperCase() + state.slice(1)}
+                          </Text>
+                        </View>
+                      </View>
+                      {!!result?.message && (
+                        <Text style={styles.ruleCardFeedback}>
+                          {result.message}
+                        </Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            )
+          }
         </View >
+
+        {/* Final Status Footer */}
+        < View
+          style={
+            [
+              styles.reportFooter,
+              { backgroundColor: statusBg, borderTopColor: statusBorder },
+            ]}
+        >
+          <View
+            style={[
+              styles.reportFooterIconWrap,
+              { backgroundColor: statusColor },
+            ]}
+          >
+            <Ionicons name={statusIcon} size={20} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.reportFooterLabel}>Final Status</Text>
+            <Text style={[styles.reportFooterValue, { color: statusColor }]}>
+              {finalStatusText}
+            </Text>
+          </View>
+        </View >
+      </View >
     );
-};
+  };
 
-// ─── Simple AI Summary Card (renewals / grade compliance) ───────────────────
-const renderAiSummaryCard = () => (
-  <View style={styles.aiSummaryCard}>
-    <View style={styles.aiSummaryHeader}>
-      <View style={styles.aiSummaryIconWrap}>
-        <Ionicons name="sparkles" size={16} color="#fff" />
+  // ─── Simple AI Summary Card (renewals / grade compliance) ───────────────────
+  const renderAiSummaryCard = () => (
+    <View style={styles.aiSummaryCard}>
+      <View style={styles.aiSummaryHeader}>
+        <View style={styles.aiSummaryIconWrap}>
+          <Ionicons name="sparkles" size={16} color="#fff" />
+        </View>
+        <Text style={styles.aiSummaryTitle}>AI ANALYSIS &amp; ADVICE</Text>
       </View>
-      <Text style={styles.aiSummaryTitle}>AI ANALYSIS &amp; ADVICE</Text>
-    </View>
-    <Text style={styles.aiSummaryText}>{`"${aiSummary}"`}</Text>
-    <View style={styles.aiSummaryFooter}>
-      <Text style={styles.aiSummaryFooterLeft}>
-        Generated by Iskkolar AI Assistant
-      </Text>
-      <Text style={styles.aiSummaryFooterRight}>Verified Analysis</Text>
-    </View>
-  </View>
-);
-
-// ─── Root render ────────────────────────────────────────────────────────────
-return (
-  <ScrollView
-    style={styles.container}
-    contentContainerStyle={styles.contentContainer}
-    showsVerticalScrollIndicator={false}
-  >
-    {/* ── Success hero ── */}
-    <View style={styles.successCentered}>
-      <View style={styles.checkIconOuter}>
-        <Ionicons name="checkmark-circle" size={80} color="#16a34a" />
+      <Text style={styles.aiSummaryText}>{`"${aiSummary}"`}</Text>
+      <View style={styles.aiSummaryFooter}>
+        <Text style={styles.aiSummaryFooterLeft}>
+          Generated by Iskkolar AI Assistant
+        </Text>
+        <Text style={styles.aiSummaryFooterRight}>Verified Analysis</Text>
       </View>
-      <Text style={styles.successTitleText}>{successTitle}</Text>
-      <Text style={styles.successSubtitleText}>{successMessage}</Text>
     </View>
+  );
 
-    {/* ── Report content ── */}
-    {!aiCheckingEnabled ? (
-      renderManualReviewCard()
-    ) : (
-      <>
-        {qualificationReport && renderAiReport()}
-        {!qualificationReport && aiSummary && renderAiSummaryCard()}
-      </>
-    )}
+  // ─── Root render ────────────────────────────────────────────────────────────
+  return (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* ── Success hero ── */}
+      <View style={styles.successCentered}>
+        <View style={styles.checkIconOuter}>
+          <Ionicons name="checkmark-circle" size={80} color="#16a34a" />
+        </View>
+        <Text style={styles.successTitleText}>{successTitle}</Text>
+        <Text style={styles.successSubtitleText}>{successMessage}</Text>
+      </View>
 
-    {/* ── CTA button ── */}
-    <TouchableOpacity style={styles.actionBtn} onPress={onViewApplications}>
-      <Ionicons
-        name="grid-outline"
-        size={18}
-        color="#fff"
-        style={{ marginRight: 8 }}
-      />
-      <Text style={styles.actionBtnText}>{viewApplicationsText}</Text>
-    </TouchableOpacity>
-  </ScrollView>
-);
+      {/* ── Report content ── */}
+      {!aiCheckingEnabled ? (
+        renderManualReviewCard()
+      ) : (
+        <>
+          {qualificationReport && renderAiReport()}
+          {!qualificationReport && aiSummary && renderAiSummaryCard()}
+        </>
+      )}
+
+      {/* ── CTA button ── */}
+      <TouchableOpacity style={styles.actionBtn} onPress={onViewApplications}>
+        <Ionicons
+          name="grid-outline"
+          size={18}
+          color="#fff"
+          style={{ marginRight: 8 }}
+        />
+        <Text style={styles.actionBtnText}>{viewApplicationsText}</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────

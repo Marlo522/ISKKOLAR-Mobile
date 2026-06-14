@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
+import { validateAndSanitizeFile } from "../utils/fileSanitizer";
 import FormDatePicker from "../components/FormDatePicker";
 import useTertiaryApplication from "../hooks/useTertiaryApplication";
 import useStaffApplication from "../hooks/useStaffApplication";
@@ -419,7 +420,9 @@ export default function ProgramApplyScreen({ navigation, route }) {
                   type: asset.mimeType || 'image/jpeg',
                   size: asset.fileSize || 0
                 };
-                setUploadText((prev) => ({ ...prev, [key]: file }));
+                const sanitized = validateAndSanitizeFile(file);
+                if (!sanitized) return;
+                setUploadText((prev) => ({ ...prev, [key]: sanitized }));
                 clearFieldError(key);
                 clearFieldError("documents");
               }
@@ -435,15 +438,15 @@ export default function ProgramApplyScreen({ navigation, route }) {
               const result = await DocumentPicker.getDocumentAsync({
                 type: [
                   "application/pdf",
-                  "application/msword",
-                  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                   "image/*"
                 ],
                 copyToCacheDirectory: true,
               });
               if (!result.canceled && result.assets?.length > 0) {
                 const file = result.assets[0];
-                setUploadText((prev) => ({ ...prev, [key]: file }));
+                const sanitized = validateAndSanitizeFile(file);
+                if (!sanitized) return;
+                setUploadText((prev) => ({ ...prev, [key]: sanitized }));
                 clearFieldError(key);
                 clearFieldError("documents");
               }
