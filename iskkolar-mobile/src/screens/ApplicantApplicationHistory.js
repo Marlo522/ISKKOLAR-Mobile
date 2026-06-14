@@ -7,6 +7,13 @@ import { useIsFocused } from "@react-navigation/native";
 import { getApplicationSettings } from "../services/settingsService";
 import ApplicationsClosedGuard from "../components/ApplicationsClosedGuard";
 import { AuthContext } from "../context/AuthContext";
+import { getTertiaryApplicationById } from "../services/tertiaryAppService";
+import { getVocationalApplicationById } from "../services/vocationalAppService";
+import {
+  getChildDesignationApplicationById,
+  getStaffAdvancementApplicationById,
+} from "../services/StaffApplication";
+
 
 const APPLICATION_STEPS = [
   { key: "under_review", label: "Under Review" },
@@ -121,13 +128,41 @@ const normalizeApplicationStatus = (status) => {
   return STATUS_LABEL[status] || "submitted";
 };
 
+const getFamilyLabel = (role, field) => {
+  const cleanRole = String(role || "Family Member").toLowerCase().trim();
+  const roleLabel = cleanRole.charAt(0).toUpperCase() + cleanRole.slice(1);
+  if (field === "name") {
+    return ["father", "mother", "guardian"].includes(cleanRole) ? `${roleLabel}'s Name` : "Family Member Name";
+  }
+  if (field === "birthday") {
+    return ["father", "mother", "guardian"].includes(cleanRole) ? `${roleLabel}'s Birthday` : "Birthday";
+  }
+  return field;
+};
+
 const ApplicationCard = ({ application, onViewEvaluation, onViewSubmittedInfo }) => {
   const isRejected = application.rawStatus === "rejected";
   const isCancelled = application.rawStatus === "cancelled";
   const isApproved = application.rawStatus === "approved";
   
+  const hasInterviews = useMemo(() => {
+    return Array.isArray(application.interviews) && application.interviews.some((i) => i.status !== "cancelled");
+  }, [application.interviews]);
+
+  const showInterviewStep = !isRejected || hasInterviews;
+
+  const currentSteps = useMemo(() => {
+    if (showInterviewStep) {
+      return APPLICATION_STEPS;
+    }
+    return [
+      { key: "under_review", label: "Under Review" },
+      { key: "approved", label: "Approved" },
+    ];
+  }, [showInterviewStep]);
+
   const safeStepIndex = STATUS_TO_STEP_INDEX[application.rawStatus] ?? 0;
-  const progressPercent = isRejected ? 100 : ((safeStepIndex + 1) / APPLICATION_STEPS.length) * 100;
+  const progressPercent = isRejected ? 100 : ((safeStepIndex + 1) / currentSteps.length) * 100;
   
   const activeInterview = Array.isArray(application.interviews)
     ? application.interviews.find((i) => i.status === "scheduled" || i.status === "rescheduled")
@@ -221,7 +256,9 @@ const ApplicationCard = ({ application, onViewEvaluation, onViewSubmittedInfo })
 
         <Text style={styles.description}>
           {isRejected
-            ? "Your application was not successful after the interview. You may review your details and submit a new application if eligible."
+            ? hasInterviews
+              ? "Your application was not successful after the interview. You may review your details and submit a new application if eligible."
+              : "Your application was not successful. You may review your details and submit a new application in next Application Period."
             : isCancelled
             ? "Your application has been cancelled. Please contact the scholarship office for more information."
             : "Your scholarship application is currently in progress. Please wait for further updates."}
@@ -230,8 +267,8 @@ const ApplicationCard = ({ application, onViewEvaluation, onViewSubmittedInfo })
         {/* Status Tracker */}
         <View style={styles.trackerContainer}>
           <View style={styles.stepsRow}>
-            {APPLICATION_STEPS.map((step, i) => {
-              const isLastStep = i === APPLICATION_STEPS.length - 1;
+            {currentSteps.map((step, i) => {
+              const isLastStep = i === currentSteps.length - 1;
               const isRejectedStep = isRejected && isLastStep;
               const isCompleted = i <= safeStepIndex;
               const isCurrent = i === safeStepIndex;
@@ -509,10 +546,37 @@ const EvaluationModal = ({ visible, onClose, evaluation }) => {
   );
 };
 
-const SubmittedInfoModal = ({ visible, onClose, application }) => {
+const SubmittedInfoModal = ({ visible, onClose, application, loading }) => {
+  if (loading) {
+    return (
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={visible}
+        onRequestClose={onClose}
+      >
+        <View style={modalStyles.modalOverlay}>
+          <View style={modalStyles.modalContent}>
+            <View style={modalStyles.modalHeader}>
+              <Text style={modalStyles.modalHeaderTitle}>Submitted Information</Text>
+              <TouchableOpacity onPress={onClose} style={modalStyles.closeButton}>
+                <Ionicons name="close" size={24} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+            <View style={{ height: 250, justifyContent: 'center', alignItems: 'center' }}>
+              <ActivityIndicator size="large" color="#5b5f97" />
+              <Text style={{ marginTop: 12, color: '#6b7280', fontSize: 14, fontWeight: '500' }}>Loading details...</Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
   if (!application) return null;
   const raw = application.rawData;
   if (!raw) return null;
+
 
   // Extract variables
   const type = raw.application_type || raw.type || 'tertiary';
@@ -876,13 +940,11 @@ const SubmittedInfoModal = ({ visible, onClose, application }) => {
                 {familyMembers.map((member, idx) => (
                   <View key={idx} style={[styles.familyMemberBox, idx > 0 && styles.familyMemberDivider]}>
                     <View style={styles.reviewRow}>
-                      <Text style={styles.reviewLabel}>Relation / Name</Text>
-                      <Text style={styles.reviewValue}>
-                        {`${(member.role || 'Member').charAt(0).toUpperCase() + (member.role || 'Member').slice(1)} - ${formatValue(member.full_name)}`}
-                      </Text>
+                      <Text style={styles.reviewLabel}>{getFamilyLabel(member.role, "name")}</Text>
+                      <Text style={styles.reviewValue}>{formatValue(member.full_name)}</Text>
                     </View>
                     <View style={styles.reviewRow}>
-                      <Text style={styles.reviewLabel}>Birthday</Text>
+                      <Text style={styles.reviewLabel}>{getFamilyLabel(member.role, "birthday")}</Text>
                       <Text style={styles.reviewValue}>{formatDate(member.birthday)}</Text>
                     </View>
                     <View style={styles.reviewRow}>
@@ -957,6 +1019,7 @@ export default function ApplicantApplicationHistory({ navigation }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [infoModalVisible, setInfoModalVisible] = useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   // Application closed gating — mirrors web's Application tab gate
   const [settingsLoading, setSettingsLoading] = useState(true);
@@ -1115,48 +1178,7 @@ export default function ApplicantApplicationHistory({ navigation }) {
       };
     }
 
-    let fallbackParsed = null;
-    if (!parsed && (rawStatus === "under_review" || rawStatus === "pending" || rawStatus === "for_review" || rawStatus === "initial_passed" || rawStatus === "submitted")) {
-      fallbackParsed = {
-        recommended_action: "Manual Review",
-        summary: "The applicant demonstrates exceptional academic achievement with a computed GWA of 98.44%. The Certificate of Registration is valid and matches the expected school. However, a discrepancy exists between the applicant's name on the grade report and the name provided in the application, necessitating further review.",
-        highlights: [
-          "High academic performance with a computed GWA of 98.44%.",
-          "Valid Certificate of Registration (COR) with matching school name and applicant name.",
-          "Grade document is valid and has passed validation with a score of 90."
-        ],
-        warnings: [
-          "Applicant name on the grade report does not match the name entered in the application, requiring review."
-        ],
-        confidence_level: "HIGH"
-      };
-    } else if (!parsed && rawStatus === "approved") {
-      fallbackParsed = {
-        recommended_action: "Approve",
-        summary: "The applicant meets all baseline qualifications, including a strong GWA of 92.50% and valid academic documentation. The Certificate of Registration is verified successfully.",
-        highlights: [
-          "Academic requirements satisfied with a GWA of 92.50%.",
-          "All uploaded documents (COR, Birth Certificate) verified and valid."
-        ],
-        warnings: [],
-        confidence_level: "HIGH"
-      };
-    } else if (!parsed && rawStatus === "rejected") {
-      fallbackParsed = {
-        recommended_action: "Reject",
-        summary: "The applicant does not meet the minimum Grade Point Average (GWA) requirement. The uploaded report card indicates a GWA below the threshold.",
-        highlights: [
-          "Certificate of Registration (COR) matches application data."
-        ],
-        warnings: [
-          "GWA does not meet the scholarship baseline threshold.",
-          "Failed subject detected in the current term report."
-        ],
-        confidence_level: "HIGH"
-      };
-    }
-
-    return fallbackParsed || parsed;
+    return parsed;
   };
 
   const mappedApplications = useMemo(() => {
@@ -1254,9 +1276,33 @@ export default function ApplicantApplicationHistory({ navigation }) {
                 setSelectedEvaluation(evaluation);
                 setModalVisible(true);
               }}
-              onViewSubmittedInfo={(applicationData) => {
+              onViewSubmittedInfo={async (applicationData) => {
                 setSelectedApplication(applicationData);
                 setInfoModalVisible(true);
+                setLoadingDetails(true);
+                try {
+                  const type = applicationData.rawData?.application_type || applicationData.rawData?.type || 'tertiary';
+                  let details = null;
+                  if (type === 'tertiary') {
+                    details = await getTertiaryApplicationById(applicationData.id);
+                  } else if (type === 'vocational') {
+                    details = await getVocationalApplicationById(applicationData.id);
+                  } else if (type === 'child_designation' || type === 'child-designation' || type === 'childDesignation') {
+                    details = await getChildDesignationApplicationById(applicationData.id);
+                  } else if (type === 'staff_advancement' || type === 'staff-advancement' || type === 'staffAdvancement') {
+                    details = await getStaffAdvancementApplicationById(applicationData.id);
+                  }
+                  if (details) {
+                    setSelectedApplication({
+                      ...applicationData,
+                      rawData: details,
+                    });
+                  }
+                } catch (err) {
+                  console.error("Failed to load application details:", err);
+                } finally {
+                  setLoadingDetails(false);
+                }
               }}
             />
           ))
@@ -1273,6 +1319,7 @@ export default function ApplicantApplicationHistory({ navigation }) {
         visible={infoModalVisible}
         onClose={() => setInfoModalVisible(false)}
         application={selectedApplication}
+        loading={loadingDetails}
       />
     </View>
   );

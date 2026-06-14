@@ -792,7 +792,12 @@ export default function SignupScreen({ navigation }) {
         ])}
 
         <TouchableOpacity
-          style={styles.checkboxRow}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginTop: 12,
+            marginBottom: 8,
+          }}
           activeOpacity={0.8}
           onPress={() => setConfirmed(!confirmed)}
         >
@@ -801,7 +806,15 @@ export default function SignupScreen({ navigation }) {
             size={20}
             color={confirmed ? "#5b61aa" : "#848baf"}
           />
-          <Text style={styles.checkboxText}>
+          <Text style={{
+            marginLeft: 10,
+            fontSize: 13,
+            color: "#2d3a7c",
+            fontWeight: "700",
+            flex: 1,
+            lineHeight: 20,
+            flexWrap: "wrap",
+          }}>
             I confirm the details above are true and correct.
           </Text>
         </TouchableOpacity>
@@ -1166,8 +1179,20 @@ const modalStyles = StyleSheet.create({
   emptyState: { paddingVertical: 40, alignItems: "center" },
   emptyText: { color: "#9ca3af", fontSize: 15, fontWeight: "600" },
   sectionIconWrapper: { width: 32, height: 32, borderRadius: 10, backgroundColor: "rgba(91,95,151,0.1)", justifyContent: "center", alignItems: "center", marginRight: 10 },
-  checkboxRow: { flexDirection: "row", alignItems: "center", marginTop: 12, marginBottom: 8 },
-  checkboxText: { marginLeft: 10, fontSize: 13, color: "#2d3a7c", fontWeight: "700", flexShrink: 1 },
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  checkboxText: {
+    marginLeft: 10,
+    fontSize: 13,
+    color: "#2d3a7c",
+    fontWeight: "700",
+    flex: 1,
+    lineHeight: 20,
+  },
 });
 
 const strengthStyles = StyleSheet.create({

@@ -248,3 +248,9 @@ export const checkOngoingVocationalApplication = async () => {
   }
 };
 
+export const getVocationalApplicationById = async (id) => {
+  const response = await api.get(`/scholarships/vocational/${id}`);
+  return response.data?.data || response.data;
+};
+
+

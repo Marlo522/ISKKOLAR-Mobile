@@ -225,3 +225,9 @@ export const submitTertiaryApplication = async (values, uploads, dynamicFamilyMe
   return response.data;
 };
 
+export const getTertiaryApplicationById = async (id) => {
+  const response = await api.get(`/scholarships/tertiary/${id}`);
+  return response.data?.data || response.data;
+};
+
+
