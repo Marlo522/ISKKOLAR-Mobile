@@ -792,12 +792,7 @@ export default function SignupScreen({ navigation }) {
         ])}
 
         <TouchableOpacity
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            marginTop: 12,
-            marginBottom: 8,
-          }}
+          style={styles.checkboxRow}
           activeOpacity={0.8}
           onPress={() => setConfirmed(!confirmed)}
         >
@@ -806,15 +801,7 @@ export default function SignupScreen({ navigation }) {
             size={20}
             color={confirmed ? "#5b61aa" : "#848baf"}
           />
-          <Text style={{
-            marginLeft: 10,
-            fontSize: 13,
-            color: "#2d3a7c",
-            fontWeight: "700",
-            flex: 1,
-            lineHeight: 20,
-            flexWrap: "wrap",
-          }}>
+          <Text style={styles.checkboxText}>
             I confirm the details above are true and correct.
           </Text>
         </TouchableOpacity>
@@ -1110,6 +1097,9 @@ const styles = StyleSheet.create({
   reviewLabel: { fontSize: 12, fontWeight: "600", color: "#667084" },
   reviewValue: { fontSize: 14, fontWeight: "700", color: "#1c2131", marginTop: 1 },
   reviewDivider: { height: 1, backgroundColor: "#f1f3f9", marginLeft: 44 },
+  sectionIconWrapper: { width: 32, height: 32, borderRadius: 10, backgroundColor: "rgba(91,95,151,0.1)", justifyContent: "center", alignItems: "center", marginRight: 12 },
+  checkboxRow: { flexDirection: "row", alignItems: "center", marginTop: 12, marginBottom: 8 },
+  checkboxText: { marginLeft: 10, fontSize: 13, color: "#2d3a7c", fontWeight: "700", flexShrink: 1 },
 });
 
 const modalStyles = StyleSheet.create({
@@ -1178,21 +1168,6 @@ const modalStyles = StyleSheet.create({
   yearPickerOptionTextActive: { color: "#fff" },
   emptyState: { paddingVertical: 40, alignItems: "center" },
   emptyText: { color: "#9ca3af", fontSize: 15, fontWeight: "600" },
-  sectionIconWrapper: { width: 32, height: 32, borderRadius: 10, backgroundColor: "rgba(91,95,151,0.1)", justifyContent: "center", alignItems: "center", marginRight: 10 },
-  checkboxRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  checkboxText: {
-    marginLeft: 10,
-    fontSize: 13,
-    color: "#2d3a7c",
-    fontWeight: "700",
-    flex: 1,
-    lineHeight: 20,
-  },
 });
 
 const strengthStyles = StyleSheet.create({

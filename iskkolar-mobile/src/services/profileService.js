@@ -1,8 +1,8 @@
 import api from "./api";
 import { sanitizeFilename } from "../utils/fileSanitizer";
 
-const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
-const MOBILE_PATTERN = /^0\d{10}$/;
+const EMAIL_PATTERN = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.com$/;
+const MOBILE_PATTERN = /^09\d{9}$/;
 
 export const getProfile = async () => {
   try {
@@ -25,7 +25,7 @@ export const updateProfile = async (data) => {
   }
 
   if (!EMAIL_PATTERN.test(normalizedEmail)) {
-    throw new Error("Please enter a valid email address.");
+    throw new Error("Please enter a valid email address ending with .com.");
   }
 
   if (!normalizedMobile) {
@@ -33,7 +33,7 @@ export const updateProfile = async (data) => {
   }
 
   if (!MOBILE_PATTERN.test(normalizedMobile)) {
-    throw new Error("Mobile number must start with 0 and contain 11 digits.");
+    throw new Error("Mobile number must start with 09 and contain 11 digits.");
   }
 
   try {

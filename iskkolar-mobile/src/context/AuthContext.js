@@ -25,6 +25,7 @@ const normalizeUser = (value) => {
   const role = normalizeRole(rawRole);
   return {
     ...value,
+    id: value.id || value.userId || value.uid || value._id,
     role,
     userType: role,
     firstName: value.firstName || value.first_name || '',

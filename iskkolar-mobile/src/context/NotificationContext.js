@@ -37,8 +37,8 @@ export const NotificationProvider = ({ children }) => {
   // Load readIds and archivedIds from AsyncStorage
   const loadReadIds = useCallback(async () => {
     try {
-      if (user && (user.id || user.uid)) {
-        const userId = user.id || user.uid;
+      const userId = user?.id || user?.uid || user?.userId || user?.user_id;
+      if (user && userId) {
         
         // Load Read IDs
         const storedRead = await AsyncStorage.getItem(`read_announcements_${userId}`);
@@ -113,14 +113,11 @@ export const NotificationProvider = ({ children }) => {
       setError(null);
       const data = await getScholarAnnouncements();
       
-      // Filter strictly for announcements only (exclude updates/activities)
-      const announcementsOnly = (data || []).filter(
-        item => item.type === 'announcement'
-      );
+      const allAnnouncements = data || [];
 
       // Show banner for the latest unread announcement on initial startup load
       if (!hasShownInitialBannerRef.current) {
-        const unreadItems = announcementsOnly.filter(
+        const unreadItems = allAnnouncements.filter(
           item => !readIdsRef.current.includes(item.id) &&
                   !archivedIdsRef.current.includes(item.id)
         );
@@ -137,7 +134,7 @@ export const NotificationProvider = ({ children }) => {
         hasShownInitialBannerRef.current = true;
       } else {
         // Compare to detect new arrivals while app is active
-        const newItems = announcementsOnly.filter(
+        const newItems = allAnnouncements.filter(
           item => !loadedAnnouncementsRef.current.includes(item.id) &&
                   !readIdsRef.current.includes(item.id) &&
                   !archivedIdsRef.current.includes(item.id)
@@ -154,8 +151,8 @@ export const NotificationProvider = ({ children }) => {
       }
 
       // Sync refs and state
-      loadedAnnouncementsRef.current = announcementsOnly.map(a => a.id);
-      setAnnouncements(announcementsOnly);
+      loadedAnnouncementsRef.current = allAnnouncements.map(a => a.id);
+      setAnnouncements(allAnnouncements);
     } catch (err) {
       setError(typeof err === 'string' ? err : 'Failed to load announcements');
     } finally {
@@ -166,85 +163,82 @@ export const NotificationProvider = ({ children }) => {
   // Mark an announcement as read
   const markAsRead = useCallback(async (id) => {
     if (!user) return;
-    const userId = user.id || user.uid;
+    const userId = user.id || user.uid || user.userId || user.user_id;
     if (!userId) return;
 
     try {
-      setReadIds((prev) => {
-        if (prev.includes(id)) return prev;
-        const updated = [...prev, id];
-        AsyncStorage.setItem(`read_announcements_${userId}`, JSON.stringify(updated)).catch(e => {
-          console.warn("NotificationContext: Failed to save read IDs", e);
-        });
-        return updated;
-      });
+      if (readIds.includes(id)) return;
+      const updated = [...readIds, id];
+      setReadIds(updated);
+      await AsyncStorage.setItem(`read_announcements_${userId}`, JSON.stringify(updated));
     } catch (e) {
       console.warn("NotificationContext: Failed to mark announcement as read", e);
     }
-  }, [user]);
+  }, [user, readIds]);
 
   // Mark all current announcements as read
   const markAllAnnouncementsAsRead = useCallback(async () => {
     if (!user) return;
-    const userId = user.id || user.uid;
+    const userId = user.id || user.uid || user.userId || user.user_id;
     if (!userId) return;
 
     try {
-      setReadIds((prev) => {
-        const unreadIds = announcements
-          .filter((item) => !prev.includes(item.id) && !archivedIdsRef.current.includes(item.id))
-          .map((item) => item.id);
+      console.log("markAllAnnouncementsAsRead triggered for userId:", userId);
+      console.log("Context announcements in markAll:", announcements);
+      console.log("Current readIds:", readIds);
+      console.log("Current archivedIds:", archivedIds);
 
-        if (unreadIds.length === 0) return prev;
-        const updated = [...prev, ...unreadIds];
-        AsyncStorage.setItem(`read_announcements_${userId}`, JSON.stringify(updated)).catch(e => {
-          console.warn("NotificationContext: Failed to save read IDs", e);
-        });
-        return updated;
-      });
+      const unreadIds = announcements
+        .filter((item) => !readIds.includes(item.id) && !archivedIds.includes(item.id))
+        .map((item) => item.id);
+
+      console.log("Computed unread IDs to mark:", unreadIds);
+
+      if (unreadIds.length === 0) {
+        console.log("No unread IDs found, returning early.");
+        return;
+      }
+
+      const updated = [...readIds, ...unreadIds];
+      setReadIds(updated);
+      await AsyncStorage.setItem(`read_announcements_${userId}`, JSON.stringify(updated));
+      console.log("Successfully updated read IDs locally:", updated);
     } catch (e) {
       console.warn("NotificationContext: Failed to mark all announcements as read", e);
     }
-  }, [user, announcements]);
+  }, [user, announcements, readIds, archivedIds]);
 
   // Archive an announcement
   const archiveAnnouncement = useCallback(async (id) => {
     if (!user) return;
-    const userId = user.id || user.uid;
+    const userId = user.id || user.uid || user.userId || user.user_id;
     if (!userId) return;
 
     try {
-      setArchivedIds((prev) => {
-        if (prev.includes(id)) return prev;
-        const updated = [...prev, id];
-        AsyncStorage.setItem(`archived_announcements_${userId}`, JSON.stringify(updated)).catch(e => {
-          console.warn("NotificationContext: Failed to save archived IDs", e);
-        });
-        return updated;
-      });
+      if (archivedIds.includes(id)) return;
+      const updated = [...archivedIds, id];
+      setArchivedIds(updated);
+      await AsyncStorage.setItem(`archived_announcements_${userId}`, JSON.stringify(updated));
     } catch (e) {
       console.warn("NotificationContext: Failed to archive announcement", e);
     }
-  }, [user]);
+  }, [user, archivedIds]);
 
   // Unarchive an announcement
   const unarchiveAnnouncement = useCallback(async (id) => {
     if (!user) return;
-    const userId = user.id || user.uid;
+    const userId = user.id || user.uid || user.userId || user.user_id;
     if (!userId) return;
 
     try {
-      setArchivedIds((prev) => {
-        const updated = prev.filter(x => x !== id);
-        AsyncStorage.setItem(`archived_announcements_${userId}`, JSON.stringify(updated)).catch(e => {
-          console.warn("NotificationContext: Failed to save archived IDs", e);
-        });
-        return updated;
-      });
+      if (!archivedIds.includes(id)) return;
+      const updated = archivedIds.filter(x => x !== id);
+      setArchivedIds(updated);
+      await AsyncStorage.setItem(`archived_announcements_${userId}`, JSON.stringify(updated));
     } catch (e) {
       console.warn("NotificationContext: Failed to unarchive announcement", e);
     }
-  }, [user]);
+  }, [user, archivedIds]);
 
   // Load read IDs and fetch announcements when user changes
   useEffect(() => {

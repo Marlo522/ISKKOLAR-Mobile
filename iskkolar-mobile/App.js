@@ -1,5 +1,6 @@
 import React from "react";
 import { NativeModules } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import AppNavigator from "./src/navigation/AppNavigator";
 
 // Register background/killed state notification handler only if Firebase native module is linked
@@ -16,5 +17,9 @@ if (NativeModules.RNFBAppModule) {
 }
 
 export default function App() {
-  return <AppNavigator />;
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AppNavigator />
+    </GestureHandlerRootView>
+  );
 }

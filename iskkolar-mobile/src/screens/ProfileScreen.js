@@ -10,7 +10,46 @@ import { useIsFocused } from "@react-navigation/native";
 import { AuthContext } from "../context/AuthContext";
 import * as profileService from "../services/profileService";
 import { registerPushToken, deletePushToken } from "../services/pushNotificationService";
+import { resendVerificationEmail } from "../services/authService";
 import SuccessModal from "../components/SuccessModal";
+
+// ─── PASSWORD STRENGTH METER ─────────────────────────────────
+function PasswordStrengthMeter({ password }) {
+  const getStrength = () => {
+    if (!password) return { level: 0, label: "", color: "#ccc" };
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (/[a-z]/i.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^a-z0-9]/i.test(password)) score++;
+    if (score === 0) return { level: 0, label: "", color: "#ccc" };
+    if (score === 1) return { level: 1, label: "Weak", color: "#dc2626" };
+    if (score === 2) return { level: 2, label: "Fair", color: "#f59e0b" };
+    if (score === 3) return { level: 3, label: "Good", color: "#3b82f6" };
+    return { level: 4, label: "Strong", color: "#10b981" };
+  };
+  const strength = getStrength();
+  return (
+    <View style={strengthStyles.container}>
+      <View style={strengthStyles.barContainer}>
+        {[1, 2, 3, 4].map((n) => (
+          <View
+            key={n}
+            style={[
+              strengthStyles.bar,
+              strength.level >= n ? { backgroundColor: strength.color } : {},
+            ]}
+          />
+        ))}
+      </View>
+      {strength.label ? (
+        <Text style={[strengthStyles.label, { color: strength.color }]}>
+          {strength.label}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
 
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -166,9 +205,9 @@ export default function ProfileScreen({ navigation }) {
       alert("Mobile number is required.");
       return;
     }
-    const MOBILE_PATTERN = /^0\d{10}$/;
+    const MOBILE_PATTERN = /^09\d{9}$/;
     if (!MOBILE_PATTERN.test(mobileValue)) {
-      alert("Mobile number must start with 0 and contain 11 digits.");
+      alert("Mobile number must start with 09 and contain 11 digits.");
       return;
     }
 
@@ -198,24 +237,34 @@ export default function ProfileScreen({ navigation }) {
       alert("Email is required.");
       return;
     }
-    const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
+    const EMAIL_PATTERN = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.com$/;
     if (!EMAIL_PATTERN.test(emailValue)) {
-      alert("Please enter a valid email address.");
+      alert("Please enter a valid email address ending with .com.");
       return;
     }
 
     setLoading(true);
     try {
+      // 1. Update the email profile via PATCH /auth/me
       const updated = await profileService.updateProfile({
         email: emailValue,
         mobileNumber: user?.mobileNumber || form.mobileNumber,
       });
+
+      // 2. Request a verification/authentication email for the new email address
+      await resendVerificationEmail(emailValue);
+
+      // 3. Configure success modal with a logout callback on close
       setSuccessConfig({
         visible: true,
-        title: "Changes Saved!",
-        message: updated._message || "Email updated successfully!",
+        title: "Verification Email Sent",
+        message: "We sent a verification link to your new email address. Please verify it before logging in again.",
+        onClose: async () => {
+          setSuccessConfig(prev => ({ ...prev, visible: false }));
+          await logoutUser();
+          navigation.replace("Login");
+        }
       });
-      loginUser({ ...user, ...updated });
       setEditingEmail(false);
     } catch (err) {
       alert(err.message || "Failed to update email.");
@@ -478,14 +527,28 @@ export default function ProfileScreen({ navigation }) {
                 <View style={styles.labelRow}>
                   <Text style={[styles.formLabel, { marginBottom: 0 }]}>Mobile Number</Text>
                   {!editingMobile && (
-                    <TouchableOpacity onPress={() => { setEditingMobile(true); setEditingEmail(false); }} style={styles.editBtnWrap}>
+                    <TouchableOpacity onPress={() => {
+                      setEditingMobile(true);
+                      setEditingEmail(false);
+                      if (!form.mobileNumber.startsWith("09")) {
+                        setForm({ ...form, mobileNumber: "09" });
+                      }
+                    }} style={styles.editBtnWrap}>
                       <Text style={styles.editBtnText}>Edit</Text>
                     </TouchableOpacity>
                   )}
                 </View>
                 <SafeTextInput placeholderTextColor="#888"
                   value={form.mobileNumber}
-                  onChangeText={(val) => setForm({ ...form, mobileNumber: val.replace(/[^0-9]/g, "").slice(0, 11) })}
+                  onChangeText={(val) => {
+                    let clean = val.replace(/[^0-9]/g, "");
+                    if (clean.length < 2) {
+                      clean = "09";
+                    } else if (!clean.startsWith("09")) {
+                      clean = "09" + clean.replace(/^0+/, "");
+                    }
+                    setForm({ ...form, mobileNumber: clean.slice(0, 11) });
+                  }}
                   editable={editingMobile}
                   keyboardType="number-pad"
                   style={[styles.formInput, !editingMobile && { backgroundColor: '#f5f7fc', color: '#888' }]}
@@ -593,6 +656,8 @@ export default function ProfileScreen({ navigation }) {
                     <Ionicons name={showNewPw ? "eye-outline" : "eye-off-outline"} size={20} color="#7f88a3" />
                   </TouchableOpacity>
                 </View>
+                <Text style={styles.hintText}>Use 8+ characters with letters, numbers & symbols</Text>
+                <PasswordStrengthMeter password={passwords.newPassword} />
               </View>
 
               <View style={styles.formRow}>
@@ -625,7 +690,13 @@ export default function ProfileScreen({ navigation }) {
         visible={successConfig.visible}
         title={successConfig.title}
         message={successConfig.message}
-        onClose={() => setSuccessConfig(prev => ({ ...prev, visible: false }))}
+        onClose={() => {
+          if (successConfig.onClose) {
+            successConfig.onClose();
+          } else {
+            setSuccessConfig(prev => ({ ...prev, visible: false }));
+          }
+        }}
       />
     </View>
   );
@@ -675,4 +746,12 @@ const styles = StyleSheet.create({
   preferenceTextCol: { flex: 1, paddingRight: 16 },
   preferenceLabel: { fontSize: 15, fontWeight: "700", color: "#1c2131", marginBottom: 4 },
   preferenceSublabel: { fontSize: 12, color: "#7f88a3", lineHeight: 16 },
+  hintText: { fontSize: 12, color: "#666", marginTop: 6 },
+});
+
+const strengthStyles = StyleSheet.create({
+  container: { marginTop: 8, alignItems: "flex-start" },
+  barContainer: { flexDirection: "row", gap: 4 },
+  bar: { height: 4, width: "23%", borderRadius: 2, backgroundColor: "#e0e0e0" },
+  label: { fontSize: 12, fontWeight: "600", marginTop: 6 },
 });

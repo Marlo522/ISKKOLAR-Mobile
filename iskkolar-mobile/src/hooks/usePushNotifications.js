@@ -6,7 +6,7 @@ import { AuthContext } from '../context/AuthContext';
 import { registerPushToken } from '../services/pushNotificationService';
 import { NotificationContext } from '../context/NotificationContext';
 import { registerForPushNotificationsAsync, showNativeNotification } from '../services/nativeNotificationService';
-import { navigationRef } from '../navigation/AppNavigator';
+import { navigationRef } from '../navigation/navigationRef';
 
 const isFirebaseAvailable = !!NativeModules.RNFBAppModule;
 
