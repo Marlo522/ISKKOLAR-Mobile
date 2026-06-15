@@ -356,6 +356,31 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
   const maxStep = 3;
   const requiresIncomeProof = (status) => ["Employed", "Self-Employed"].includes(status);
+  const isDeceased = (status) => status === "Deceased";
+
+  const clearFieldErrors = (...keys) => {
+    keys.forEach((key) => clearFieldError(key));
+  };
+
+  const getFamilyAddressReset = (prefix) => ({
+    [prefix + "Street"]: "",
+    [prefix + "Province"]: "",
+    [prefix + "City"]: "",
+    [prefix + "Barangay"]: "",
+    [prefix + "Country"]: "Philippines",
+    [prefix + "Zip"]: "",
+  });
+
+  const clearFamilyAddressErrors = (prefix) => {
+    clearFieldErrors(
+      prefix + "Street",
+      prefix + "Province",
+      prefix + "City",
+      prefix + "Barangay",
+      prefix + "Country",
+      prefix + "Zip"
+    );
+  };
 
   const parseStringToDate = (str) => {
     if (!str) return null;
@@ -478,6 +503,38 @@ export default function ProgramApplyScreen({ navigation, route }) {
           position: "",
         };
       }
+      if (key === "fatherStatus") {
+        if (isDeceased(value)) {
+          next = {
+            ...next,
+            fatherContact: "",
+            fatherOccupation: "",
+            fatherIncome: "",
+            ...getFamilyAddressReset("father"),
+          };
+        } else if (!requiresIncomeProof(value)) {
+          next.fatherOccupation = "";
+          next.fatherIncome = "";
+        }
+      }
+      if (key === "motherStatus") {
+        if (isDeceased(value)) {
+          next = {
+            ...next,
+            motherContact: "",
+            motherOccupation: "",
+            motherIncome: "",
+            ...getFamilyAddressReset("mother"),
+          };
+        } else if (!requiresIncomeProof(value)) {
+          next.motherOccupation = "";
+          next.motherIncome = "";
+        }
+      }
+      if (key === "guardianStatus" && !requiresIncomeProof(value)) {
+        next.guardianOccupation = "";
+        next.guardianIncome = "";
+      }
       return next;
     });
 
@@ -486,6 +543,30 @@ export default function ProgramApplyScreen({ navigation, route }) {
     }
 
     clearFieldError(key);
+    if (key === "fatherStatus") {
+      clearFieldErrors("fatherContact", "fatherOccupation", "fatherIncome");
+      if (isDeceased(value)) {
+        clearFamilyAddressErrors("father");
+        setFatherCities([]);
+        setFatherBarangays([]);
+      }
+      clearFieldError("hasGuardian");
+    }
+    if (key === "motherStatus") {
+      clearFieldErrors("motherContact", "motherOccupation", "motherIncome");
+      if (isDeceased(value)) {
+        clearFamilyAddressErrors("mother");
+        setMotherCities([]);
+        setMotherBarangays([]);
+      }
+      clearFieldError("hasGuardian");
+    }
+    if (key === "guardianStatus" && !requiresIncomeProof(value)) {
+      clearFieldErrors("guardianOccupation", "guardianIncome");
+    }
+    if (key === "hasGuardian") {
+      clearFieldError("hasGuardian");
+    }
   };
 
   const handleProvinceSelect = async (role, provinceName) => {
@@ -1304,14 +1385,14 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderInput("Father's Name", "fatherName", "Enter Father's Name")}
           {renderDatePicker("Birthday", "fatherBirthday")}
           {renderSelect("Employment Status", "fatherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
-          {values.fatherStatus !== "Deceased" && renderContactInput("Contact Number", "fatherContact")}
+          {!isDeceased(values.fatherStatus) && renderContactInput("Contact Number", "fatherContact")}
           {requiresIncomeProof(values.fatherStatus) && (
             <>
               {renderInput("Occupation", "fatherOccupation", "Enter Occupation")}
               {renderNumericInput("Monthly Income", "fatherIncome", "Enter Monthly Income")}
             </>
           )}
-          {values.fatherStatus !== "Deceased" && (
+          {!isDeceased(values.fatherStatus) && (
             <>
               {renderInput("Street/Unit", "fatherStreet", "Enter Street/Unit")}
               {renderAddressSelect("Province", "father", "Province")}
@@ -1326,51 +1407,53 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderInput("Mother's Name", "motherName", "Enter Mother's Name")}
           {renderDatePicker("Birthday", "motherBirthday")}
           {renderSelect("Employment Status", "motherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
-          {values.motherStatus !== "Deceased" && renderContactInput("Contact Number", "motherContact")}
+          {!isDeceased(values.motherStatus) && renderContactInput("Contact Number", "motherContact")}
           {requiresIncomeProof(values.motherStatus) && (
             <>
               {renderInput("Occupation", "motherOccupation", "Enter Occupation")}
               {renderNumericInput("Monthly Income", "motherIncome", "Enter Monthly Income")}
             </>
           )}
-          {values.motherStatus !== "Deceased" && (
+          {!isDeceased(values.motherStatus) && (
             <>
-              <TouchableOpacity
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  backgroundColor: "#f4f5fa",
-                  padding: 10,
-                  borderRadius: 8,
-                  marginBottom: 16,
-                  borderWidth: 1,
-                  borderColor: "#e1e5f2",
-                  alignSelf: "flex-start",
-                }}
-                onPress={() => {
-                  setValues((prev) => ({
-                    ...prev,
-                    motherStreet: prev.fatherStreet || "",
-                    motherProvince: prev.fatherProvince || "",
-                    motherCity: prev.fatherCity || "",
-                    motherBarangay: prev.fatherBarangay || "",
-                    motherCountry: prev.fatherCountry || "Philippines",
-                    motherZip: prev.fatherZip || "",
-                  }));
-                  setMotherCities(fatherCities);
-                  setMotherBarangays(fatherBarangays);
-                  clearFieldError("motherStreet");
-                  clearFieldError("motherProvince");
-                  clearFieldError("motherCity");
-                  clearFieldError("motherBarangay");
-                  clearFieldError("motherZip");
-                }}
-              >
-                <Ionicons name="copy-outline" size={16} color="#5b6095" style={{ marginRight: 8 }} />
-                <Text style={{ fontSize: 13, fontWeight: "600", color: "#5b6095" }}>
-                  {"Copy Father's Address"}
-                </Text>
-              </TouchableOpacity>
+              {!isDeceased(values.fatherStatus) && (
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: "#f4f5fa",
+                    padding: 10,
+                    borderRadius: 8,
+                    marginBottom: 16,
+                    borderWidth: 1,
+                    borderColor: "#e1e5f2",
+                    alignSelf: "flex-start",
+                  }}
+                  onPress={() => {
+                    setValues((prev) => ({
+                      ...prev,
+                      motherStreet: prev.fatherStreet || "",
+                      motherProvince: prev.fatherProvince || "",
+                      motherCity: prev.fatherCity || "",
+                      motherBarangay: prev.fatherBarangay || "",
+                      motherCountry: prev.fatherCountry || "Philippines",
+                      motherZip: prev.fatherZip || "",
+                    }));
+                    setMotherCities(fatherCities);
+                    setMotherBarangays(fatherBarangays);
+                    clearFieldError("motherStreet");
+                    clearFieldError("motherProvince");
+                    clearFieldError("motherCity");
+                    clearFieldError("motherBarangay");
+                    clearFieldError("motherZip");
+                  }}
+                >
+                  <Ionicons name="copy-outline" size={16} color="#5b6095" style={{ marginRight: 8 }} />
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#5b6095" }}>
+                    {"Copy Father's Address"}
+                  </Text>
+                </TouchableOpacity>
+              )}
               {renderInput("Street/Unit", "motherStreet", "Enter Street/Unit")}
               {renderAddressSelect("Province", "mother", "Province")}
               {renderAddressSelect("City/Municipality", "mother", "City")}
@@ -1549,14 +1632,14 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderInput("Father's Name", "fatherName", "Enter Father's Name")}
           {renderDatePicker("Birthday", "fatherBirthday")}
           {renderSelect("Employment Status", "fatherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
-          {values.fatherStatus !== "Deceased" && renderContactInput("Contact Number", "fatherContact")}
+          {!isDeceased(values.fatherStatus) && renderContactInput("Contact Number", "fatherContact")}
           {requiresIncomeProof(values.fatherStatus) && (
             <>
               {renderInput("Occupation", "fatherOccupation", "Enter Occupation")}
               {renderNumericInput("Monthly Income", "fatherIncome", "Enter Monthly Income")}
             </>
           )}
-          {values.fatherStatus !== "Deceased" && (
+          {!isDeceased(values.fatherStatus) && (
             <>
               {renderInput("Street/Unit", "fatherStreet", "Enter Street/Unit")}
               {renderAddressSelect("Province", "father", "Province")}
@@ -1571,51 +1654,53 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderInput("Mother's Name", "motherName", "Enter Mother's Name")}
           {renderDatePicker("Birthday", "motherBirthday")}
           {renderSelect("Employment Status", "motherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
-          {values.motherStatus !== "Deceased" && renderContactInput("Contact Number", "motherContact")}
+          {!isDeceased(values.motherStatus) && renderContactInput("Contact Number", "motherContact")}
           {requiresIncomeProof(values.motherStatus) && (
             <>
               {renderInput("Occupation", "motherOccupation", "Enter Occupation")}
               {renderNumericInput("Monthly Income", "motherIncome", "Enter Monthly Income")}
             </>
           )}
-          {values.motherStatus !== "Deceased" && (
+          {!isDeceased(values.motherStatus) && (
             <>
-              <TouchableOpacity
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  backgroundColor: "#f4f5fa",
-                  padding: 10,
-                  borderRadius: 8,
-                  marginBottom: 16,
-                  borderWidth: 1,
-                  borderColor: "#e1e5f2",
-                  alignSelf: "flex-start",
-                }}
-                onPress={() => {
-                  setValues((prev) => ({
-                    ...prev,
-                    motherStreet: prev.fatherStreet || "",
-                    motherProvince: prev.fatherProvince || "",
-                    motherCity: prev.fatherCity || "",
-                    motherBarangay: prev.fatherBarangay || "",
-                    motherCountry: prev.fatherCountry || "Philippines",
-                    motherZip: prev.fatherZip || "",
-                  }));
-                  setMotherCities(fatherCities);
-                  setMotherBarangays(fatherBarangays);
-                  clearFieldError("motherStreet");
-                  clearFieldError("motherProvince");
-                  clearFieldError("motherCity");
-                  clearFieldError("motherBarangay");
-                  clearFieldError("motherZip");
-                }}
-              >
-                <Ionicons name="copy-outline" size={16} color="#5b6095" style={{ marginRight: 8 }} />
-                <Text style={{ fontSize: 13, fontWeight: "600", color: "#5b6095" }}>
-                  {"Copy Father's Address"}
-                </Text>
-              </TouchableOpacity>
+              {!isDeceased(values.fatherStatus) && (
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: "#f4f5fa",
+                    padding: 10,
+                    borderRadius: 8,
+                    marginBottom: 16,
+                    borderWidth: 1,
+                    borderColor: "#e1e5f2",
+                    alignSelf: "flex-start",
+                  }}
+                  onPress={() => {
+                    setValues((prev) => ({
+                      ...prev,
+                      motherStreet: prev.fatherStreet || "",
+                      motherProvince: prev.fatherProvince || "",
+                      motherCity: prev.fatherCity || "",
+                      motherBarangay: prev.fatherBarangay || "",
+                      motherCountry: prev.fatherCountry || "Philippines",
+                      motherZip: prev.fatherZip || "",
+                    }));
+                    setMotherCities(fatherCities);
+                    setMotherBarangays(fatherBarangays);
+                    clearFieldError("motherStreet");
+                    clearFieldError("motherProvince");
+                    clearFieldError("motherCity");
+                    clearFieldError("motherBarangay");
+                    clearFieldError("motherZip");
+                  }}
+                >
+                  <Ionicons name="copy-outline" size={16} color="#5b6095" style={{ marginRight: 8 }} />
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#5b6095" }}>
+                    {"Copy Father's Address"}
+                  </Text>
+                </TouchableOpacity>
+              )}
               {renderInput("Street/Unit", "motherStreet", "Enter Street/Unit")}
               {renderAddressSelect("Province", "mother", "Province")}
               {renderAddressSelect("City/Municipality", "mother", "City")}
@@ -1917,10 +2002,10 @@ export default function ProgramApplyScreen({ navigation, route }) {
       familyItems.push(
         { label: "Father's Name", value: values.fatherName, icon: "man-outline" },
         { label: "Father Status", value: values.fatherStatus, icon: "information-circle-outline" },
-        ...(values.fatherStatus !== "Deceased" ? [
+        ...(!isDeceased(values.fatherStatus) ? [
           { label: "Father Address", value: `${values.fatherStreet || ""}, ${values.fatherBarangay || ""}, ${values.fatherCity || ""}, ${values.fatherProvince || ""}, ${values.fatherCountry || "Philippines"} ${values.fatherZip || ""}`, icon: "location-outline" }
         ] : []),
-        ...(values.fatherStatus !== "Deceased" && requiresIncomeProof(values.fatherStatus) ? [
+        ...(!isDeceased(values.fatherStatus) && requiresIncomeProof(values.fatherStatus) ? [
           { label: "Father Income", value: values.fatherIncome, icon: "cash-outline" }
         ] : [])
       );
@@ -1931,10 +2016,10 @@ export default function ProgramApplyScreen({ navigation, route }) {
       familyItems.push(
         { label: "Mother's Name", value: values.motherName, icon: "woman-outline" },
         { label: "Mother Status", value: values.motherStatus, icon: "information-circle-outline" },
-        ...(values.motherStatus !== "Deceased" ? [
+        ...(!isDeceased(values.motherStatus) ? [
           { label: "Mother Address", value: `${values.motherStreet || ""}, ${values.motherBarangay || ""}, ${values.motherCity || ""}, ${values.motherProvince || ""}, ${values.motherCountry || "Philippines"} ${values.motherZip || ""}`, icon: "location-outline" }
         ] : []),
-        ...(values.motherStatus !== "Deceased" && requiresIncomeProof(values.motherStatus) ? [
+        ...(!isDeceased(values.motherStatus) && requiresIncomeProof(values.motherStatus) ? [
           { label: "Mother Income", value: values.motherIncome, icon: "cash-outline" }
         ] : [])
       );

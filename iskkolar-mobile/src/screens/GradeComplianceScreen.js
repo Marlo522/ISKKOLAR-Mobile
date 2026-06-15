@@ -35,7 +35,7 @@ export default function GradeComplianceScreen({ navigation }) {
   const [isLoadingTerms, setIsLoadingTerms] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
-  const [fieldErrors, setFieldErrors] = useState({ gradeReport: "", cor: "", term: "" });
+  const [fieldErrors, setFieldErrors] = useState({ gradeReport: "", cor: "", term: "", nextTermStartDate: "", nextTermEndDate: "", gwa: "" });
   const [step, setStep] = useState(1);
   const scrollViewRef = useRef(null);
 
@@ -180,6 +180,29 @@ export default function GradeComplianceScreen({ navigation }) {
     setFieldErrors((current) => ({ ...current, [fieldName]: "" }));
   };
 
+  const formatDateLabel = (value) => {
+    const date = value instanceof Date ? value : parseStringToDate(value);
+    return date
+      ? date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+      : "";
+  };
+
+  const getSubmissionWindowMessage = (term) => {
+    const windowStatus = getSubmissionWindowStatus(term?.deadline);
+
+    if (!windowStatus.deadline) return "";
+
+    if (!windowStatus.canSubmit) {
+      return `Grade compliance submission opens two weeks before the deadline on ${formatDateLabel(windowStatus.windowOpensOn)}.`;
+    }
+
+    if (windowStatus.isLate) {
+      return `The deadline passed on ${formatDateLabel(windowStatus.deadline)}. You can still submit, but it will be marked late.`;
+    }
+
+    return "";
+  };
+
   const pickFile = async (type) => {
     const handleResult = (result) => {
       if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -247,12 +270,35 @@ export default function GradeComplianceScreen({ navigation }) {
 
 
 
+  const handleContinueToGrade = () => {
+    const termEndDate = selectedTerm?.currentTermEndDate || selectedTerm?.endDate || null;
+    const dateErrors = validateNextTermDates(nextTermStartDate, nextTermEndDate, termEndDate);
+    const nextFieldErrors = {
+      cor: corFile ? "" : "Certificate of Registration is required.",
+      nextTermStartDate: nextTermStartDate ? dateErrors.nextTermStartDate : "Next term start date is required.",
+      nextTermEndDate: nextTermEndDate ? dateErrors.nextTermEndDate : "Next term end date is required.",
+    };
+
+    setFieldErrors((current) => ({ ...current, ...nextFieldErrors }));
+
+    if (nextFieldErrors.cor || nextFieldErrors.nextTermStartDate || nextFieldErrors.nextTermEndDate) {
+      return;
+    }
+
+    setStep(2);
+  };
+
   const handleSubmit = async () => {
     const isGraduating = selectedTerm?.isLastSemesterBeforeGraduation;
+    const windowStatus = getSubmissionWindowStatus(selectedTerm?.deadline);
     const nextFieldErrors = {
       gradeReport: gradeReportFile ? "" : "Grade report is required.",
-      cor: isGraduating || corFile ? "" : "COR is required.",
-      term: selectedTerm ? "" : "Please select a term.",
+      cor: isGraduating || corFile ? "" : "Certificate of Registration is required.",
+      term: !selectedTerm
+        ? "Please select a term."
+        : !windowStatus.canSubmit
+          ? getSubmissionWindowMessage(selectedTerm)
+          : "",
       nextTermStartDate: isGraduating || nextTermStartDate ? "" : "Next term start date is required.",
       nextTermEndDate: isGraduating || nextTermEndDate ? "" : "Next term end date is required.",
       gwa: !gwa ? "GWA is required." : (!validateGwa(gwa) ? INVALID_GWA_ERROR : ""),
@@ -269,11 +315,20 @@ export default function GradeComplianceScreen({ navigation }) {
 
     if (
       !selectedTerm ||
+      !windowStatus.canSubmit ||
       !gradeReportFile ||
       (!isGraduating && (!corFile || !nextTermStartDate || !nextTermEndDate || nextFieldErrors.nextTermStartDate || nextFieldErrors.nextTermEndDate)) ||
       !gwa ||
       nextFieldErrors.gwa
     ) {
+      return;
+    }
+
+    if (selectedTerm.status === "Submitted") {
+      setFieldErrors((current) => ({
+        ...current,
+        term: "This term has already been submitted and cannot be submitted again.",
+      }));
       return;
     }
 
@@ -374,6 +429,11 @@ export default function GradeComplianceScreen({ navigation }) {
     const windowStatus = getSubmissionWindowStatus(termItem.deadline);
     const isLate = windowStatus.isLate;
     const deadlineStr = termItem.deadline ? new Date(termItem.deadline).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : "Not set";
+    const currentIdx = termRequirements.findIndex(t => t.id === termItem.id);
+    const previousTerm = currentIdx > 0 ? termRequirements[currentIdx - 1] : null;
+    const isPreviousPending = previousTerm && previousTerm.status === "Pending";
+    const isSubmittedOrApproved = ["Submitted", "Approved", "Compliant"].includes(termItem.status);
+    const windowMessage = getSubmissionWindowMessage(termItem);
 
     return (
       <View style={styles.todoCard} key={termItem.id}>
@@ -427,19 +487,16 @@ export default function GradeComplianceScreen({ navigation }) {
           </View>
         </View>
 
-        {termItem.status === "Submitted" || termItem.status === "Approved" || termItem.status === "Rejected" ? (
+        {isSubmittedOrApproved ? (
           <View style={[styles.submitBtnAction, { backgroundColor: '#b6bdd9' }]}>
             <Text style={[styles.submitBtnActionText, { color: '#ffffff' }]}>Already Submitted</Text>
           </View>
         ) : (() => {
-          const currentIdx = termRequirements.findIndex(t => t.id === termItem.id);
-          const hasPendingPreviousTerm = termRequirements.slice(0, currentIdx).some(t => t.status === "Pending");
-          
-          if (hasPendingPreviousTerm) {
+          if (isPreviousPending) {
             return (
               <View style={[styles.submitBtnAction, { backgroundColor: '#e2e5f1', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }]}>
                 <Ionicons name="lock-closed-outline" size={15} color="#8c95b7" style={{ marginRight: 6 }} />
-                <Text style={[styles.submitBtnActionText, { color: '#8c95b7' }]}>Locked (Submit Previous Term First)</Text>
+                <Text style={[styles.submitBtnActionText, { color: '#8c95b7' }]}>Complete previous term first</Text>
               </View>
             );
           }
@@ -464,10 +521,16 @@ export default function GradeComplianceScreen({ navigation }) {
                 clearFieldError("term");
               }}
             >
-              <Text style={styles.submitBtnActionText}>Start Submission</Text>
+              <Text style={styles.submitBtnActionText}>{isLate ? "Start Submission (Late)" : "Start Submission"}</Text>
             </TouchableOpacity>
           );
         })()}
+
+        {!!windowMessage && (
+          <Text style={[styles.windowMessageText, isLate && styles.lateMessageText]}>
+            {windowMessage}
+          </Text>
+        )}
 
       </View>
     );
@@ -578,7 +641,7 @@ export default function GradeComplianceScreen({ navigation }) {
           <View style={styles.lateBanner}>
             <Ionicons name="warning-outline" size={16} color="#b45309" style={{ marginRight: 8 }} />
             <Text style={styles.lateBannerText}>
-              The deadline has passed. This will be marked as a late submission.
+              {getSubmissionWindowMessage(selectedTerm)}
             </Text>
           </View>
         )}
@@ -797,19 +860,7 @@ export default function GradeComplianceScreen({ navigation }) {
           {step === 1 ? (
             <TouchableOpacity
               style={styles.nextBtn}
-              onPress={() => {
-                const nextFieldErrors = {
-                  cor: corFile ? "" : "COR is required.",
-                  nextTermStartDate: nextTermStartDate ? "" : "Next term start date is required.",
-                  nextTermEndDate: nextTermEndDate ? "" : "Next term end date is required.",
-                };
-                setFieldErrors(prev => ({ ...prev, ...nextFieldErrors }));
-
-                if (!corFile || !nextTermStartDate || !nextTermEndDate) {
-                  return;
-                }
-                setStep(2);
-              }}
+              onPress={handleContinueToGrade}
             >
               <Text style={styles.nextBtnText}>Continue to Grade Submission</Text>
             </TouchableOpacity>
@@ -1073,5 +1124,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
+  },
+  windowMessageText: {
+    marginTop: 8,
+    color: "#b5850a",
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 17,
+  },
+  lateMessageText: {
+    color: "#b45309",
   },
 });

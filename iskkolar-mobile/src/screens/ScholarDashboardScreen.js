@@ -21,6 +21,26 @@ const getNextAcademicYear = (value) => {
   return `${start + 1}-${end + 1}`;
 };
 
+const firstPresent = (...values) => {
+  for (const value of values) {
+    if (value !== null && value !== undefined && String(value).trim() !== '') {
+      return value;
+    }
+  }
+  return null;
+};
+
+const normalizeYearLevel = (value) => {
+  if (value === null || value === undefined) return null;
+
+  const text = String(value).trim();
+  if (!text) return null;
+  if (/graduate/i.test(text)) return 'Graduate';
+  if (/\byear$/i.test(text)) return text.replace(/\s+Year$/i, '');
+
+  return text;
+};
+
 export default function ScholarDashboardScreen({ navigation }) {
   const { user, refreshSession } = useContext(AuthContext);
   const { unreadCount, fetchAnnouncements } = useContext(NotificationContext);
@@ -32,8 +52,22 @@ export default function ScholarDashboardScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [renewalsOpen, setRenewalsOpen] = useState(true);
 
-  const currentProgram = dashboardSummary?.academicStatus?.program || user?.program || user?.scholarshipType || '--';
-  const currentGwaValue = dashboardSummary?.academicStatus?.latestGwa;
+  const academicStatus = dashboardSummary?.academicStatus || dashboardSummary?.academic_status || {};
+  const currentProgram = firstPresent(
+    dashboardSummary?.currentProgram,
+    dashboardSummary?.current_program,
+    academicStatus?.program,
+    user?.program,
+    user?.scholarshipType
+  ) || '--';
+  const currentGwaValue = firstPresent(
+    dashboardSummary?.currentGwa,
+    dashboardSummary?.current_gwa,
+    dashboardSummary?.gwa,
+    academicStatus?.latestGwa,
+    academicStatus?.latest_gwa,
+    user?.gwa
+  );
   const currentGwa = Number.isFinite(Number(currentGwaValue)) ? Number(currentGwaValue).toFixed(2) : '--';
 
   const gradeComplianceLatest = gradeComplianceSummary?.latestSubmission || null;
@@ -42,20 +76,46 @@ export default function ScholarDashboardScreen({ navigation }) {
     (item) => String(item?.status || '').toLowerCase() === 'pending'
   )?.term;
 
-  const currentTerm = nextPendingGradeComplianceTerm || gradeComplianceLatest?.term || dashboardSummary?.academicStatus?.term || user?.term || '--';
+  const currentTerm = firstPresent(
+    nextPendingGradeComplianceTerm,
+    dashboardSummary?.currentTerm,
+    dashboardSummary?.current_term,
+    gradeComplianceLatest?.term,
+    academicStatus?.term,
+    academicStatus?.currentTerm,
+    academicStatus?.current_term,
+    user?.term
+  ) || '--';
 
-  const yearLevelLabel = dashboardSummary?.academicStatus?.yearLevel || user?.yearLevel || 'Not set';
+  const yearLevelLabel = normalizeYearLevel(firstPresent(
+    academicStatus?.yearLevel,
+    academicStatus?.year_level,
+    dashboardSummary?.yearLevel,
+    dashboardSummary?.year_level,
+    user?.yearLevel,
+    user?.year_level
+  )) || 'Not set';
   const isGraduate = Boolean(
     dashboardSummary?.isGraduate ||
+    dashboardSummary?.is_graduate ||
     dashboardSummary?.academicStatus?.isGraduate ||
     dashboardSummary?.academicStatus?.is_graduate ||
+    dashboardSummary?.academic_status?.isGraduate ||
+    dashboardSummary?.academic_status?.is_graduate ||
     user?.isGraduate ||
     user?.is_graduate
   );
 
   const displayYearLevel = (yearLevelLabel === 'Graduate' || isGraduate) ? 'Graduate' : `${yearLevelLabel} Year`;
   const displayTerm = (currentTerm === 'Graduate' || isGraduate) ? 'Graduate' : currentTerm;
-  const expectedGraduationYear = dashboardSummary?.academicStatus?.expectedGraduationYear || user?.expectedGraduationYear || '--';
+  const expectedGraduationYear = firstPresent(
+    academicStatus?.expectedGraduationYear,
+    academicStatus?.expected_graduation_year,
+    dashboardSummary?.expectedGraduationYear,
+    dashboardSummary?.expected_graduation_year,
+    user?.expectedGraduationYear,
+    user?.expected_graduation_year
+  ) || '--';
 
   const stats = useMemo(
     () => [
@@ -74,14 +134,23 @@ export default function ScholarDashboardScreen({ navigation }) {
     { title: "Activities", route: "Activities", icon: "calendar-outline", iconBg: "#eefafc", iconColor: "#41b5bd" }
   ];
 
-  const baseAcademicYear = dashboardSummary?.currentAcademicYear || user?.academicYear || '';
+  const baseAcademicYear = firstPresent(
+    dashboardSummary?.currentAcademicYear,
+    dashboardSummary?.current_academic_year,
+    academicStatus?.academicYear,
+    academicStatus?.academic_year,
+    user?.academicYear,
+    user?.academic_year
+  ) || '';
   const nextAcademicYear = getNextAcademicYear(baseAcademicYear);
 
   const resolvedIsGraduate =
     user?.is_graduate ||
     user?.isGraduate ||
-    dashboardSummary?.academicStatus?.isGraduate ||
-    dashboardSummary?.academicStatus?.is_graduate ||
+    academicStatus?.isGraduate ||
+    academicStatus?.is_graduate ||
+    dashboardSummary?.isGraduate ||
+    dashboardSummary?.is_graduate ||
     false;
 
   const services = [
@@ -199,7 +268,14 @@ export default function ScholarDashboardScreen({ navigation }) {
     .trim() || 'Scholar';
 
   const scholarTypeLabel = (() => {
-    const type = user?.scholarshipType || user?.scholar_type || dashboardSummary?.academicStatus?.scholarshipType;
+    const type = firstPresent(
+      user?.scholarshipType,
+      user?.scholar_type,
+      academicStatus?.scholarshipType,
+      academicStatus?.scholarship_type,
+      dashboardSummary?.currentScholarship,
+      dashboardSummary?.current_scholarship
+    );
     if (!type) return 'Active Scholar';
 
     const mapping = {

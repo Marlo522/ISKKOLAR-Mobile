@@ -1,7 +1,7 @@
 import api from "./api";
 import { sanitizeFilename } from "../utils/fileSanitizer";
 
-const EMAIL_PATTERN = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.com$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MOBILE_PATTERN = /^09\d{9}$/;
 
 export const getProfile = async () => {
@@ -25,7 +25,7 @@ export const updateProfile = async (data) => {
   }
 
   if (!EMAIL_PATTERN.test(normalizedEmail)) {
-    throw new Error("Please enter a valid email address ending with .com.");
+    throw new Error("Please enter a valid email address (e.g. user@example.com).");
   }
 
   if (!normalizedMobile) {
@@ -40,6 +40,10 @@ export const updateProfile = async (data) => {
     const formData = new FormData();
     formData.append("email", normalizedEmail);
     formData.append("mobileNumber", normalizedMobile);
+
+    if (data.currentPassword) {
+      formData.append("currentPassword", data.currentPassword);
+    }
 
     if (data.profilePhoto) {
       formData.append("profilePhoto", {
@@ -69,7 +73,14 @@ export const updateProfile = async (data) => {
 
     throw new Error(response.data?.message || "Failed to update profile.");
   } catch (error) {
-    throw new Error(error.message || "Failed to update profile.");
+    const payload = error?.response?.data || error;
+    const message =
+      payload?.message ||
+      payload?.error ||
+      (Array.isArray(payload?.errors) && payload.errors[0]?.message) ||
+      error.message ||
+      "Failed to update profile.";
+    throw new Error(message);
   }
 };
 

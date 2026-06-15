@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Platform, Image, Switch, NativeModules, RefreshControl, Alert } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Platform, Image, Switch, NativeModules, RefreshControl, Alert, Modal } from "react-native";
 import SafeTextInput from "../components/SafeTextInput";
 import * as ImagePicker from "expo-image-picker";
 import { validateAndSanitizeFile } from "../utils/fileSanitizer";
@@ -10,7 +10,6 @@ import { useIsFocused } from "@react-navigation/native";
 import { AuthContext } from "../context/AuthContext";
 import * as profileService from "../services/profileService";
 import { registerPushToken, deletePushToken } from "../services/pushNotificationService";
-import { resendVerificationEmail } from "../services/authService";
 import SuccessModal from "../components/SuccessModal";
 
 // ─── PASSWORD STRENGTH METER ─────────────────────────────────
@@ -70,6 +69,9 @@ export default function ProfileScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [editingMobile, setEditingMobile] = useState(false);
   const [editingEmail, setEditingEmail] = useState(false);
+  const [emailCurrentPassword, setEmailCurrentPassword] = useState("");
+  const [showEmailCurrentPassword, setShowEmailCurrentPassword] = useState(false);
+  const [emailError, setEmailError] = useState("");
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
@@ -233,44 +235,72 @@ export default function ProfileScreen({ navigation }) {
 
   const handleSaveEmail = async () => {
     const emailValue = form.email.trim();
+    const currentEmail = String(user?.email || "").trim();
     if (!emailValue) {
-      alert("Email is required.");
+      setEmailError("Email is required.");
       return;
     }
-    const EMAIL_PATTERN = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.com$/;
+    const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!EMAIL_PATTERN.test(emailValue)) {
-      alert("Please enter a valid email address ending with .com.");
+      setEmailError("Please enter a valid email address (e.g. user@example.com).");
+      return;
+    }
+    if (emailValue.toLowerCase() === currentEmail.toLowerCase()) {
+      setEditingEmail(false);
+      setEmailCurrentPassword("");
+      setShowEmailCurrentPassword(false);
+      setEmailError("");
+      setForm((prev) => ({ ...prev, email: currentEmail }));
+      setSuccessConfig({
+        visible: true,
+        title: "No Changes",
+        message: "No changes detected.",
+      });
+      return;
+    }
+    if (!emailCurrentPassword.trim()) {
+      setEmailError("Current password is required to change your email.");
       return;
     }
 
     setLoading(true);
+    setEmailError("");
     try {
-      // 1. Update the email profile via PATCH /auth/me
       const updated = await profileService.updateProfile({
         email: emailValue,
-        mobileNumber: user?.mobileNumber || form.mobileNumber,
+        mobileNumber: user?.mobileNumber || user?.mobile_number || form.mobileNumber,
+        currentPassword: emailCurrentPassword,
       });
 
-      // 2. Request a verification/authentication email for the new email address
-      await resendVerificationEmail(emailValue);
-
-      // 3. Configure success modal with a logout callback on close
+      loginUser({ ...user, ...updated });
+      setEmailCurrentPassword("");
+      setShowEmailCurrentPassword(false);
+      setEditingEmail(false);
+      setForm(prev => ({ ...prev, email: updated.email || currentEmail || prev.email }));
       setSuccessConfig({
         visible: true,
-        title: "Verification Email Sent",
-        message: "We sent a verification link to your new email address. Please verify it before logging in again.",
-        onClose: async () => {
-          setSuccessConfig(prev => ({ ...prev, visible: false }));
-          await logoutUser();
-          navigation.replace("Login");
-        }
+        title: "Check Your Email",
+        message: updated._message || "Verification links were sent for your email change.",
       });
-      setEditingEmail(false);
     } catch (err) {
-      alert(err.message || "Failed to update email.");
+      const message = err.message || "Failed to update email.";
+      if (message.toLowerCase().includes("password")) {
+        setEmailError(message);
+      } else {
+        Alert.alert("Failed to Update Email", message);
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const closeEmailModal = () => {
+    if (loading) return;
+    setEditingEmail(false);
+    setEmailCurrentPassword("");
+    setShowEmailCurrentPassword(false);
+    setEmailError("");
+    setForm((prev) => ({ ...prev, email: user?.email || "" }));
   };
 
   const pickProfilePhoto = () => {
@@ -569,29 +599,28 @@ export default function ProfileScreen({ navigation }) {
                 <View style={styles.labelRow}>
                   <Text style={[styles.formLabel, { marginBottom: 0 }]}>Email</Text>
                   {!editingEmail && (
-                    <TouchableOpacity onPress={() => { setEditingEmail(true); setEditingMobile(false); }} style={styles.editBtnWrap}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setEditingEmail(true);
+                        setEditingMobile(false);
+                        setEmailCurrentPassword("");
+                        setShowEmailCurrentPassword(false);
+                        setEmailError("");
+                        setForm((prev) => ({ ...prev, email: "" }));
+                      }}
+                      style={styles.editBtnWrap}
+                    >
                       <Text style={styles.editBtnText}>Edit</Text>
                     </TouchableOpacity>
                   )}
                 </View>
                 <SafeTextInput placeholderTextColor="#888"
-                  value={form.email}
-                  onChangeText={(val) => setForm({ ...form, email: val })}
-                  editable={editingEmail}
+                  value={user?.email || form.email}
+                  editable={false}
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  style={[styles.formInput, !editingEmail && { backgroundColor: '#f5f7fc', color: '#888' }]}
+                  style={[styles.formInput, { backgroundColor: '#f5f7fc', color: '#888' }]}
                 />
-                {editingEmail && (
-                  <View style={styles.actionRow}>
-                    <TouchableOpacity onPress={() => { setEditingEmail(false); setForm({ ...form, email: user?.email || "" }); }} style={styles.cancelBtn}>
-                      <Text style={styles.cancelBtnText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={handleSaveEmail} disabled={loading} style={[styles.saveBtn, loading && { opacity: 0.7 }]}>
-                      <Text style={styles.saveBtnText}>{loading ? "Saving..." : "Save"}</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
               </View>
             </View>
 
@@ -686,6 +715,105 @@ export default function ProfileScreen({ navigation }) {
           </View>
         )}
       </Animated.ScrollView>
+      <Modal
+        visible={editingEmail}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={closeEmailModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.emailModalCard}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Change Email Address</Text>
+              <TouchableOpacity
+                onPress={closeEmailModal}
+                disabled={loading}
+                style={styles.modalCloseBtn}
+              >
+                <Ionicons name="close" size={20} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.verificationNotice}>
+              <Text style={styles.verificationTitle}>Verification required</Text>
+              <Text style={styles.verificationText}>
+                We will send a verification link to confirm this change. Your current email will remain active until the new address is verified.
+              </Text>
+            </View>
+
+            <View style={styles.modalField}>
+              <Text style={styles.formLabel}>New email address</Text>
+              <SafeTextInput
+                placeholderTextColor="#888"
+                value={form.email}
+                onChangeText={(val) => {
+                  setForm((prev) => ({ ...prev, email: val }));
+                  if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+                    setEmailError("Please enter a valid email address (e.g. user@example.com).");
+                  } else if (emailError.toLowerCase().includes("email")) {
+                    setEmailError("");
+                  }
+                }}
+                placeholder="name@example.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoFocus
+                style={[styles.formInput, emailError.toLowerCase().includes("email") && styles.errorInput]}
+              />
+            </View>
+
+            <View style={styles.modalField}>
+              <Text style={styles.formLabel}>Current password</Text>
+              <View style={styles.passwordInputWrapper}>
+                <SafeTextInput
+                  placeholderTextColor="#888"
+                  value={emailCurrentPassword}
+                  secureTextEntry={!showEmailCurrentPassword}
+                  onChangeText={(value) => {
+                    setEmailCurrentPassword(value);
+                    if (emailError.toLowerCase().includes("password")) {
+                      setEmailError("");
+                    }
+                  }}
+                  placeholder="Enter your current password"
+                  style={[styles.formInput, { flex: 1 }, emailError.toLowerCase().includes("password") && styles.errorInput]}
+                  contextMenuHidden={true}
+                />
+                <TouchableOpacity
+                  style={styles.eyeIcon}
+                  onPress={() => setShowEmailCurrentPassword((visible) => !visible)}
+                >
+                  <Ionicons name={showEmailCurrentPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#7f88a3" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {!!emailError && (
+              <View style={styles.modalErrorBox}>
+                <Text style={styles.modalErrorText}>{emailError}</Text>
+              </View>
+            )}
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                onPress={closeEmailModal}
+                disabled={loading}
+                style={styles.modalCancelBtn}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleSaveEmail}
+                disabled={loading}
+                style={[styles.modalSaveBtn, loading && { opacity: 0.7 }]}
+              >
+                <Text style={styles.modalSaveText}>{loading ? "Sending..." : "Send Verification Email"}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <SuccessModal
         visible={successConfig.visible}
         title={successConfig.title}
@@ -727,6 +855,7 @@ const styles = StyleSheet.create({
   formRow: { marginBottom: 16 },
   formLabel: { fontWeight: "600", color: "#1c2131", fontSize: 13, marginBottom: 8 },
   formInput: { borderWidth: 1, borderColor: "#a9b1c0", borderRadius: 12, paddingHorizontal: 16, paddingVertical: Platform.OS === "ios" ? 14 : 12, backgroundColor: "#ffffff", color: "#555", fontSize: 15 },
+  errorInput: { borderColor: "#dc2626", borderWidth: 2, backgroundColor: "#fff5f5" },
   passwordInputWrapper: { flexDirection: 'row', alignItems: 'center' },
   eyeIcon: { position: 'absolute', right: 16 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
@@ -747,6 +876,118 @@ const styles = StyleSheet.create({
   preferenceLabel: { fontSize: 15, fontWeight: "700", color: "#1c2131", marginBottom: 4 },
   preferenceSublabel: { fontSize: 12, color: "#7f88a3", lineHeight: 16 },
   hintText: { fontSize: 12, color: "#666", marginTop: 6 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(8, 13, 25, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 22,
+  },
+  emailModalCard: {
+    width: "100%",
+    maxWidth: 380,
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    padding: 20,
+    shadowColor: "#080d19",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  modalHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    flex: 1,
+    color: "#111827",
+    fontSize: 18,
+    fontWeight: "900",
+    paddingRight: 12,
+  },
+  modalCloseBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  verificationNotice: {
+    borderWidth: 1,
+    borderColor: "#dedff0",
+    backgroundColor: "#f7f7fc",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+  },
+  verificationTitle: {
+    color: "#4a4e7d",
+    fontSize: 13,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  verificationText: {
+    color: "#5f6678",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "500",
+  },
+  modalField: {
+    marginBottom: 14,
+  },
+  modalErrorBox: {
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    backgroundColor: "#fef2f2",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  modalErrorText: {
+    color: "#dc2626",
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17,
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#f3f4f6",
+    paddingTop: 14,
+  },
+  modalCancelBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    backgroundColor: "#fff",
+  },
+  modalCancelText: {
+    color: "#4b5563",
+    fontWeight: "800",
+    fontSize: 13,
+  },
+  modalSaveBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: "#5b61a7",
+    alignItems: "center",
+  },
+  modalSaveText: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 13,
+  },
 });
 
 const strengthStyles = StyleSheet.create({
