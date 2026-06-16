@@ -880,10 +880,18 @@ export default function ProgramApplyScreen({ navigation, route }) {
     }
     closeSelect();
   };
-
   // ─── Render helpers ───────────────────────────────────────────────────────
 
-  const isPredictiveField = (key) => ["program", "vocationalProgram", "prevProgram", "tertiarySchool", "prevSchoolName"].includes(key);
+  const isPredictiveField = (key) =>
+    [
+      "program",
+      "vocationalProgram",
+      "prevProgram",
+      "tertiarySchool",
+      "prevSchoolName",
+      "secondarySchool",
+      "vocationalSchoolName"
+    ].includes(key);
 
   const renderInput = (label, key, placeholder = null, inputProps = {}) => {
     const isPredictive = isPredictiveField(key);
@@ -891,12 +899,15 @@ export default function ProgramApplyScreen({ navigation, route }) {
     const optionsSource =
       key === "vocationalProgram"
         ? vocationalProgramOptions
-        : ["tertiarySchool", "prevSchoolName"].includes(key)
+        : ["tertiarySchool", "prevSchoolName", "secondarySchool", "vocationalSchoolName"].includes(key)
           ? heiSchoolNames
           : programOptions;
-    const suggestions = isPredictive && query.trim().length >= 1
-      ? optionsSource.filter(opt => opt.toLowerCase().includes(query.toLowerCase()))
-      : [];
+
+    let suggestions = [];
+    if (isPredictive) {
+      const filtered = optionsSource.filter(opt => opt.toLowerCase().includes(query.toLowerCase()));
+      suggestions = filtered.length > 0 ? filtered : optionsSource;
+    }
 
     return (
       <View style={[styles.row, { position: "relative", zIndex: isPredictive && activePredictiveKey === key && suggestions.length > 0 ? 99 : 1 }]}>
@@ -923,7 +934,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
         {isPredictive && activePredictiveKey === key && suggestions.length > 0 && (
           <View style={styles.predictionsContainer}>
             <ScrollView keyboardShouldPersistTaps="handled" style={styles.predictionsScroll}>
-              {suggestions.slice(0, 6).map((item, idx) => (
+              {suggestions.map((item, idx) => (
                 <TouchableOpacity
                   key={idx}
                   style={styles.predictionItem}

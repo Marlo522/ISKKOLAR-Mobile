@@ -337,9 +337,12 @@ export default function TransferSchoolScreen({ navigation }) {
         : isVocational
         ? vocationalProgramOptions
         : programOptions;
-    const suggestions = isPredictive && query.trim().length >= 1
-      ? optionsSource.filter(opt => opt.toLowerCase().includes(query.toLowerCase()))
-      : [];
+
+    let suggestions = [];
+    if (isPredictive) {
+      const filtered = optionsSource.filter(opt => opt.toLowerCase().includes(query.toLowerCase()));
+      suggestions = filtered.length > 0 ? filtered : optionsSource;
+    }
 
     return (
       <View style={[styles.row, fieldErrors[key] && styles.rowWithError, { position: "relative", zIndex: isPredictive && activePredictiveKey === key && suggestions.length > 0 ? 99 : 1 }]}>
@@ -370,7 +373,7 @@ export default function TransferSchoolScreen({ navigation }) {
         {isPredictive && activePredictiveKey === key && suggestions.length > 0 && (
           <View style={styles.predictionsContainer}>
             <ScrollView keyboardShouldPersistTaps="handled" style={styles.predictionsScroll}>
-              {suggestions.slice(0, 6).map((item, idx) => (
+              {suggestions.map((item, idx) => (
                 <TouchableOpacity
                   key={idx}
                   style={styles.predictionItem}
