@@ -10,6 +10,7 @@ import FormDatePicker from "../components/FormDatePicker";
 import { useExamAssistance } from "../hooks/useExamAssistance";
 import ApplicationResultState from "../components/ApplicationResultState";
 import ApplicationSubmissionGuard from "../components/ApplicationSubmissionGuard";
+import LoadingOverlay from "../components/LoadingOverlay";
 
 export default function ExamAssistanceScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -675,6 +676,7 @@ export default function ExamAssistanceScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+      <LoadingOverlay visible={submitting} message="Submitting application..." />
     </View>
   );
 }

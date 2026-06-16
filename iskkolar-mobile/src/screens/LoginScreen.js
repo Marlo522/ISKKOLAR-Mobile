@@ -13,6 +13,7 @@ import SafeTextInput from "../components/SafeTextInput";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLogin } from "../hooks/useLogin";
+import LoadingOverlay from "../components/LoadingOverlay";
 
 export default function LoginScreen({ navigation }) {
   const { form, errors, apiError, loading, rememberMe, setRememberMe, updateField, handleLogin } = useLogin(navigation);
@@ -125,6 +126,7 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <LoadingOverlay visible={loading} message="Signing in..." />
     </KeyboardAvoidingView>
   );
 }

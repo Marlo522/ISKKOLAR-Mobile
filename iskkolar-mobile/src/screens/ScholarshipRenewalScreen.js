@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import GraduationCelebration from '../components/GraduationCelebration';
 import ApplicationResultState from '../components/ApplicationResultState';
+import LoadingOverlay from '../components/LoadingOverlay';
 
 // Import our new services that match the web backend calls
 import {
@@ -901,6 +902,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
           )}
         </View>
       )}
+      <LoadingOverlay visible={submitting} message="Submitting renewal..." />
     </View>
   );
 }

@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContext } from './AuthContext';
 import { getScholarAnnouncements } from '../services/announcementService';
 import { showNativeNotification } from '../services/nativeNotificationService';
-import { navigationRef } from '../navigation/AppNavigator';
+import { navigationRef } from '../navigation/navigationRef';
 
 export const NotificationContext = createContext();
 

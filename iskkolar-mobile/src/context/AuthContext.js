@@ -44,6 +44,15 @@ export const AuthProvider = ({ children }) => {
   }, [user]);
 
   useEffect(() => {
+    api.onUnauthorized = () => {
+      setUser(null);
+    };
+    return () => {
+      api.onUnauthorized = null;
+    };
+  }, []);
+
+  useEffect(() => {
     let mounted = true;
 
     const hydrateSession = async () => {

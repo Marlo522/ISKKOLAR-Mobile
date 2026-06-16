@@ -9,6 +9,7 @@ import * as ImagePicker from "expo-image-picker";
 import { validateAndSanitizeFile } from "../utils/fileSanitizer";
 import { AuthContext } from "../context/AuthContext";
 import { useSchoolTransfer } from "../hooks/useSchoolTransfer";
+import LoadingOverlay from "../components/LoadingOverlay";
 import { getMyApplications as getMyTertiaryApplications } from "../services/tertiaryAppService";
 import { getMyVocationalApplications } from "../services/vocationalAppService";
 import {
@@ -633,6 +634,7 @@ export default function TransferSchoolScreen({ navigation }) {
       </Modal>
 
       <ExamplesModal visible={examplesModalVisible} onClose={() => setExamplesModalVisible(false)} />
+      <LoadingOverlay visible={submitting} message="Processing request..." />
     </View>
   );
 }

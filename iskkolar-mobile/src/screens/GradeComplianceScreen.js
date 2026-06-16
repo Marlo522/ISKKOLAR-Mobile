@@ -15,6 +15,7 @@ import { useGradeCompliance } from "../hooks/useGradeCompliance";
 import { getSubmissionWindowStatus, validateNextTermDates, parseStringToDate } from "../utils/gradeComplianceUtils";
 import { validateGwa, INVALID_GWA_ERROR } from "../utils/gradeValidation";
 import ApplicationSubmissionGuard from "../components/ApplicationSubmissionGuard";
+import LoadingOverlay from "../components/LoadingOverlay";
 
 const statusColors = {
   Pending: { bg: "#fff8e6", text: "#b5850a" },
@@ -874,6 +875,7 @@ export default function GradeComplianceScreen({ navigation }) {
           )}
         </View>
       )}
+      <LoadingOverlay visible={isSubmitting} message="Uploading documents..." />
     </View>
   );
 }

@@ -27,6 +27,7 @@ import { checkAnyOngoingApplication } from "../services/applicationGuardService"
 import api from "../services/api";
 import ApplicationsClosedScreen from "./ApplicationsClosedScreen";
 import ApplicationResultState from "../components/ApplicationResultState";
+import LoadingOverlay from "../components/LoadingOverlay";
 import { getScholarshipFormAccess } from "../services/applicationGuardService";
 
 const infoFields = {
@@ -176,6 +177,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const [isApplicationsClosed, setIsApplicationsClosed] = useState(false);
   const [closedYear, setClosedYear] = useState(new Date().getFullYear());
   const [examplesModalVisible, setExamplesModalVisible] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
 
   const [provinces, setProvinces] = useState([]);
   const [fatherCities, setFatherCities] = useState([]);
@@ -776,8 +778,13 @@ export default function ProgramApplyScreen({ navigation, route }) {
     if (selectedProgram === "tertiary") {
       // Steps 0, 1, 2 validate against server; step 3 is Review with no validate call
       if (step < maxStep) {
-        const isValid = await validateTertiaryStep(step, values, uploadText, familyMembers);
-        if (isValid) setStep((s) => s + 1);
+        setIsValidating(true);
+        try {
+          const isValid = await validateTertiaryStep(step, values, uploadText, familyMembers);
+          if (isValid) setStep((s) => s + 1);
+        } finally {
+          setIsValidating(false);
+        }
       }
       return;
     }
@@ -785,8 +792,13 @@ export default function ProgramApplyScreen({ navigation, route }) {
     if (isVocationalFlow) {
       // Same step structure as tertiary — steps 0, 1, 2 validate; step 3 is Review
       if (step < maxStep) {
-        const isValid = await validateVocationalStep(step, values, uploadText, familyMembers);
-        if (isValid) setStep((s) => s + 1);
+        setIsValidating(true);
+        try {
+          const isValid = await validateVocationalStep(step, values, uploadText, familyMembers);
+          if (isValid) setStep((s) => s + 1);
+        } finally {
+          setIsValidating(false);
+        }
       }
       return;
     }
@@ -798,13 +810,27 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
           const normalizedId = String(values.staffId || "").trim();
           if (!normalizedId || normalizedId !== verifiedStaffId) {
-            const lookupOk = await lookupAndFillStaff(normalizedId);
-            if (!lookupOk) return;
+            setIsValidating(true);
+            try {
+              const lookupOk = await lookupAndFillStaff(normalizedId);
+              if (!lookupOk) { setIsValidating(false); return; }
+            } catch (e) {
+              setIsValidating(false);
+              return;
+            }
+          } else {
+            setIsValidating(true);
           }
+        } else {
+          setIsValidating(true);
         }
 
-        const isValid = await validateStaffStep(step, values, uploadText);
-        if (isValid) setStep((s) => s + 1);
+        try {
+          const isValid = await validateStaffStep(step, values, uploadText);
+          if (isValid) setStep((s) => s + 1);
+        } finally {
+          setIsValidating(false);
+        }
       }
       return;
     }
@@ -2533,8 +2559,8 @@ export default function ProgramApplyScreen({ navigation, route }) {
       </ScrollView>
 
       {!isSubmittingNow && completeStage === "none" && step < maxStep && (
-        <TouchableOpacity style={styles.nextBtn} onPress={advance}>
-          <Text style={styles.nextBtnText}>Next Step →</Text>
+        <TouchableOpacity style={[styles.nextBtn, isValidating && { opacity: 0.7 }]} onPress={advance} disabled={isValidating}>
+          <Text style={styles.nextBtnText}>{isValidating ? "Validating..." : "Next Step →"}</Text>
         </TouchableOpacity>
       )}
 
@@ -2589,6 +2615,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
       </Modal>
 
       <ExamplesModal visible={examplesModalVisible} onClose={() => setExamplesModalVisible(false)} />
+      <LoadingOverlay visible={isValidating} message="Validating your information..." />
     </View>
   );
 }

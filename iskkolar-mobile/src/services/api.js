@@ -2,6 +2,7 @@ import axios from 'axios';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config/constants';
+import { navigationRef } from '../navigation/navigationRef';
 
 // ─── CONFIG ───────────────────────────────────────────────────
 const BASE_URL = API_URL;
@@ -46,16 +47,25 @@ api.interceptors.response.use(
       requestUrl.includes('/auth/login') ||
       requestUrl.includes('/auth/signup') ||
       requestUrl.includes('/auth/forgot-password') ||
-      requestUrl.includes('/auth/resend-verification');
+      requestUrl.includes('/auth/resend-verification') ||
+      requestUrl.includes('/auth/logout');
 
     if (status === 401 && !isAuthRequest) {
       // Clear local user data
       await AsyncStorage.removeItem('user');
 
-      // In React Native, we can't use window.location.href.
-      // We rely on the AuthContext or a navigation event to handle the UI shift.
-      // For now, we can throw a specific error that the UI can catch, 
-      // or use a custom event emitter if one is available.
+      // Sync AuthContext state
+      if (typeof api.onUnauthorized === 'function') {
+        api.onUnauthorized();
+      }
+
+      // Reset navigation stack to Login screen
+      if (navigationRef.isReady()) {
+        navigationRef.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
+      }
     }
 
     // Map axios error to the expected format for the rest of the app
