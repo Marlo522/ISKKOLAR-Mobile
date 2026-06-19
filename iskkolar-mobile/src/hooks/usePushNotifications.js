@@ -1,9 +1,9 @@
 import { useEffect, useContext } from 'react';
-import { Platform, PermissionsAndroid, Alert, NativeModules } from 'react-native';
+import { Platform, PermissionsAndroid, NativeModules } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { AuthContext } from '../context/AuthContext';
-import { registerPushToken } from '../services/pushNotificationService';
+import { registerPushToken, deletePushToken } from '../services/pushNotificationService';
 import { NotificationContext } from '../context/NotificationContext';
 import { registerForPushNotificationsAsync, showNativeNotification } from '../services/nativeNotificationService';
 import { navigationRef } from '../navigation/navigationRef';
@@ -85,6 +85,13 @@ export const usePushNotifications = () => {
         
         // If a user is logged in, register it with the backend
         if (user && user.id) {
+          if (user.role === 'terminated') {
+            await deletePushToken(token).catch(err => {
+              console.warn('FCM: Failed to delete push token for terminated user:', err);
+            });
+            console.log('FCM: Push token deleted for terminated user.');
+            return null;
+          }
           await registerPushToken(token, Platform.OS);
           console.log('FCM: Successfully registered push token to backend for user:', user.id);
         }
@@ -107,14 +114,34 @@ export const usePushNotifications = () => {
 
     // Fetch and register token on mount or when the user logged-in state changes
     if (user && user.id) {
-      registerForPushNotificationsAsync();
-      fetchAndRegisterToken();
+      if (user.role === 'terminated') {
+        const messaging = getMessaging();
+        if (messaging) {
+          messaging().getToken().then(async (token) => {
+            if (token) {
+              await deletePushToken(token).catch(err => {
+                console.warn('FCM: Failed to delete push token for terminated user on mount:', err);
+              });
+              console.log('FCM: Push token deleted for terminated user.');
+            }
+          }).catch(err => {
+            console.warn('FCM: Failed to get token to delete for terminated user:', err);
+          });
+        }
+      } else {
+        registerForPushNotificationsAsync();
+        fetchAndRegisterToken();
+      }
     }
 
     // Listen to token refresh events
     const unsubscribeTokenRefresh = messaging().onTokenRefresh(async (newToken) => {
       console.log('FCM: Token refreshed:', newToken);
       if (user && user.id) {
+        if (user.role === 'terminated') {
+          await deletePushToken(newToken).catch(() => null);
+          return;
+        }
         try {
           await registerPushToken(newToken, Platform.OS);
           console.log('FCM: Successfully registered refreshed push token to backend.');
@@ -126,8 +153,8 @@ export const usePushNotifications = () => {
 
     // 3. Foreground Message Listener
     const unsubscribeOnMessage = messaging().onMessage(async (remoteMessage) => {
-      if (!user) {
-        console.log('FCM: Foreground message ignored because user is logged out.');
+      if (!user || user.role === 'terminated') {
+        console.log('FCM: Foreground message ignored because user is logged out or terminated.');
         return;
       }
       console.log('FCM: Foreground message received:', remoteMessage);
@@ -145,8 +172,8 @@ export const usePushNotifications = () => {
     // 4. Handle native local status bar notification clicks
     const nativeNotificationResponseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
       console.log('FCM: Native status bar notification clicked:', response);
-      if (!user) {
-        console.log('FCM: Native notification click ignored because user is logged out.');
+      if (!user || user.role === 'terminated') {
+        console.log('FCM: Native notification click ignored because user is logged out or terminated.');
         return;
       }
       if (navigationRef.isReady()) {
@@ -157,8 +184,8 @@ export const usePushNotifications = () => {
     // 5. Handle FCM notification clicks that open the app from background state
     const unsubscribeNotificationOpen = messaging().onNotificationOpenedApp((remoteMessage) => {
       console.log('FCM: Notification caused app to open from background state:', remoteMessage);
-      if (!user) {
-        console.log('FCM: Notification background click ignored because user is logged out.');
+      if (!user || user.role === 'terminated') {
+        console.log('FCM: Notification background click ignored because user is logged out or terminated.');
         return;
       }
       if (navigationRef.isReady()) {
@@ -173,8 +200,8 @@ export const usePushNotifications = () => {
         if (remoteMessage) {
           console.log('FCM: Notification caused app to open from quit state:', remoteMessage);
           setTimeout(() => {
-            if (!user) {
-              console.log('FCM: Notification quit-state click ignored because user is logged out.');
+            if (!user || user.role === 'terminated') {
+              console.log('FCM: Notification quit-state click ignored because user is logged out or terminated.');
               return;
             }
             if (navigationRef.isReady()) {

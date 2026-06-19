@@ -7,6 +7,7 @@ import {
   Animated, 
   RefreshControl 
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
@@ -170,7 +171,10 @@ export default function VocationalDashboardScreen({ navigation }) {
   })();
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#ffffff', '#f1f3fa']}
+      style={styles.container}
+    >
       <Animated.ScrollView
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
         showsVerticalScrollIndicator={false}
@@ -178,7 +182,12 @@ export default function VocationalDashboardScreen({ navigation }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#727ab6']} />}
       >
         {/* Banner with Circle Progress (Mirroring Web) */}
-        <View style={[styles.heroBanner, { position: 'relative' }]}>
+        <LinearGradient
+          colors={['#5b61a7', '#727ab6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.heroBanner, { position: 'relative' }]}
+        >
 
           <View style={styles.heroHeader}>
             <View style={{ flex: 1, marginRight: 8 }}>
@@ -208,7 +217,7 @@ export default function VocationalDashboardScreen({ navigation }) {
               <View style={[styles.progressBar, { width: `${readiness}%`, backgroundColor: getStatusColor() }]} />
             </View>
           </View>
-        </View>
+        </LinearGradient>
 
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
@@ -268,7 +277,7 @@ export default function VocationalDashboardScreen({ navigation }) {
         </View>
 
       </Animated.ScrollView>
-    </View>
+    </LinearGradient>
   );
 }
 

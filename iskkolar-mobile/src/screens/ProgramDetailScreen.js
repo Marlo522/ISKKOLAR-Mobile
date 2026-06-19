@@ -6,6 +6,7 @@ import { useIsFocused } from "@react-navigation/native";
 import { documentDirectory, downloadAsync } from "expo-file-system";
 import { isAvailableAsync, shareAsync } from "expo-sharing";
 import { openURL } from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
 import api from "../services/api";
 import { getPublicFormTemplates } from "../services/formTemplateService";
 import { getApplicationSettings } from "../services/settingsService";
@@ -139,6 +140,25 @@ export default function ProgramDetailScreen({ navigation, route }) {
         delete next[item.id];
         return next;
       });
+    }
+  };
+
+  const handlePreview = async (item) => {
+    const rawUrl = item.file_url || item.fileUrl;
+    if (!rawUrl) {
+      Alert.alert('Error', 'This form does not have a valid preview link.');
+      return;
+    }
+    const fullUrl = getFullFileUrl(rawUrl);
+    try {
+      await WebBrowser.openBrowserAsync(fullUrl);
+    } catch (err) {
+      console.warn('Preview failed:', err);
+      try {
+        await openURL(fullUrl);
+      } catch {
+        Alert.alert('Error', 'Unable to open form preview.');
+      }
     }
   };
 
@@ -302,6 +322,12 @@ export default function ProgramDetailScreen({ navigation, route }) {
 
       <View style={styles.card}>
         <Text style={styles.subTitle}>DOWNLOAD FORMS</Text>
+        <View style={styles.infoNoteBox}>
+          <Ionicons name="information-circle-outline" size={16} color="#4d61d8" style={{ marginRight: 6, marginTop: 1 }} />
+          <Text style={styles.infoNoteText}>
+            Note: If your parents are unemployed, please download and submit the Certificate of Indigency.
+          </Text>
+        </View>
         {templatesLoading ? (
           <ActivityIndicator size="small" color="#4d61d8" style={{ marginVertical: 12 }} />
         ) : templatesError ? (
@@ -327,18 +353,28 @@ export default function ProgramDetailScreen({ navigation, route }) {
                     </Text>
                   )}
                 </View>
-                <TouchableOpacity 
-                  style={[styles.downloadBtn, isDownloading && { backgroundColor: '#e2e6f4' }]}
-                  onPress={() => handleDownload(item)}
-                  disabled={isDownloading}
-                  activeOpacity={0.8}
-                >
-                  {isDownloading ? (
-                    <ActivityIndicator size="small" color="#4d61d8" />
-                  ) : (
-                    <Text style={styles.downloadBtnText}>Download Form</Text>
-                  )}
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 4, alignItems: 'center' }}>
+                  <TouchableOpacity 
+                    style={styles.previewIconBtn}
+                    onPress={() => handlePreview(item)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="eye-outline" size={20} color="#4d61d8" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={[styles.downloadBtn, { flex: 1 }, isDownloading && { backgroundColor: '#e2e6f4' }]}
+                    onPress={() => handleDownload(item)}
+                    disabled={isDownloading}
+                    activeOpacity={0.8}
+                  >
+                    {isDownloading ? (
+                      <ActivityIndicator size="small" color="#4d61d8" />
+                    ) : (
+                      <Text style={styles.downloadBtnText}>Download Form</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
             );
           })
@@ -407,6 +443,12 @@ export default function ProgramDetailScreen({ navigation, route }) {
 
       <View style={styles.card}>
         <Text style={styles.subTitle}>DOWNLOAD FORMS</Text>
+        <View style={styles.infoNoteBox}>
+          <Ionicons name="information-circle-outline" size={16} color="#4d61d8" style={{ marginRight: 6, marginTop: 1 }} />
+          <Text style={styles.infoNoteText}>
+            Note: If your parents are unemployed, please download and submit the Certificate of Indigency.
+          </Text>
+        </View>
         {templatesLoading ? (
           <ActivityIndicator size="small" color="#4d61d8" style={{ marginVertical: 12 }} />
         ) : templatesError ? (
@@ -432,18 +474,28 @@ export default function ProgramDetailScreen({ navigation, route }) {
                     </Text>
                   )}
                 </View>
-                <TouchableOpacity 
-                  style={[styles.downloadBtn, isDownloading && { backgroundColor: '#e2e6f4' }]}
-                  onPress={() => handleDownload(item)}
-                  disabled={isDownloading}
-                  activeOpacity={0.8}
-                >
-                  {isDownloading ? (
-                    <ActivityIndicator size="small" color="#4d61d8" />
-                  ) : (
-                    <Text style={styles.downloadBtnText}>Download Form</Text>
-                  )}
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 4, alignItems: 'center' }}>
+                  <TouchableOpacity 
+                    style={styles.previewIconBtn}
+                    onPress={() => handlePreview(item)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="eye-outline" size={20} color="#4d61d8" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={[styles.downloadBtn, { flex: 1 }, isDownloading && { backgroundColor: '#e2e6f4' }]}
+                    onPress={() => handleDownload(item)}
+                    disabled={isDownloading}
+                    activeOpacity={0.8}
+                  >
+                    {isDownloading ? (
+                      <ActivityIndicator size="small" color="#4d61d8" />
+                    ) : (
+                      <Text style={styles.downloadBtnText}>Download Form</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
             );
           })
@@ -516,6 +568,9 @@ const styles = StyleSheet.create({
   formLabel: { color: "#131b3e", fontSize: 14, fontWeight: "700", marginBottom: 8 },
   downloadBtn: { backgroundColor: "#eef2fc", borderRadius: 12, paddingVertical: 12, alignItems: "center" },
   downloadBtnText: { color: "#4d61d8", fontWeight: "800", fontSize: 13 },
+  previewIconBtn: { backgroundColor: "#ffffff", borderWidth: 1.5, borderColor: "#4d61d8", borderRadius: 12, paddingVertical: 11, width: 48, justifyContent: 'center', alignItems: 'center' },
+  infoNoteBox: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#f5f7ff', padding: 12, borderRadius: 10, marginBottom: 16, borderWidth: 1, borderColor: '#e2e7f9' },
+  infoNoteText: { color: '#4a4f75', fontSize: 12, fontWeight: '600', flex: 1, lineHeight: 16 },
   applyBtn: { marginTop: 10, borderRadius: 100, backgroundColor: "#2ecb9b", paddingVertical: 18, alignItems: "center", shadowColor: "#2ecb9b", shadowOpacity: 0.3, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
   applyBtnText: { color: "#fff", fontSize: 18, fontWeight: "900", letterSpacing: -0.2 },
   applySub: { color: "#e3fbf2", fontSize: 12, marginTop: 4, fontWeight: "600" },

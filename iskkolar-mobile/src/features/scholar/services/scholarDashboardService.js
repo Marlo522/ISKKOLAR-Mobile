@@ -1,5 +1,6 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
+import { API_URL } from '../../../config/constants';
 
 let sharedApi = null;
 
@@ -38,7 +39,7 @@ const getBaseUrl = () => {
     return configuredBaseUrl;
   }
 
-  return 'https://iskkolar-backend.onrender.com/api';
+  return API_URL;
 };
 
 const createFallbackClient = () => {

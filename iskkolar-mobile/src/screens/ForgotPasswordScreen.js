@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import SafeTextInput from "../components/SafeTextInput";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -65,10 +66,18 @@ export default function ForgotPasswordScreen({ navigation }) {
       </Text>
 
       <TouchableOpacity
-        style={styles.primaryButton}
+        style={{ width: "100%", borderRadius: 12, overflow: "hidden", marginTop: 8 }}
         onPress={() => navigation.navigate("Login")}
+        activeOpacity={0.8}
       >
-        <Text style={styles.primaryButtonText}>Back to Login</Text>
+        <LinearGradient
+          colors={['#5b5f97', '#727ab6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[styles.primaryButton, { marginTop: 0 }]}
+        >
+          <Text style={styles.primaryButtonText}>Back to Login</Text>
+        </LinearGradient>
       </TouchableOpacity>
     </View>
   );
@@ -105,15 +114,23 @@ export default function ForgotPasswordScreen({ navigation }) {
       </View>
 
       <TouchableOpacity
-        style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
+        style={[loading && styles.primaryButtonDisabled, { width: "100%", borderRadius: 12, overflow: "hidden", marginTop: 8 }]}
         onPress={handleSubmit}
         disabled={loading}
+        activeOpacity={0.8}
       >
-        {loading ? (
-          <ActivityIndicator color="#fff" size="small" />
-        ) : (
-          <Text style={styles.primaryButtonText}>Send Reset Link</Text>
-        )}
+        <LinearGradient
+          colors={['#5b5f97', '#727ab6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[styles.primaryButton, { marginTop: 0 }]}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={styles.primaryButtonText}>Send Reset Link</Text>
+          )}
+        </LinearGradient>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -128,10 +145,14 @@ export default function ForgotPasswordScreen({ navigation }) {
   );
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    <LinearGradient
+      colors={['#ffffff', '#f1f2fa']}
+      style={{ flex: 1 }}
     >
+      <KeyboardAvoidingView
+        style={[styles.screen, { backgroundColor: 'transparent' }]}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
       <ScrollView
         contentContainerStyle={[
           styles.container,
@@ -143,12 +164,13 @@ export default function ForgotPasswordScreen({ navigation }) {
           {success ? renderSuccess() : renderForm()}
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#f5f5f5" },
+  screen: { flex: 1, backgroundColor: "transparent" },
   container: {
     flexGrow: 1,
     justifyContent: "center",

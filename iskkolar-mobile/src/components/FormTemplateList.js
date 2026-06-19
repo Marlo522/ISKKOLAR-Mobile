@@ -10,9 +10,10 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import { documentDirectory, downloadAsync } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 import api from '../services/api';
 import { getPublicFormTemplates } from '../services/formTemplateService';
 
@@ -115,7 +116,7 @@ export default function FormTemplateList({ category, themeColor = '#5b5f97', lig
     const fileName = item.file_name || item.fileName || `form_${item.id || Date.now()}.pdf`;
     
     // Fallback: If FileSystem download is not available, use openURL directly
-    if (!FileSystem.documentDirectory) {
+    if (!documentDirectory) {
       try {
         await Linking.openURL(fullUrl);
       } catch (err) {
@@ -124,14 +125,14 @@ export default function FormTemplateList({ category, themeColor = '#5b5f97', lig
       return;
     }
 
-    const localUri = `${FileSystem.documentDirectory}${fileName}`;
+    const localUri = `${documentDirectory}${fileName}`;
     
     // Set downloading state for this item
     setDownloadingIds((prev) => ({ ...prev, [item.id]: true }));
 
     try {
       // Download the file locally
-      const downloadResult = await FileSystem.downloadAsync(fullUrl, localUri);
+      const downloadResult = await downloadAsync(fullUrl, localUri);
       
       if (downloadResult.status !== 200) {
         throw new Error(`Server returned status code ${downloadResult.status}`);
@@ -163,6 +164,25 @@ export default function FormTemplateList({ category, themeColor = '#5b5f97', lig
         delete next[item.id];
         return next;
       });
+    }
+  };
+
+  const handlePreview = async (item) => {
+    const rawUrl = item.file_url || item.fileUrl;
+    if (!rawUrl) {
+      Alert.alert('Error', 'This form does not have a valid preview link.');
+      return;
+    }
+    const fullUrl = getFullFileUrl(rawUrl);
+    try {
+      await WebBrowser.openBrowserAsync(fullUrl);
+    } catch (err) {
+      console.warn('Preview failed:', err);
+      try {
+        await Linking.openURL(fullUrl);
+      } catch {
+        Alert.alert('Error', 'Unable to open form preview.');
+      }
     }
   };
 
@@ -221,26 +241,36 @@ export default function FormTemplateList({ category, themeColor = '#5b5f97', lig
         const isDownloading = !!downloadingIds[item.id];
         return (
           <View style={styles.card}>
-            <View style={[styles.iconContainer, { backgroundColor: lightThemeBg }]}>
-              <Ionicons name="document-text" size={24} color={themeColor} />
-            </View>
-            
-            <View style={styles.textContainer}>
-              <Text style={styles.fileName} numberOfLines={2}>
-                {item.name || item.file_name}
-              </Text>
+            <TouchableOpacity 
+              style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+              onPress={() => handlePreview(item)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.iconContainer, { backgroundColor: lightThemeBg }]}>
+                <Ionicons name="document-text" size={24} color={themeColor} />
+              </View>
               
-              <View style={styles.metaRow}>
-                <View style={styles.metaItem}>
-                  <Ionicons name="file-tray-full-outline" size={12} color="#848baf" style={styles.metaIcon} />
-                  <Text style={styles.metaText}>{formatFileSize(item.file_size)}</Text>
-                </View>
-                <View style={styles.metaItem}>
-                  <Ionicons name="calendar-outline" size={12} color="#848baf" style={styles.metaIcon} />
-                  <Text style={styles.metaText}>Updated {formatDate(item.uploaded_at || item.created_at)}</Text>
+              <View style={styles.textContainer}>
+                <Text style={styles.fileName} numberOfLines={2}>
+                  {item.name || item.file_name}
+                </Text>
+                
+                <View style={styles.metaRow}>
+                  <View style={styles.metaItem}>
+                    <Ionicons name="file-tray-full-outline" size={12} color="#848baf" style={styles.metaIcon} />
+                    <Text style={styles.metaText}>{formatFileSize(item.file_size)}</Text>
+                  </View>
+                  <View style={styles.metaItem}>
+                    <Ionicons name="calendar-outline" size={12} color="#848baf" style={styles.metaIcon} />
+                    <Text style={styles.metaText}>Updated {formatDate(item.uploaded_at || item.created_at)}</Text>
+                  </View>
+                  <View style={styles.metaItem}>
+                    <Ionicons name="eye-outline" size={12} color={themeColor} style={styles.metaIcon} />
+                    <Text style={[styles.metaText, { color: themeColor, fontWeight: '700' }]}>Tap to view</Text>
+                  </View>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={[

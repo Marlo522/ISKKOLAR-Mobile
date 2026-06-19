@@ -9,6 +9,7 @@ import {
   ScrollView,
   Image,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import SafeTextInput from "../components/SafeTextInput";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,10 +24,14 @@ export default function LoginScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.screen, { paddingTop: insets.top }]}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    <LinearGradient
+      colors={['#ffffff', '#f1f2fa']}
+      style={{ flex: 1 }}
     >
+      <KeyboardAvoidingView
+        style={[styles.screen, { paddingTop: insets.top, backgroundColor: 'transparent' }]}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
@@ -109,13 +114,21 @@ export default function LoginScreen({ navigation }) {
 
         {/* Login button */}
         <TouchableOpacity
-          style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
+          style={loading && styles.primaryButtonDisabled}
           onPress={handleLogin}
           disabled={loading}
+          activeOpacity={0.8}
         >
-          <Text style={styles.primaryButtonText}>
-            {loading ? "Logging in..." : "LOGIN"}
-          </Text>
+          <LinearGradient
+            colors={['#5b5f97', '#727ab6']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.primaryButton}
+          >
+            <Text style={styles.primaryButtonText}>
+              {loading ? "Logging in..." : "LOGIN"}
+            </Text>
+          </LinearGradient>
         </TouchableOpacity>
 
         {/* Sign up link */}
@@ -127,7 +140,8 @@ export default function LoginScreen({ navigation }) {
         </View>
       </ScrollView>
       <LoadingOverlay visible={loading} message="Signing in..." />
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 

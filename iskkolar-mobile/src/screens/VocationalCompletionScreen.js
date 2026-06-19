@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
 
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import SafeTextInput from "../components/SafeTextInput";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -361,100 +363,105 @@ export default function VocationalCompletionScreen({ navigation, route }) {
 
   // ── 4. SUBMISSION FORM STATE ──
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1e293b" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Submit Completion</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.infoCard}>
-          <View style={styles.infoIconBox}>
-            <Ionicons name="ribbon-outline" size={26} color="#5b5f97" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.infoCardTitle}>Certification of Completion</Text>
-            <Text style={styles.infoCardSub}>Submit proof of program completion for staff review</Text>
-          </View>
-        </View>
-
-        <View style={styles.formCard}>
-          {/* Completion Date */}
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Completion Date <Text style={styles.requiredAsterisk}>*</Text></Text>
-            <SafeTextInput
-              style={styles.inputReadOnly}
-              value={form.completionDate ? formatDisplayDate(form.completionDate) : 'Fetching date...'}
-              editable={false}
-              placeholder="Auto-filled completion date"
-            />
-            <Text style={styles.hintText}>Auto-filled from program record details.</Text>
-            {fieldErrors.completionDate && <Text style={styles.errorText}>{fieldErrors.completionDate}</Text>}
-          </View>
-
-          {/* Certificate Number */}
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Certificate Number <Text style={styles.optionalText}>(Optional)</Text></Text>
-            <SafeTextInput
-              style={styles.input}
-              value={form.certificateNumber}
-              onChangeText={(val) => setForm(p => ({ ...p, certificateNumber: val }))}
-              placeholder="e.g. NC-2024-00123"
-              placeholderTextColor="#94a3b8"
-            />
-          </View>
-
-          {/* Documents */}
-          <View style={styles.uploadsGridContainer}>
-            {renderFilePicker('completion_certificate', 'Completion Certificate / Diploma', false)}
-            {renderFilePicker('transcript_of_records', 'Transcript of Records (TOR)', true)}
-            {renderFilePicker('other', 'Other Supporting Document', true)}
-          </View>
-
-          {error ? (
-            <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={18} color="#dc2626" />
-              <Text style={styles.errorBoxText}>{error}</Text>
-            </View>
-          ) : null}
-
-          {isBeforeEndDate && (
-            <View style={styles.lockedBox}>
-              <Ionicons name="warning-outline" size={20} color="#b45309" style={{ marginRight: 10, marginTop: 2 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.lockedTitle}>Submission Locked:</Text>
-                <Text style={styles.lockedText}>
-                  {`You can only submit your completion documents after your program's end date (${formatDisplayDate(form.completionDate)}).`}
-                </Text>
-              </View>
-            </View>
-          )}
-
-          <TouchableOpacity
-            style={[styles.submitBtn, (submitting || isBeforeEndDate) && styles.submitBtnDisabled]}
-            onPress={handleSubmit}
-            disabled={submitting || isBeforeEndDate}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
-            ) : null}
-            <Text style={styles.submitBtnText}>
-              {submitting ? "Submitting..." : "Submit Verification Proof"}
-            </Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#1e293b" />
           </TouchableOpacity>
-
-          <View style={styles.tipBox}>
-            <Ionicons name="information-circle-outline" size={18} color="#5b5f97" style={{ marginTop: 2 }} />
-            <Text style={styles.tipBoxText}>
-              Upload your certificate, diploma, or any official document proving program completion. Accepted formats: JPG, PNG, PDF (max 10 MB each).
-            </Text>
-          </View>
+          <Text style={styles.headerTitle}>Submit Completion</Text>
+          <View style={{ width: 40 }} />
         </View>
-      </ScrollView>
-    </View>
+
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.infoCard}>
+            <View style={styles.infoIconBox}>
+              <Ionicons name="ribbon-outline" size={26} color="#5b5f97" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.infoCardTitle}>Certification of Completion</Text>
+              <Text style={styles.infoCardSub}>Submit proof of program completion for staff review</Text>
+            </View>
+          </View>
+
+          <View style={styles.formCard}>
+            {/* Completion Date */}
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Completion Date <Text style={styles.requiredAsterisk}>*</Text></Text>
+              <SafeTextInput
+                style={styles.inputReadOnly}
+                value={form.completionDate ? formatDisplayDate(form.completionDate) : 'Fetching date...'}
+                editable={false}
+                placeholder="Auto-filled completion date"
+              />
+              <Text style={styles.hintText}>Auto-filled from program record details.</Text>
+              {fieldErrors.completionDate && <Text style={styles.errorText}>{fieldErrors.completionDate}</Text>}
+            </View>
+
+            {/* Certificate Number */}
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Certificate Number <Text style={styles.optionalText}>(Optional)</Text></Text>
+              <SafeTextInput
+                style={styles.input}
+                value={form.certificateNumber}
+                onChangeText={(val) => setForm(p => ({ ...p, certificateNumber: val }))}
+                placeholder="e.g. NC-2024-00123"
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
+
+            {/* Documents */}
+            <View style={styles.uploadsGridContainer}>
+              {renderFilePicker('completion_certificate', 'Completion Certificate / Diploma', false)}
+              {renderFilePicker('transcript_of_records', 'Transcript of Records (TOR)', true)}
+              {renderFilePicker('other', 'Other Supporting Document', true)}
+            </View>
+
+            {error ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={18} color="#dc2626" />
+                <Text style={styles.errorBoxText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {isBeforeEndDate && (
+              <View style={styles.lockedBox}>
+                <Ionicons name="warning-outline" size={20} color="#b45309" style={{ marginRight: 10, marginTop: 2 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.lockedTitle}>Submission Locked:</Text>
+                  <Text style={styles.lockedText}>
+                    {`You can only submit your completion documents after your program's end date (${formatDisplayDate(form.completionDate)}).`}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[styles.submitBtn, (submitting || isBeforeEndDate) && styles.submitBtnDisabled]}
+              onPress={handleSubmit}
+              disabled={submitting || isBeforeEndDate}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
+              ) : null}
+              <Text style={styles.submitBtnText}>
+                {submitting ? "Submitting..." : "Submit Verification Proof"}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.tipBox}>
+              <Ionicons name="information-circle-outline" size={18} color="#5b5f97" style={{ marginTop: 2 }} />
+              <Text style={styles.tipBoxText}>
+                Upload your certificate, diploma, or any official document proving program completion. Accepted formats: JPG, PNG, PDF (max 10 MB each).
+              </Text>
+            </View>
+          </View>
+        </ScrollView>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

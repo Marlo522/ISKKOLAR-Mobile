@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
   Animated,
+  KeyboardAvoidingView,
 } from "react-native";
 import SafeTextInput from "../components/SafeTextInput";
 import { programOptions, vocationalProgramOptions, heiSchoolNames } from "../utils/programConstants";
@@ -2525,109 +2526,114 @@ export default function ProgramApplyScreen({ navigation, route }) {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity
-          onPress={() => (step > 0 ? setStep(step - 1) : navigation?.goBack?.())}
-          style={styles.backBtn}
-        >
-          <Ionicons name="arrow-back" size={22} color="#4c60d1" />
-        </TouchableOpacity>
-        <Text style={styles.title}>
-          {selectedProgram === "employeeChild"
-            ? isChildDesignation ? "Child Designation Application" : "Staff Advancement Application"
-            : selectedProgram === "vocational"
-              ? "VOCATIONAL AND TECHNOLOGY SCHOLARSHIP"
-              : "Tertiary Scholarship Program"}
-        </Text>
-        <View style={styles.empty} />
-      </View>
-
-      <View style={styles.progressBarRow}>
-        {[...Array(maxStep + 2)].map((_, idx) => (
-          <View
-            key={idx}
-            style={[
-              styles.progressStep,
-              completeStage === "qualificationReport" || idx <= step
-                ? styles.progressStepActive
-                : styles.progressStepInactive,
-            ]}
-          />
-        ))}
-      </View>
-
-      <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
-        <Animated.View
-          style={{
-            opacity: stepAnim,
-            transform: [{ translateY: stepAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
-          }}
-        >
-          {renderStep()}
-          {apiError ? <Text style={[styles.errorText, { marginTop: 8 }]}>{apiError}</Text> : null}
-        </Animated.View>
-      </ScrollView>
-
-      {!isSubmittingNow && completeStage === "none" && step < maxStep && (
-        <TouchableOpacity style={[styles.nextBtn, isValidating && { opacity: 0.7 }]} onPress={advance} disabled={isValidating}>
-          <Text style={styles.nextBtnText}>{isValidating ? "Validating..." : "Next Step →"}</Text>
-        </TouchableOpacity>
-      )}
-
-      {!isSubmittingNow && completeStage === "none" && step === maxStep && (
-        <TouchableOpacity
-          style={[styles.nextBtn, !allDeclared && { backgroundColor: "#bcc1e8" }]}
-          onPress={() => { if (allDeclared) submitApplication(); }}
-          disabled={!allDeclared}
-        >
-          <Text style={styles.nextBtnText}>Submit Application</Text>
-        </TouchableOpacity>
-      )}
-
-      <Modal visible={selectVisible} transparent animationType="slide" statusBarTranslucent onRequestClose={closeSelect}>
-        <View style={styles.modalRoot}>
-          <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={closeSelect} />
-          <View style={[styles.modalCard, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Option</Text>
-              <TouchableOpacity onPress={closeSelect}>
-                <Ionicons name="close" size={24} color="#4f5fc5" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 20 }}
-            >
-              {(selectContext?.options || []).map((opt, idx) => {
-                const isSelected =
-                  selectContext?.type === "member"
-                    ? familyMembers[selectContext.index]?.[selectContext.key] === opt
-                    : values[selectContext?.key] === opt;
-                return (
-                  <TouchableOpacity
-                    key={idx}
-                    style={[
-                      styles.modalOption,
-                      isSelected && styles.modalOptionActive
-                    ]}
-                    onPress={() => applySelect(opt)}
-                  >
-                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextActive]}>{opt}</Text>
-                    {isSelected && (
-                      <Ionicons name="checkmark-circle" size={22} color="#fff" style={{ marginLeft: 10, flexShrink: 0 }} />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <View style={styles.container}>
+        <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
+          <TouchableOpacity
+            onPress={() => (step > 0 ? setStep(step - 1) : navigation?.goBack?.())}
+            style={styles.backBtn}
+          >
+            <Ionicons name="arrow-back" size={22} color="#4c60d1" />
+          </TouchableOpacity>
+          <Text style={styles.title}>
+            {selectedProgram === "employeeChild"
+              ? isChildDesignation ? "Child Designation Application" : "Staff Advancement Application"
+              : selectedProgram === "vocational"
+                ? "VOCATIONAL AND TECHNOLOGY SCHOLARSHIP"
+                : "Tertiary Scholarship Program"}
+          </Text>
+          <View style={styles.empty} />
         </View>
-      </Modal>
 
-      <ExamplesModal visible={examplesModalVisible} onClose={() => setExamplesModalVisible(false)} />
-      <LoadingOverlay visible={isValidating} message="Validating your information..." />
-    </View>
+        <View style={styles.progressBarRow}>
+          {[...Array(maxStep + 2)].map((_, idx) => (
+            <View
+              key={idx}
+              style={[
+                styles.progressStep,
+                completeStage === "qualificationReport" || idx <= step
+                  ? styles.progressStepActive
+                  : styles.progressStepInactive,
+              ]}
+            />
+          ))}
+        </View>
+
+        <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
+          <Animated.View
+            style={{
+              opacity: stepAnim,
+              transform: [{ translateY: stepAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
+            }}
+          >
+            {renderStep()}
+            {apiError ? <Text style={[styles.errorText, { marginTop: 8 }]}>{apiError}</Text> : null}
+          </Animated.View>
+        </ScrollView>
+
+        {!isSubmittingNow && completeStage === "none" && step < maxStep && (
+          <TouchableOpacity style={[styles.nextBtn, isValidating && { opacity: 0.7 }]} onPress={advance} disabled={isValidating}>
+            <Text style={styles.nextBtnText}>{isValidating ? "Validating..." : "Next Step →"}</Text>
+          </TouchableOpacity>
+        )}
+
+        {!isSubmittingNow && completeStage === "none" && step === maxStep && (
+          <TouchableOpacity
+            style={[styles.nextBtn, !allDeclared && { backgroundColor: "#bcc1e8" }]}
+            onPress={() => { if (allDeclared) submitApplication(); }}
+            disabled={!allDeclared}
+          >
+            <Text style={styles.nextBtnText}>Submit Application</Text>
+          </TouchableOpacity>
+        )}
+
+        <Modal visible={selectVisible} transparent animationType="slide" statusBarTranslucent onRequestClose={closeSelect}>
+          <View style={styles.modalRoot}>
+            <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={closeSelect} />
+            <View style={[styles.modalCard, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Option</Text>
+                <TouchableOpacity onPress={closeSelect}>
+                  <Ionicons name="close" size={24} color="#4f5fc5" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 20 }}
+              >
+                {(selectContext?.options || []).map((opt, idx) => {
+                  const isSelected =
+                    selectContext?.type === "member"
+                      ? familyMembers[selectContext.index]?.[selectContext.key] === opt
+                      : values[selectContext?.key] === opt;
+                  return (
+                    <TouchableOpacity
+                      key={idx}
+                      style={[
+                        styles.modalOption,
+                        isSelected && styles.modalOptionActive
+                      ]}
+                      onPress={() => applySelect(opt)}
+                    >
+                      <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextActive]}>{opt}</Text>
+                      {isSelected && (
+                        <Ionicons name="checkmark-circle" size={22} color="#fff" style={{ marginLeft: 10, flexShrink: 0 }} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        <ExamplesModal visible={examplesModalVisible} onClose={() => setExamplesModalVisible(false)} />
+        <LoadingOverlay visible={isValidating} message="Validating your information..." />
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -3006,22 +3012,21 @@ const ExamplesModal = ({ visible, onClose }) => {
               <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, padding: 10 }}>
                 {/* Table Header */}
                 <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1.5, borderBottomColor: "#cbd5e1", marginBottom: 4 }}>
-                  <Text style={{ flex: 1.2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Grade</Text>
-                  <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Percentage</Text>
+                  <Text style={{ flex: 1.5, fontWeight: "800", color: "#475569", fontSize: 12 }}>Grade</Text>
                   <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Description</Text>
                 </View>
 
                 {/* Rows */}
                 {[
-                  ["1.00", "97% - 100%", "Excellent", "#16a34a"],
-                  ["1.25", "93% - 96%", "Superior", "#16a34a"],
-                  ["1.50", "89% - 92%", "Very Good", "#2563eb"],
-                  ["1.75", "85% - 88%", "Good", "#2563eb"],
-                  ["2.00", "81% - 84%", "Satisfactory", "#4f46e5"],
-                  ["2.50", "78% - 80%", "Fair", "#b45309"],
-                  ["3.00", "75% - 77%", "Pass", "#64748b"],
-                  ["5.00", "Below 75%", "Fail", "#dc2626"],
-                ].map(([grade, pct, desc, color], idx, arr) => (
+                  ["1.00", "Excellent", "#16a34a"],
+                  ["1.25", "Superior", "#16a34a"],
+                  ["1.50", "Very Good", "#2563eb"],
+                  ["1.75", "Good", "#2563eb"],
+                  ["2.00", "Satisfactory", "#4f46e5"],
+                  ["2.50", "Fair", "#b45309"],
+                  ["3.00", "Pass", "#64748b"],
+                  ["5.00", "Fail", "#dc2626"],
+                ].map(([grade, desc, color], idx, arr) => (
                   <View
                     key={grade}
                     style={{
@@ -3031,8 +3036,7 @@ const ExamplesModal = ({ visible, onClose }) => {
                       borderBottomColor: "#f1f5f9"
                     }}
                   >
-                    <Text style={{ flex: 1.2, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
-                    <Text style={{ flex: 2, color: "#334155", fontSize: 12 }}>{pct}</Text>
+                    <Text style={{ flex: 1.5, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
                     <Text style={{ flex: 2, fontWeight: "600", color: color, fontSize: 12 }}>{desc}</Text>
                   </View>
                 ))}
@@ -3048,22 +3052,21 @@ const ExamplesModal = ({ visible, onClose }) => {
               <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, padding: 10 }}>
                 {/* Table Header */}
                 <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1.5, borderBottomColor: "#cbd5e1", marginBottom: 4 }}>
-                  <Text style={{ flex: 1.2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Grade</Text>
-                  <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Percentage</Text>
+                  <Text style={{ flex: 1.5, fontWeight: "800", color: "#475569", fontSize: 12 }}>Grade</Text>
                   <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Description</Text>
                 </View>
 
                 {/* Rows */}
                 {[
-                  ["4.00", "97% - 100%", "Excellent", "#16a34a"],
-                  ["3.50", "93% - 96%", "Superior", "#16a34a"],
-                  ["3.00", "89% - 92%", "Very Good", "#2563eb"],
-                  ["2.50", "85% - 88%", "Good", "#2563eb"],
-                  ["2.00", "81% - 84%", "Satisfactory", "#4f46e5"],
-                  ["1.50", "78% - 80%", "Fair", "#b45309"],
-                  ["1.00", "75% - 77%", "Pass", "#64748b"],
-                  ["0.50", "Below 75%", "Fail", "#dc2626"],
-                ].map(([grade, pct, desc, color], idx, arr) => (
+                  ["4.00", "Excellent", "#16a34a"],
+                  ["3.50", "Superior", "#16a34a"],
+                  ["3.00", "Very Good", "#2563eb"],
+                  ["2.50", "Good", "#2563eb"],
+                  ["2.00", "Satisfactory", "#4f46e5"],
+                  ["1.50", "Fair", "#b45309"],
+                  ["1.00", "Pass", "#64748b"],
+                  ["0.50", "Fail", "#dc2626"],
+                ].map(([grade, desc, color], idx, arr) => (
                   <View
                     key={grade}
                     style={{
@@ -3073,8 +3076,7 @@ const ExamplesModal = ({ visible, onClose }) => {
                       borderBottomColor: "#f1f5f9"
                     }}
                   >
-                    <Text style={{ flex: 1.2, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
-                    <Text style={{ flex: 2, color: "#334155", fontSize: 12 }}>{pct}</Text>
+                    <Text style={{ flex: 1.5, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
                     <Text style={{ flex: 2, fontWeight: "600", color: color, fontSize: 12 }}>{desc}</Text>
                   </View>
                 ))}

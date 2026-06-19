@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useContext, useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, RefreshControl } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
@@ -121,7 +122,7 @@ export default function ScholarDashboardScreen({ navigation }) {
     () => [
       { title: displayYearLevel, sub: currentProgram, icon: 'school-outline', iconBg: '#f4effe', iconColor: '#7e52d8', fullWidth: true },
       { title: currentGwa, sub: 'Current GWA', icon: 'checkmark-circle-outline', iconBg: '#e7f6ea', iconColor: '#39a751', fullWidth: false },
-      { title: expectedGraduationYear, sub: 'Year of Graduation', icon: 'calendar-outline', iconBg: '#eefafc', iconColor: '#41b5bd', fullWidth: false },
+      { title: expectedGraduationYear, sub: 'Expected Year of Graduation', icon: 'calendar-outline', iconBg: '#eefafc', iconColor: '#41b5bd', fullWidth: false },
       { title: displayTerm, sub: 'Current Term', icon: 'layers-outline', iconBg: '#fcefe9', iconColor: '#e96e5e', fullWidth: true },
     ],
     [displayYearLevel, currentProgram, currentGwa, expectedGraduationYear, displayTerm]
@@ -291,7 +292,10 @@ export default function ScholarDashboardScreen({ navigation }) {
   })();
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#ffffff', '#f1f3fa']}
+      style={styles.container}
+    >
       <Animated.ScrollView
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
         showsVerticalScrollIndicator={false}
@@ -299,7 +303,12 @@ export default function ScholarDashboardScreen({ navigation }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#727ab6']} tintColor="#727ab6" />}
       >
         {/* Header Banner */}
-        <View style={styles.heroBanner}>
+        <LinearGradient
+          colors={['#5b61a7', '#727ab6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroBanner}
+        >
           <View style={styles.heroTextContent}>
             <Text style={styles.heroGreeting}>Good day,</Text>
             <Text style={styles.heroName}>{fullName}</Text>
@@ -326,7 +335,7 @@ export default function ScholarDashboardScreen({ navigation }) {
               </View>
             )}
           </TouchableOpacity>
-        </View>
+        </LinearGradient>
 
         {/* Stats Row */}
         <View style={styles.statsContainer}>
@@ -412,7 +421,7 @@ export default function ScholarDashboardScreen({ navigation }) {
         </View>
 
       </Animated.ScrollView>
-    </View>
+    </LinearGradient>
   );
 }
 

@@ -106,22 +106,8 @@ export const NotificationProvider = ({ children }) => {
       
       const allAnnouncements = data || [];
 
-      // Show banner for the latest unread announcement on initial startup load
+      // On initial load, simply register existing announcements without displaying popups/banners
       if (!hasShownInitialBannerRef.current) {
-        const unreadItems = allAnnouncements.filter(
-          item => !readIdsRef.current.includes(item.id) &&
-                  !archivedIdsRef.current.includes(item.id)
-        );
-        if (unreadItems.length > 0) {
-          // Show the most recent unread announcement
-          showBannerPopup(unreadItems[0]);
-
-          // Dispatch a native system notification
-          const item = unreadItems[0];
-          const cleanTitle = item.title?.replace(/<[^>]+>/g, '').replace(/[\*_~]{1,2}/g, '') || '';
-          const cleanBody = (item.description || item.content)?.replace(/<[^>]+>/g, '').replace(/[\*_~]{1,2}/g, '').trim() || '';
-          void showNativeNotification(`New Announcement: ${cleanTitle}`, cleanBody, { announcementId: item.id });
-        }
         hasShownInitialBannerRef.current = true;
       } else {
         // Compare to detect new arrivals while app is active

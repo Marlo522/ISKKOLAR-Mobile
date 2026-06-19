@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useContext } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Animated, Alert } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Animated, Alert, KeyboardAvoidingView } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import SafeTextInput from "../components/SafeTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -576,19 +577,7 @@ export default function GradeComplianceScreen({ navigation }) {
       );
     }
 
-    if (isSubmitting) {
-      return (
-        <View style={styles.centered}>
-          <Animated.View style={{ transform: [{ rotate: spin }] }}>
-            <Ionicons name="sync-circle" size={110} color="#4f5fc5" />
-          </Animated.View>
-          <Text style={styles.completeText}>Uploading Documents...</Text>
-          <Text style={{ textAlign: "center", color: "#848baf", paddingHorizontal: 40, fontSize: 15 }}>
-            Please hold on while we securely process your grade report.
-          </Text>
-        </View>
-      );
-    }
+
 
     if (isLoadingTerms) {
       return (
@@ -784,99 +773,123 @@ export default function GradeComplianceScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
-      {selectedTermId && step === 2 && completeStage === "none" ? (
-        <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 10 }}>
-          <TouchableOpacity
-            onPress={() => {
-              if (selectedTerm?.isLastSemesterBeforeGraduation) {
-                resetFormState();
-              } else {
-                setStep(1);
-              }
-            }}
-            style={styles.textBackBtn}
-          >
-            <Ionicons name="arrow-back" size={16} color="#5b6095" style={{ marginRight: 8 }} />
-            <Text style={styles.textBackBtnText}>
-              {selectedTerm?.isLastSemesterBeforeGraduation ? "Back to Terms Overview" : "Back to COR Submission"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
-          <TouchableOpacity
-            onPress={() => {
-              if (completeStage === "preAssessment") {
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <LinearGradient
+        colors={['#ffffff', '#f1f2fa']}
+        style={[styles.container, { backgroundColor: 'transparent' }]}
+      >
+        {selectedTermId && step === 2 && completeStage === "none" ? (
+          <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 10 }}>
+            <TouchableOpacity
+              onPress={() => {
+                if (selectedTerm?.isLastSemesterBeforeGraduation) {
+                  resetFormState();
+                } else {
+                  setStep(1);
+                }
+              }}
+              style={styles.textBackBtn}
+            >
+              <Ionicons name="arrow-back" size={16} color="#5b6095" style={{ marginRight: 8 }} />
+              <Text style={styles.textBackBtnText}>
+                {selectedTerm?.isLastSemesterBeforeGraduation ? "Back to Terms Overview" : "Back to COR Submission"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
+            <TouchableOpacity
+              onPress={() => {
+                if (completeStage === "preAssessment") {
+                  setCompleteStage("none");
+                  resetFormState();
+                } else if (selectedTermId) {
+                  resetFormState();
+                } else {
+                  navigation.goBack();
+                }
+              }}
+              style={styles.backBtn}
+            >
+              <Ionicons name="arrow-back" size={24} color="#5b6095" />
+            </TouchableOpacity>
+
+            <View style={{ flex: 1, marginLeft: 16 }}>
+              <Text style={styles.titleLanding}>Certificate of Registration & Grade Compliance</Text>
+              <Text style={styles.subtitleLanding} numberOfLines={1}>
+                {selectedTerm ? `Submit grades for ${selectedTerm.termLabel}` : "Track your academic standing"}
+              </Text>
+            </View>
+
+            <TouchableOpacity style={styles.bellBtn} activeOpacity={0.8}>
+              <Ionicons name="notifications-outline" size={24} color="#6a72b2" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {selectedTermId && step === 2 && completeStage === "none" && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
+            <Text style={styles.titleLanding}>Certificate of Registration & Grade Compliance</Text>
+          </View>
+        )}
+
+        <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={{ paddingBottom: 60, paddingTop: (!selectedTermId || step === 1) ? 20 : 0 }}>
+          <Animated.View style={{ opacity: stepAnim, transform: [{ translateY: stepAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+            {renderContent()}
+          </Animated.View>
+        </ScrollView>
+
+        {completeStage === "none" && selectedTermId && (
+          <View style={styles.footerActionRow}>
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={() => {
                 setCompleteStage("none");
                 resetFormState();
-              } else if (selectedTermId) {
-                resetFormState();
-              } else {
-                navigation.goBack();
-              }
-            }}
-            style={styles.backBtn}
-          >
-            <Ionicons name="arrow-back" size={24} color="#5b6095" />
-          </TouchableOpacity>
+              }}
+            >
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
 
-          <View style={{ flex: 1, marginLeft: 16 }}>
-            <Text style={styles.titleLanding}>Certificate of Registration & Grade Compliance</Text>
-            <Text style={styles.subtitleLanding} numberOfLines={1}>
-              {selectedTerm ? `Submit grades for ${selectedTerm.termLabel}` : "Track your academic standing"}
-            </Text>
+            {step === 1 ? (
+              <TouchableOpacity
+                style={{ flex: 1, borderRadius: 10, overflow: "hidden" }}
+                onPress={handleContinueToGrade}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#5b5f97', '#727ab6']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.nextBtn, { width: "100%", backgroundColor: 'transparent' }]}
+                >
+                  <Text style={styles.nextBtnText}>Continue to Grade Submission</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={{ flex: 1, borderRadius: 10, overflow: "hidden" }}
+                onPress={handleSubmit}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#5b5f97', '#727ab6']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.nextBtn, { width: "100%", backgroundColor: 'transparent' }]}
+                >
+                  <Text style={styles.nextBtnText}>Submit Grade Compliance</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
           </View>
-
-          <TouchableOpacity style={styles.bellBtn} activeOpacity={0.8}>
-            <Ionicons name="notifications-outline" size={24} color="#6a72b2" />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {selectedTermId && step === 2 && completeStage === "none" && (
-        <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
-          <Text style={styles.titleLanding}>Certificate of Registration & Grade Compliance</Text>
-        </View>
-      )}
-
-      <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={{ paddingBottom: 60, paddingTop: (!selectedTermId || step === 1) ? 20 : 0 }}>
-        <Animated.View style={{ opacity: stepAnim, transform: [{ translateY: stepAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
-          {renderContent()}
-        </Animated.View>
-      </ScrollView>
-
-      {!isSubmitting && completeStage === "none" && selectedTermId && (
-        <View style={styles.footerActionRow}>
-          <TouchableOpacity
-            style={styles.cancelBtn}
-            onPress={() => {
-              setCompleteStage("none");
-              resetFormState();
-            }}
-          >
-            <Text style={styles.cancelBtnText}>Cancel</Text>
-          </TouchableOpacity>
-
-          {step === 1 ? (
-            <TouchableOpacity
-              style={styles.nextBtn}
-              onPress={handleContinueToGrade}
-            >
-              <Text style={styles.nextBtnText}>Continue to Grade Submission</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.nextBtn}
-              onPress={handleSubmit}
-            >
-              <Text style={styles.nextBtnText}>Submit Grade Compliance</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
-      <LoadingOverlay visible={isSubmitting} message="Uploading documents..." />
-    </View>
+        )}
+        <LoadingOverlay visible={isSubmitting} message="Uploading documents..." />
+      </LinearGradient>
+    </KeyboardAvoidingView>
   );
 }
 
