@@ -55,6 +55,7 @@ const FormDatePicker = ({
     const y = dateObj.getFullYear();
     const m = String(dateObj.getMonth() + 1).padStart(2, '0');
     const d = String(dateObj.getDate()).padStart(2, '0');
+    if (dateFormat === 'yyyy-mm-dd') return `${y}-${m}-${d}`;
     return dateFormat === 'dd/mm/yyyy' ? `${d}/${m}/${y}` : `${m}/${d}/${y}`;
   };
 

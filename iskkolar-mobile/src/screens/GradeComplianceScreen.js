@@ -9,11 +9,10 @@ import * as ImagePicker from "expo-image-picker";
 import { validateAndSanitizeFile } from "../utils/fileSanitizer";
 import FormDatePicker from "../components/FormDatePicker";
 import GraduationCelebration from "../components/GraduationCelebration";
-import { getGradeComplianceTerms, submitGradeCompliance } from "../services/gradeComplianceService";
+import { getGradeComplianceTerms, submitGradeCompliance, evaluateGradeCompliance } from "../services/gradeComplianceService";
 import { AuthContext } from "../context/AuthContext";
 import ApplicationResultState from "../components/ApplicationResultState";
 import { useGradeCompliance } from "../hooks/useGradeCompliance";
-import { getSubmissionWindowStatus, validateNextTermDates, parseStringToDate } from "../utils/gradeComplianceUtils";
 import { validateGwa, INVALID_GWA_ERROR } from "../utils/gradeValidation";
 import ApplicationSubmissionGuard from "../components/ApplicationSubmissionGuard";
 import LoadingOverlay from "../components/LoadingOverlay";
@@ -26,8 +25,129 @@ const statusColors = {
   default: { bg: "#f0f0f0", text: "#666" },
 };
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const parseDateOnly = (value) => {
+  if (!value) return null;
+
+  const text = String(value).trim();
+
+  // Try matching ISO format YYYY-MM-DD
+  const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+  }
+
+  // Try matching slash format MM/DD/YYYY
+  const slashMatch = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (slashMatch) {
+    return new Date(Number(slashMatch[3]), Number(slashMatch[1]) - 1, Number(slashMatch[2]));
+  }
+
+  // Fallback
+  const date = new Date(text);
+  return Number.isNaN(date.getTime())
+    ? null
+    : new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
+const getTodayDateOnly = () => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+};
+
+const addOneMonth = (date) => {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + 1);
+  return next;
+};
+
+const getSubmissionWindowState = (term) => {
+  const deadline = parseDateOnly(term?.deadline);
+
+  if (!deadline) {
+    return {
+      deadline: null,
+      isTooEarly: false,
+      isLate: false,
+      message: "",
+    };
+  }
+
+  const today = getTodayDateOnly();
+  const opensAt = parseDateOnly(term?.currentTermEndDate)
+    || new Date(deadline.getTime() - (14 * MS_PER_DAY));
+
+  if (today < opensAt) {
+    return {
+      deadline,
+      isTooEarly: true,
+      isLate: false,
+      message: `Grade compliance submission opens on the term end date: ${opensAt.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })}.`,
+    };
+  }
+
+  if (today > deadline) {
+    return {
+      deadline,
+      isTooEarly: false,
+      isLate: true,
+      message: `The deadline passed on ${deadline.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })}. You can still submit, but it will be marked late.`,
+    };
+  }
+
+  return {
+    deadline,
+    isTooEarly: false,
+    isLate: false,
+    message: "",
+  };
+};
+
+const validateNextTermDates = (currentTermEndDate, startDateValue, endDateValue) => {
+  const issues = [];
+  const startDate = parseDateOnly(startDateValue);
+  const endDate = parseDateOnly(endDateValue);
+  const currentEndDate = parseDateOnly(currentTermEndDate);
+
+  if (startDate && currentEndDate && startDate <= currentEndDate) {
+    issues.push({
+      field: "nextTermStartDate",
+      message: `Start date must be after the current term ends on ${currentEndDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })}.`,
+    });
+  }
+
+  if (startDate && endDate) {
+    const minimumEndDate = addOneMonth(startDate);
+    if (endDate < minimumEndDate) {
+      issues.push({
+        field: "nextTermEndDate",
+        message: `End date must be at least 1 month after start date (${minimumEndDate.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })} or later).`,
+      });
+    }
+  }
+
+  return issues;
+};
+
 export default function GradeComplianceScreen({ navigation }) {
-  const { user } = useContext(AuthContext);
+  const { user, refreshSession } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
   const { isCheckingGuard, ongoingApplication } = useGradeCompliance();
   const [completeStage, setCompleteStage] = useState("none");
@@ -35,21 +155,11 @@ export default function GradeComplianceScreen({ navigation }) {
   const [academicYear, setAcademicYear] = useState("");
   const [currentScholarship, setCurrentScholarship] = useState("");
   const [isLoadingTerms, setIsLoadingTerms] = useState(true);
+  const [isEvaluating, setIsEvaluating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState({ gradeReport: "", cor: "", term: "", nextTermStartDate: "", nextTermEndDate: "", gwa: "" });
-  const [step, setStep] = useState(1);
-  const scrollViewRef = useRef(null);
-
-  useEffect(() => {
-    if (scrollViewRef.current) {
-      scrollViewRef.current.scrollTo({ y: 0, animated: true });
-    }
-  }, [step, completeStage, selectedTermId]);
-  const [isGraduate, setIsGraduate] = useState(false);
-
-  const resolvedIsGraduate = isGraduate || user?.is_graduate || user?.isGraduate || false;
-
+  const [submissionStep, setSubmissionStep] = useState("cor");
+  const [evaluationResult, setEvaluationResult] = useState(null);
   const [selectedTermId, setSelectedTermId] = useState(null);
   const [gradeReportFile, setGradeReportFile] = useState(null);
   const [corFile, setCorFile] = useState(null);
@@ -58,8 +168,17 @@ export default function GradeComplianceScreen({ navigation }) {
   const [gwa, setGwa] = useState("");
   const [lastAiSummary, setLastAiSummary] = useState("");
   const [aiCheckingEnabled, setAiCheckingEnabled] = useState(true);
+  const scrollViewRef = useRef(null);
 
+  useEffect(() => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: 0, animated: true });
+    }
+  }, [submissionStep, completeStage, selectedTermId]);
 
+  const [isGraduate, setIsGraduate] = useState(false);
+
+  const resolvedIsGraduate = isGraduate || user?.is_graduate || user?.isGraduate || false;
 
   const spinAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
@@ -69,6 +188,9 @@ export default function GradeComplianceScreen({ navigation }) {
     () => termRequirements.find((item) => item.id === selectedTermId) || null,
     [termRequirements, selectedTermId]
   );
+
+  const currentTermEndDate = selectedTerm?.currentTermEndDate || selectedTerm?.endDate || "";
+  const isBusy = isEvaluating || isSubmitting;
 
   const loadTerms = async () => {
     setIsLoadingTerms(true);
@@ -103,18 +225,18 @@ export default function GradeComplianceScreen({ navigation }) {
       duration: 350,
       useNativeDriver: true,
     }).start();
-  }, [selectedTermId, completeStage, isSubmitting]);
+  }, [selectedTermId, completeStage, isBusy, submissionStep, stepAnim]);
 
   useEffect(() => {
     if (selectedTerm?.isLastSemesterBeforeGraduation) {
-      setStep(2);
+      setSubmissionStep("grade");
     } else {
-      setStep(1);
+      setSubmissionStep("cor");
     }
   }, [selectedTerm]);
 
   useEffect(() => {
-    if (isSubmitting) {
+    if (isBusy) {
       spinAnim.setValue(0);
       Animated.loop(
         Animated.timing(spinAnim, {
@@ -124,7 +246,7 @@ export default function GradeComplianceScreen({ navigation }) {
         })
       ).start();
     }
-  }, [isSubmitting, spinAnim]);
+  }, [isBusy, spinAnim]);
 
   useEffect(() => {
     if (completeStage === "preAssessment") {
@@ -159,12 +281,7 @@ export default function GradeComplianceScreen({ navigation }) {
     );
   }
 
-  const spin = spinAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "360deg"],
-  });
-
-  const resetFormState = ({ clearFeedback = true } = {}) => {
+  const resetFormState = () => {
     setSelectedTermId(null);
     setGradeReportFile(null);
     setCorFile(null);
@@ -172,37 +289,15 @@ export default function GradeComplianceScreen({ navigation }) {
     setNextTermEndDate("");
     setGwa("");
     setLastAiSummary("");
-    setStep(1);
+    setSubmissionStep("cor");
+    setEvaluationResult(null);
+    setIsEvaluating(false);
     setIsSubmitting(false);
     setFieldErrors({ gradeReport: "", cor: "", term: "", nextTermStartDate: "", nextTermEndDate: "", gwa: "" });
-    if (clearFeedback) setSuccessMessage("");
   };
 
   const clearFieldError = (fieldName) => {
     setFieldErrors((current) => ({ ...current, [fieldName]: "" }));
-  };
-
-  const formatDateLabel = (value) => {
-    const date = value instanceof Date ? value : parseStringToDate(value);
-    return date
-      ? date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
-      : "";
-  };
-
-  const getSubmissionWindowMessage = (term) => {
-    const windowStatus = getSubmissionWindowStatus(term?.deadline);
-
-    if (!windowStatus.deadline) return "";
-
-    if (!windowStatus.canSubmit) {
-      return `Grade compliance submission opens two weeks before the deadline on ${formatDateLabel(windowStatus.windowOpensOn)}.`;
-    }
-
-    if (windowStatus.isLate) {
-      return `The deadline passed on ${formatDateLabel(windowStatus.deadline)}. You can still submit, but it will be marked late.`;
-    }
-
-    return "";
   };
 
   const pickFile = async (type) => {
@@ -214,6 +309,7 @@ export default function GradeComplianceScreen({ navigation }) {
         }
         const sanitized = validateAndSanitizeFile(file);
         if (!sanitized) return;
+        setEvaluationResult(null);
         if (type === "gradeReport") {
           setGradeReportFile(sanitized);
           clearFieldError("gradeReport");
@@ -243,7 +339,7 @@ export default function GradeComplianceScreen({ navigation }) {
                 quality: 0.8,
               });
               handleResult(result);
-            } catch (err) {
+            } catch (_err) {
               Alert.alert("Error", "Could not capture image.");
             }
           }
@@ -257,7 +353,7 @@ export default function GradeComplianceScreen({ navigation }) {
                 copyToCacheDirectory: true,
               });
               handleResult(result);
-            } catch (err) {
+            } catch (_err) {
               Alert.alert("Error", "Could not pick a file.");
             }
           }
@@ -272,58 +368,58 @@ export default function GradeComplianceScreen({ navigation }) {
 
 
 
-  const handleContinueToGrade = () => {
-    const termEndDate = selectedTerm?.currentTermEndDate || selectedTerm?.endDate || null;
-    const dateErrors = validateNextTermDates(nextTermStartDate, nextTermEndDate, termEndDate);
+  const validateCorStep = () => {
     const nextFieldErrors = {
       cor: corFile ? "" : "Certificate of Registration is required.",
-      nextTermStartDate: nextTermStartDate ? dateErrors.nextTermStartDate : "Next term start date is required.",
-      nextTermEndDate: nextTermEndDate ? dateErrors.nextTermEndDate : "Next term end date is required.",
+      nextTermStartDate: nextTermStartDate ? "" : "Next term start date is required.",
+      nextTermEndDate: nextTermEndDate ? "" : "Next term end date is required.",
     };
 
-    setFieldErrors((current) => ({ ...current, ...nextFieldErrors }));
+    const dateIssues = validateNextTermDates(currentTermEndDate, nextTermStartDate, nextTermEndDate);
 
-    if (nextFieldErrors.cor || nextFieldErrors.nextTermStartDate || nextFieldErrors.nextTermEndDate) {
-      return;
+    dateIssues.forEach(({ field, message }) => {
+      nextFieldErrors[field] = message;
+    });
+
+    setFieldErrors((current) => ({
+      ...current,
+      ...nextFieldErrors,
+    }));
+
+    if (!corFile || !nextTermStartDate || !nextTermEndDate || dateIssues.length > 0) {
+      return false;
     }
 
-    setStep(2);
+    return true;
   };
 
-  const handleSubmit = async () => {
-    const isGraduating = selectedTerm?.isLastSemesterBeforeGraduation;
-    const windowStatus = getSubmissionWindowStatus(selectedTerm?.deadline);
+  const handleContinueToGrade = () => {
+    if (!validateCorStep()) return;
+
+    setSubmissionStep("grade");
+  };
+
+  const validateGradeStep = () => {
+    const submissionWindowState = getSubmissionWindowState(selectedTerm);
     const nextFieldErrors = {
       gradeReport: gradeReportFile ? "" : "Grade report is required.",
-      cor: isGraduating || corFile ? "" : "Certificate of Registration is required.",
-      term: !selectedTerm
-        ? "Please select a term."
-        : !windowStatus.canSubmit
-          ? getSubmissionWindowMessage(selectedTerm)
-          : "",
-      nextTermStartDate: isGraduating || nextTermStartDate ? "" : "Next term start date is required.",
-      nextTermEndDate: isGraduating || nextTermEndDate ? "" : "Next term end date is required.",
+      term: submissionWindowState.isTooEarly ? submissionWindowState.message : (selectedTerm ? "" : "Please select a term."),
       gwa: !gwa ? "GWA is required." : (!validateGwa(gwa) ? INVALID_GWA_ERROR : ""),
     };
 
-    if (!isGraduating) {
-      const termEndDate = selectedTerm?.currentTermEndDate || selectedTerm?.endDate || null;
-      const dateErrors = validateNextTermDates(nextTermStartDate, nextTermEndDate, termEndDate);
-      if (dateErrors.nextTermStartDate) nextFieldErrors.nextTermStartDate = dateErrors.nextTermStartDate;
-      if (dateErrors.nextTermEndDate) nextFieldErrors.nextTermEndDate = dateErrors.nextTermEndDate;
-    }
-
-    setFieldErrors(nextFieldErrors);
+    setFieldErrors((current) => ({
+      ...current,
+      ...nextFieldErrors,
+    }));
 
     if (
       !selectedTerm ||
-      !windowStatus.canSubmit ||
+      submissionWindowState.isTooEarly ||
       !gradeReportFile ||
-      (!isGraduating && (!corFile || !nextTermStartDate || !nextTermEndDate || nextFieldErrors.nextTermStartDate || nextFieldErrors.nextTermEndDate)) ||
       !gwa ||
       nextFieldErrors.gwa
     ) {
-      return;
+      return false;
     }
 
     if (selectedTerm.status === "Submitted") {
@@ -331,43 +427,19 @@ export default function GradeComplianceScreen({ navigation }) {
         ...current,
         term: "This term has already been submitted and cannot be submitted again.",
       }));
-      return;
+      return false;
     }
 
-    setIsSubmitting(true);
-    setSuccessMessage("");
+    return true;
+  };
 
-    try {
-      const response = await submitGradeCompliance({
-        term: selectedTerm.term,
-        scholarshipName: currentScholarship,
-        remarks: "",
-        nextTermStartDate: isGraduating ? null : nextTermStartDate,
-        nextTermEndDate: isGraduating ? null : nextTermEndDate,
-        gwa,
-        files: {
-          gradeReport: gradeReportFile,
-          cor: isGraduating ? null : corFile,
-        },
-      });
+  const applyApiFieldErrors = (error) => {
+    const rawErrors =
+      (Array.isArray(error?.errors) && error.errors.length > 0 ? error.errors : null) ||
+      (Array.isArray(error?.data?.errors) && error.data.errors.length > 0 ? error.data.errors : null) ||
+      [];
 
-      setAiCheckingEnabled(response?.ai_checking_enabled ?? response?.data?.ai_checking_enabled ?? true);
-      setLastAiSummary(response?.data?.ai_summary || "");
-      setCompleteStage("preAssessment");
-      await loadTerms();
-      setIsSubmitting(false);
-    } catch (error) {
-      setIsSubmitting(false);
-      // DEV ONLY: log exact backend error shape to Expo terminal (not shown to user)
-      console.error("[GradeCompliance] submit error:", JSON.stringify(error, null, 2));
-
-      // Collect validation errors from all possible backend response shapes.
-      const rawErrors =
-        (Array.isArray(error?.errors) && error.errors.length > 0 ? error.errors : null) ||
-        (Array.isArray(error?.data?.errors) && error.data.errors.length > 0 ? error.data.errors : null) ||
-        [];
-
-      // Map backend field names (camelCase, snake_case, Zod path arrays) → UI state key
+    if (rawErrors.length > 0) {
       const FIELD_MAP = {
         gradeReport: "gradeReport",
         grade_report: "gradeReport",
@@ -382,60 +454,164 @@ export default function GradeComplianceScreen({ navigation }) {
         scholarship_name: "term",
       };
 
-      if (rawErrors.length > 0) {
-        const mappedErrors = {};
-        const unmappedMessages = [];
+      const mappedErrors = {};
+      let termMessage = "";
 
-        rawErrors.forEach((e) => {
-          // Support plain string field, Zod-style path array, or dot-notation
-          const rawField = Array.isArray(e?.path)
-            ? e.path[0]
-            : (e?.field || e?.param || "");
-          const key = String(rawField).trim();
-          const uiKey = FIELD_MAP[key] || FIELD_MAP[key.toLowerCase()];
-          const msg = e?.message || e?.msg || "Invalid value.";
+      rawErrors.forEach((e) => {
+        const rawField = Array.isArray(e?.path)
+          ? e.path[0]
+          : (e?.field || e?.param || "");
+        const key = String(rawField).trim();
+        const uiKey = FIELD_MAP[key] || FIELD_MAP[key.toLowerCase()];
+        const msg = e?.message || e?.msg || "Invalid value.";
 
-          if (uiKey) {
-            mappedErrors[uiKey] = msg;
-          } else {
-            unmappedMessages.push(msg);
-          }
-        });
-
-        setFieldErrors((current) => ({ ...current, ...mappedErrors }));
-
-        // Surface any non-field errors in the general banner
-        if (unmappedMessages.length > 0 && !mappedErrors.term) {
-          setFieldErrors((current) => ({
-            ...current,
-            term: unmappedMessages.join(" "),
-          }));
+        if (uiKey) {
+          mappedErrors[uiKey] = msg;
+        } else {
+          termMessage = termMessage ? `${termMessage} ${msg}` : msg;
         }
-      } else {
-        // No structured field errors — show a friendly general message.
-        const raw = error?.message || "";
-        const isGenericValidation = /validation|invalid|bad request/i.test(raw);
-        setFieldErrors((current) => ({
-          ...current,
-          term: isGenericValidation
-            ? "Some fields could not be validated. Please review your form and try again."
-            : raw || "Failed to submit grade compliance.",
-        }));
+      });
+
+      if (termMessage) {
+        mappedErrors.term = termMessage;
       }
+
+      setFieldErrors((current) => ({
+        ...current,
+        ...mappedErrors,
+      }));
+      return true;
+    }
+    return false;
+  };
+
+  const hasCorStepApiErrors = (error) => {
+    const rawErrors =
+      (Array.isArray(error?.errors) && error.errors.length > 0 ? error.errors : null) ||
+      (Array.isArray(error?.data?.errors) && error.data.errors.length > 0 ? error.data.errors : null) ||
+      [];
+
+    const corStepFields = new Set([
+      "cor",
+      "nextTermStartDate",
+      "next_term_start_date",
+      "nextTermEndDate",
+      "next_term_end_date",
+    ]);
+
+    return rawErrors.some((e) => {
+      const rawField = Array.isArray(e?.path)
+        ? e.path[0]
+        : (e?.field || e?.param || "");
+
+      return corStepFields.has(String(rawField).trim());
+    });
+  };
+
+  const buildSubmissionPayload = () => {
+    const isGraduating = selectedTerm?.isLastSemesterBeforeGraduation;
+
+    return {
+      term: selectedTerm.term,
+      scholarshipName: currentScholarship,
+      remarks: "",
+      nextTermStartDate: isGraduating ? null : nextTermStartDate,
+      nextTermEndDate: isGraduating ? null : nextTermEndDate,
+      gwa,
+      files: {
+        gradeReport: gradeReportFile,
+        cor: isGraduating ? null : corFile,
+      },
+    };
+  };
+
+  const getAiSummary = (payload) => (
+    payload?.grade_analysis?.ai_summary ||
+    payload?.ai_summary ||
+    payload?.data?.grade_analysis?.ai_summary ||
+    payload?.data?.ai_summary ||
+    ""
+  );
+
+  const handleEvaluate = async () => {
+    if (!selectedTerm?.isLastSemesterBeforeGraduation && !validateCorStep()) {
+      setSubmissionStep("cor");
+      return;
+    }
+
+    if (!validateGradeStep()) return;
+
+    setIsEvaluating(true);
+    setEvaluationResult(null);
+
+    try {
+      const evaluateResponse = await evaluateGradeCompliance(buildSubmissionPayload());
+
+      const resData = evaluateResponse?.data || evaluateResponse || {};
+      setEvaluationResult(resData);
+      setLastAiSummary(getAiSummary(resData));
+      setIsEvaluating(false);
+      setSubmissionStep("review");
+    } catch (error) {
+      if (applyApiFieldErrors(error)) {
+        if (hasCorStepApiErrors(error)) {
+          setSubmissionStep("cor");
+        }
+        return;
+      }
+
+      setFieldErrors((current) => ({
+        ...current,
+        term: error?.message || "Failed to evaluate grade compliance.",
+      }));
+    } finally {
+      setIsEvaluating(false);
     }
   };
 
+  const handleSubmit = async () => {
+    if (!evaluationResult && !validateGradeStep()) {
+      return;
+    }
 
-  const renderTodoCard = (termItem) => {
+    setIsSubmitting(true);
+
+    try {
+      const response = await submitGradeCompliance(buildSubmissionPayload());
+
+      setAiCheckingEnabled(response?.ai_checking_enabled ?? response?.data?.ai_checking_enabled ?? true);
+      setLastAiSummary(getAiSummary(response));
+      setCompleteStage("preAssessment");
+      await Promise.all([
+        loadTerms(),
+        refreshSession?.().catch(() => null),
+      ]);
+    } catch (error) {
+      if (applyApiFieldErrors(error)) return;
+
+      const raw = error?.message || "";
+      const isGenericValidation = /validation|invalid|bad request/i.test(raw);
+      setFieldErrors((current) => ({
+        ...current,
+        term: isGenericValidation
+          ? "Some fields could not be validated. Please review your form and try again."
+          : raw || "Failed to submit grade compliance.",
+      }));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const renderTodoCard = (termItem, idx) => {
     const statusColor = statusColors[termItem.status] || statusColors.default;
-    const windowStatus = getSubmissionWindowStatus(termItem.deadline);
-    const isLate = windowStatus.isLate;
-    const deadlineStr = termItem.deadline ? new Date(termItem.deadline).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : "Not set";
-    const currentIdx = termRequirements.findIndex(t => t.id === termItem.id);
-    const previousTerm = currentIdx > 0 ? termRequirements[currentIdx - 1] : null;
+    const previousTerm = idx > 0 ? termRequirements[idx - 1] : null;
     const isPreviousPending = previousTerm && previousTerm.status === "Pending";
     const isSubmittedOrApproved = ["Submitted", "Approved", "Compliant"].includes(termItem.status);
-    const windowMessage = getSubmissionWindowMessage(termItem);
+    const submissionWindowState = getSubmissionWindowState(termItem);
+    const isTooEarly = submissionWindowState.isTooEarly;
+    const isLate = submissionWindowState.isLate;
+    const isDisabled = isSubmittedOrApproved || isPreviousPending || isTooEarly;
+    const deadlineStr = termItem.deadline ? new Date(termItem.deadline).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : "Not set";
 
     return (
       <View style={styles.todoCard} key={termItem.id}>
@@ -456,6 +632,11 @@ export default function GradeComplianceScreen({ navigation }) {
             {termItem.submission.analysis.hasFailed && (
               <View style={[styles.flagBadge, styles.flagRed]}>
                 <Text style={styles.flagTextRed}>Failed Grade Detected</Text>
+              </View>
+            )}
+            {termItem.submission.analysis.isGwaQualified === false && (
+              <View style={[styles.flagBadge, styles.flagRose]}>
+                <Text style={styles.flagTextRose}>GWA Below 85%</Text>
               </View>
             )}
             {termItem.submission.analysis.gwaDiscrepancy && (
@@ -489,51 +670,35 @@ export default function GradeComplianceScreen({ navigation }) {
           </View>
         </View>
 
-        {isSubmittedOrApproved ? (
-          <View style={[styles.submitBtnAction, { backgroundColor: '#b6bdd9' }]}>
-            <Text style={[styles.submitBtnActionText, { color: '#ffffff' }]}>Already Submitted</Text>
-          </View>
-        ) : (() => {
-          if (isPreviousPending) {
-            return (
-              <View style={[styles.submitBtnAction, { backgroundColor: '#e2e5f1', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }]}>
-                <Ionicons name="lock-closed-outline" size={15} color="#8c95b7" style={{ marginRight: 6 }} />
-                <Text style={[styles.submitBtnActionText, { color: '#8c95b7' }]}>Complete previous term first</Text>
-              </View>
-            );
-          }
+        <TouchableOpacity
+          style={[
+            styles.submitBtnAction,
+            isDisabled && { backgroundColor: '#b8bbd9' }
+          ]}
+          disabled={isDisabled}
+          onPress={() => {
+            setSelectedTermId(termItem.id);
+            clearFieldError("term");
+          }}
+        >
+          <Text style={styles.submitBtnActionText}>
+            {isSubmittedOrApproved
+              ? "Already Submitted"
+              : isPreviousPending
+                ? "Complete previous term first"
+                : isTooEarly
+                  ? "Submission not yet open"
+                  : isLate
+                    ? "Start Submission (Late)"
+                    : "Start Submission"}
+          </Text>
+        </TouchableOpacity>
 
-          if (!windowStatus.canSubmit) {
-            const opensOnStr = windowStatus.windowOpensOn ? windowStatus.windowOpensOn.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : "";
-            return (
-              <View style={[styles.submitBtnAction, styles.disabledBtnAction]}>
-                <Ionicons name="calendar-outline" size={15} color="#8c95b7" style={{ marginRight: 6 }} />
-                <Text style={[styles.submitBtnActionText, { color: '#8c95b7' }]}>
-                  Not available yet (Opens {opensOnStr})
-                </Text>
-              </View>
-            );
-          }
-          
-          return (
-            <TouchableOpacity
-              style={styles.submitBtnAction}
-              onPress={() => {
-                setSelectedTermId(termItem.id);
-                clearFieldError("term");
-              }}
-            >
-              <Text style={styles.submitBtnActionText}>{isLate ? "Start Submission (Late)" : "Start Submission"}</Text>
-            </TouchableOpacity>
-          );
-        })()}
-
-        {!!windowMessage && (
+        {(isTooEarly || isLate) && (
           <Text style={[styles.windowMessageText, isLate && styles.lateMessageText]}>
-            {windowMessage}
+            {submissionWindowState.message}
           </Text>
         )}
-
       </View>
     );
   };
@@ -571,13 +736,15 @@ export default function GradeComplianceScreen({ navigation }) {
           successTitle="Submission Successful!"
           successMessage="Your grade report has been submitted securely."
           aiSummary={lastAiSummary}
-          onViewApplications={() => { setCompleteStage("none"); resetFormState(); }}
-          viewApplicationsText="Return to List"
+          onViewApplications={() => {
+            setCompleteStage("none");
+            resetFormState();
+            navigation.navigate("ScholarDashboardMain");
+          }}
+          viewApplicationsText="Return to Dashboard"
         />
       );
     }
-
-
 
     if (isLoadingTerms) {
       return (
@@ -613,13 +780,12 @@ export default function GradeComplianceScreen({ navigation }) {
               <Text style={styles.emptyCardText}>No grade compliance terms available yet. Complete a scholarship application first.</Text>
             </View>
           ) : (
-            termRequirements.map(renderTodoCard)
+            termRequirements.map((term, idx) => renderTodoCard(term, idx))
           )}
         </View>
       );
     }
 
-    const windowStatus = selectedTerm ? getSubmissionWindowStatus(selectedTerm.deadline) : null;
     return (
       <View style={styles.formCard}>
         {fieldErrors.term ? (
@@ -627,23 +793,27 @@ export default function GradeComplianceScreen({ navigation }) {
             <Text style={styles.errorBannerText}>{fieldErrors.term}</Text>
           </View>
         ) : null}
-        {windowStatus && windowStatus.isLate && (
+
+        {getSubmissionWindowState(selectedTerm).isLate && (
           <View style={styles.lateBanner}>
             <Ionicons name="warning-outline" size={16} color="#b45309" style={{ marginRight: 8 }} />
             <Text style={styles.lateBannerText}>
-              {getSubmissionWindowMessage(selectedTerm)}
+              {getSubmissionWindowState(selectedTerm).message}
             </Text>
           </View>
         )}
+
         {!selectedTerm?.isLastSemesterBeforeGraduation && (
           <View style={styles.progressBarWrapper}>
             <View style={styles.progressBarRow}>
               <View style={[styles.progressStep, styles.progressStepActive]} />
-              <View style={[styles.progressStep, step === 2 ? styles.progressStepActive : styles.progressStepInactive]} />
+              <View style={[styles.progressStep, (submissionStep === "grade" || submissionStep === "review") ? styles.progressStepActive : styles.progressStepInactive]} />
+              <View style={[styles.progressStep, submissionStep === "review" ? styles.progressStepActive : styles.progressStepInactive]} />
             </View>
             <View style={styles.progressBarLabelRow}>
               <Text style={styles.progressTextActive}>COR Submission</Text>
-              <Text style={step === 2 ? styles.progressTextActive : styles.progressTextInactive}>Grade Submission</Text>
+              <Text style={(submissionStep === "grade" || submissionStep === "review") ? styles.progressTextActive : styles.progressTextInactive}>Grade Submission</Text>
+              <Text style={submissionStep === "review" ? styles.progressTextActive : styles.progressTextInactive}>AI Review</Text>
             </View>
           </View>
         )}
@@ -653,28 +823,34 @@ export default function GradeComplianceScreen({ navigation }) {
           <View style={styles.stepBadge}>
             <Text style={styles.stepBadgeText}>
               {selectedTerm?.isLastSemesterBeforeGraduation
-                ? "Grade Submission (Final Semester)"
-                : `Step ${step}: ${step === 1 ? "COR Submission" : "Grade Submission"}`}
+                ? (submissionStep === "review" ? "AI Review" : "Grade Submission (Final Semester)")
+                : submissionStep === "cor"
+                  ? "Step 1: COR Submission"
+                  : submissionStep === "grade"
+                    ? "Step 2: Grade Submission"
+                    : "Step 3: AI Review"}
             </Text>
           </View>
         </View>
 
-        <View style={styles.twoColRow}>
-          <View style={styles.col}>
-            <Text style={styles.label}>Current Scholarship</Text>
-            <View style={[styles.inputReadOnly, { flex: 1 }]}>
-              <Text style={styles.inputReadOnlyText}>{currentScholarship || "--"}</Text>
+        {submissionStep !== "review" && (
+          <View style={styles.twoColRow}>
+            <View style={styles.col}>
+              <Text style={styles.label}>Current Scholarship</Text>
+              <View style={[styles.inputReadOnly, { flex: 1 }]}>
+                <Text style={styles.inputReadOnlyText}>{currentScholarship || "--"}</Text>
+              </View>
+            </View>
+            <View style={styles.col}>
+              <Text style={styles.label}>Academic Year</Text>
+              <View style={[styles.inputReadOnly, { flex: 1 }]}>
+                <Text style={styles.inputReadOnlyText}>{academicYear || "2025-2026"}</Text>
+              </View>
             </View>
           </View>
-          <View style={styles.col}>
-            <Text style={styles.label}>Academic Year</Text>
-            <View style={[styles.inputReadOnly, { flex: 1 }]}>
-              <Text style={styles.inputReadOnlyText}>{academicYear || "2025-2026"}</Text>
-            </View>
-          </View>
-        </View>
+        )}
 
-        {step === 1 && (
+        {submissionStep === "cor" && (
           <>
             <View style={styles.infoBanner}>
               <Text style={styles.infoBannerText}>
@@ -687,10 +863,11 @@ export default function GradeComplianceScreen({ navigation }) {
                 <FormDatePicker
                   label="Next Term Start Date"
                   value={nextTermStartDate}
+                  dateFormat="yyyy-mm-dd"
                   minimumDate={(() => {
                     const termEnd = selectedTerm?.currentTermEndDate || selectedTerm?.endDate;
                     if (termEnd) {
-                      const d = parseStringToDate(termEnd);
+                      const d = parseDateOnly(termEnd);
                       if (d) {
                         const next = new Date(d);
                         next.setDate(next.getDate() + 1);
@@ -698,11 +875,12 @@ export default function GradeComplianceScreen({ navigation }) {
                       }
                     }
                     const today = new Date();
-                    today.setDate(today.getDate() - 1); // 1-day safety buffer
+                    today.setDate(today.getDate() - 1);
                     return today;
                   })()}
                   onDateChange={(val) => {
                     setNextTermStartDate(val);
+                    setEvaluationResult(null);
                     clearFieldError("nextTermStartDate");
                   }}
                   error={fieldErrors.nextTermStartDate}
@@ -713,8 +891,9 @@ export default function GradeComplianceScreen({ navigation }) {
                 <FormDatePicker
                   label="Next Term End Date"
                   value={nextTermEndDate}
+                  dateFormat="yyyy-mm-dd"
                   minimumDate={(() => {
-                    const startD = parseStringToDate(nextTermStartDate);
+                    const startD = parseDateOnly(nextTermStartDate);
                     if (startD) {
                       const minEnd = new Date(startD);
                       minEnd.setMonth(minEnd.getMonth() + 1);
@@ -726,6 +905,7 @@ export default function GradeComplianceScreen({ navigation }) {
                   })()}
                   onDateChange={(val) => {
                     setNextTermEndDate(val);
+                    setEvaluationResult(null);
                     clearFieldError("nextTermEndDate");
                   }}
                   error={fieldErrors.nextTermEndDate}
@@ -735,7 +915,8 @@ export default function GradeComplianceScreen({ navigation }) {
             </View>
           </>
         )}
-        {step === 2 && (
+
+        {submissionStep === "grade" && (
           <>
             <View style={styles.infoBanner}>
               <Text style={styles.infoBannerText}>
@@ -760,6 +941,7 @@ export default function GradeComplianceScreen({ navigation }) {
                 value={gwa}
                 onChangeText={(val) => {
                   setGwa(val);
+                  setEvaluationResult(null);
                   clearFieldError("gwa");
                 }}
               />
@@ -767,6 +949,72 @@ export default function GradeComplianceScreen({ navigation }) {
               {fieldErrors.gwa ? <Text style={styles.errorText}>{fieldErrors.gwa}</Text> : null}
             </View>
           </>
+        )}
+
+        {submissionStep === "review" && (
+          <View style={styles.reviewContainer}>
+            <View style={styles.reviewHeader}>
+              <View style={styles.sparklesCircle}>
+                <Ionicons name="sparkles" size={18} color="#fff" />
+              </View>
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={styles.reviewHeaderTitle}>AI Evaluation</Text>
+                <Text style={styles.reviewHeaderSubtitle}>Review the evaluation before final submission.</Text>
+              </View>
+            </View>
+
+            {evaluationResult?.grade_analysis?.ai_summary || evaluationResult?.ai_summary ? (
+              <View style={styles.aiSummaryBubble}>
+                <Text style={styles.aiSummaryText}>
+                  {`"${evaluationResult.grade_analysis?.ai_summary || evaluationResult.ai_summary}"`}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.aiSummaryBubble}>
+                <Text style={[styles.aiSummaryText, { color: '#64748b', fontStyle: 'normal' }]}>
+                  AI checking did not return a written summary, but the submission can still be reviewed below.
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.reviewGrid}>
+              <View style={styles.reviewGridCol}>
+                <View style={styles.reviewGridItem}>
+                  <Text style={styles.reviewGridLabel}>Declared GWA</Text>
+                  <Text style={styles.reviewGridValue}>{evaluationResult?.grade_analysis?.declared_gwa ?? gwa ?? "--"}</Text>
+                </View>
+              </View>
+              <View style={styles.reviewGridCol}>
+                <View style={styles.reviewGridItem}>
+                  <Text style={styles.reviewGridLabel}>Extracted GWA</Text>
+                  <Text style={styles.reviewGridValue}>{evaluationResult?.grade_analysis?.extracted_gwa ?? "Not detected"}</Text>
+                </View>
+              </View>
+              <View style={styles.reviewGridCol}>
+                <View style={styles.reviewGridItem}>
+                  <Text style={styles.reviewGridLabel}>GWA Status</Text>
+                  <Text style={[
+                    styles.reviewGridValue,
+                    evaluationResult?.grade_analysis?.is_gwa_qualified === false ? { color: '#e11d48' } : { color: '#059669' }
+                  ]}>
+                    {evaluationResult?.grade_analysis?.is_gwa_qualified === false ? "Below requirement" : "Qualified"}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.reviewGridCol}>
+                <View style={styles.reviewGridItem}>
+                  <Text style={styles.reviewGridLabel}>Document Flags</Text>
+                  <Text style={styles.reviewGridValue}>
+                    {[
+                      evaluationResult?.grade_analysis?.has_inc_subjects ? "INC detected" : null,
+                      evaluationResult?.grade_analysis?.has_failed_subjects ? "Failed subject detected" : null,
+                      evaluationResult?.grade_analysis?.gwa_discrepancy ? "GWA mismatch" : null,
+                    ].filter(Boolean).join(", ") || "No flags"}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
         )}
       </View>
     );
@@ -781,21 +1029,29 @@ export default function GradeComplianceScreen({ navigation }) {
         colors={['#ffffff', '#f1f2fa']}
         style={[styles.container, { backgroundColor: 'transparent' }]}
       >
-        {selectedTermId && step === 2 && completeStage === "none" ? (
+        {selectedTermId && submissionStep !== "cor" && completeStage === "none" ? (
           <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 10 }}>
             <TouchableOpacity
               onPress={() => {
-                if (selectedTerm?.isLastSemesterBeforeGraduation) {
-                  resetFormState();
-                } else {
-                  setStep(1);
+                if (submissionStep === "review") {
+                  setSubmissionStep("grade");
+                } else if (submissionStep === "grade") {
+                  if (selectedTerm?.isLastSemesterBeforeGraduation) {
+                    resetFormState();
+                  } else {
+                    setSubmissionStep("cor");
+                  }
                 }
               }}
               style={styles.textBackBtn}
             >
               <Ionicons name="arrow-back" size={16} color="#5b6095" style={{ marginRight: 8 }} />
               <Text style={styles.textBackBtnText}>
-                {selectedTerm?.isLastSemesterBeforeGraduation ? "Back to Terms Overview" : "Back to COR Submission"}
+                {submissionStep === "review"
+                  ? "Back to Grade Submission"
+                  : selectedTerm?.isLastSemesterBeforeGraduation
+                    ? "Back to Terms Overview"
+                    : "Back to COR Submission"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -830,13 +1086,13 @@ export default function GradeComplianceScreen({ navigation }) {
           </View>
         )}
 
-        {selectedTermId && step === 2 && completeStage === "none" && (
+        {selectedTermId && submissionStep !== "cor" && completeStage === "none" && (
           <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
             <Text style={styles.titleLanding}>Certificate of Registration & Grade Compliance</Text>
           </View>
         )}
 
-        <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={{ paddingBottom: 60, paddingTop: (!selectedTermId || step === 1) ? 20 : 0 }}>
+        <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={{ paddingBottom: 60, paddingTop: (!selectedTermId || submissionStep === "cor") ? 20 : 0 }}>
           <Animated.View style={{ opacity: stepAnim, transform: [{ translateY: stepAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
             {renderContent()}
           </Animated.View>
@@ -846,6 +1102,7 @@ export default function GradeComplianceScreen({ navigation }) {
           <View style={styles.footerActionRow}>
             <TouchableOpacity
               style={styles.cancelBtn}
+              disabled={isBusy}
               onPress={() => {
                 setCompleteStage("none");
                 resetFormState();
@@ -854,10 +1111,11 @@ export default function GradeComplianceScreen({ navigation }) {
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
 
-            {step === 1 ? (
+            {submissionStep === "cor" && (
               <TouchableOpacity
                 style={{ flex: 1, borderRadius: 10, overflow: "hidden" }}
                 onPress={handleContinueToGrade}
+                disabled={isBusy}
                 activeOpacity={0.8}
               >
                 <LinearGradient
@@ -869,10 +1127,13 @@ export default function GradeComplianceScreen({ navigation }) {
                   <Text style={styles.nextBtnText}>Continue to Grade Submission</Text>
                 </LinearGradient>
               </TouchableOpacity>
-            ) : (
+            )}
+
+            {submissionStep === "grade" && (
               <TouchableOpacity
                 style={{ flex: 1, borderRadius: 10, overflow: "hidden" }}
-                onPress={handleSubmit}
+                onPress={handleEvaluate}
+                disabled={isBusy}
                 activeOpacity={0.8}
               >
                 <LinearGradient
@@ -881,13 +1142,34 @@ export default function GradeComplianceScreen({ navigation }) {
                   end={{ x: 1, y: 0 }}
                   style={[styles.nextBtn, { width: "100%", backgroundColor: 'transparent' }]}
                 >
-                  <Text style={styles.nextBtnText}>Submit Grade Compliance</Text>
+                  <Text style={styles.nextBtnText}>{isEvaluating ? "Evaluating..." : "Next: AI Evaluation"}</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+
+            {submissionStep === "review" && (
+              <TouchableOpacity
+                style={{ flex: 1, borderRadius: 10, overflow: "hidden" }}
+                onPress={handleSubmit}
+                disabled={isBusy}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#5b5f97', '#727ab6']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.nextBtn, { width: "100%", backgroundColor: 'transparent' }]}
+                >
+                  <Text style={styles.nextBtnText}>{isSubmitting ? "Submitting..." : "Submit Grade Compliance"}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             )}
           </View>
         )}
-        <LoadingOverlay visible={isSubmitting} message="Uploading documents..." />
+        <LoadingOverlay
+          visible={isBusy}
+          message={isEvaluating ? "Evaluating documents..." : "Uploading documents..."}
+        />
       </LinearGradient>
     </KeyboardAvoidingView>
   );
@@ -1149,5 +1431,85 @@ const styles = StyleSheet.create({
   },
   lateMessageText: {
     color: "#b45309",
+  },
+  flagRose: { backgroundColor: '#fff1f2', borderColor: '#ffe4e6' },
+  flagTextRose: { color: '#e11d48', fontSize: 11, fontWeight: '600' },
+  reviewContainer: {
+    backgroundColor: "#f7f8ff",
+    borderColor: "#d8def8",
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginVertical: 10,
+  },
+  reviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  sparklesCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#5b5f97",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  reviewHeaderTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#3d4076",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  reviewHeaderSubtitle: {
+    fontSize: 11,
+    color: "#667085",
+    marginTop: 2,
+  },
+  aiSummaryBubble: {
+    backgroundColor: "#fff",
+    borderColor: "#e2e8f0",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  aiSummaryText: {
+    fontSize: 14,
+    color: "#334155",
+    lineHeight: 20,
+    fontStyle: "italic",
+    fontWeight: "500",
+  },
+  reviewGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginHorizontal: -6,
+  },
+  reviewGridCol: {
+    width: "50%",
+    paddingHorizontal: 6,
+    marginBottom: 12,
+  },
+  reviewGridItem: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  reviewGridLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#667085",
+    textTransform: "uppercase",
+  },
+  reviewGridValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1a1a2e",
+    marginTop: 4,
   },
 });
