@@ -1,4 +1,5 @@
 import api from './api';
+import { API_URL } from '../config/constants';
 
 /**
  * Fetches announcements and activities for the logged-in user (scholar or applicant).
@@ -25,7 +26,7 @@ export const getAttachmentDownloadUrl = (fileUrl, fileName) => {
     return fileUrl;
   }
 
-  const apiBase = (api.defaults.baseURL || 'https://iskkolar-backend.onrender.com/api').replace(/\/+$/, '');
+  const apiBase = (api.defaults.baseURL || API_URL).replace(/\/+$/, '');
   return `${apiBase}/files/download?url=${encodeURIComponent(fileUrl)}&name=${encodeURIComponent(fileName || 'attachment')}`;
 };
 

@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
   Animated,
+  KeyboardAvoidingView,
 } from "react-native";
 import SafeTextInput from "../components/SafeTextInput";
 import { programOptions, vocationalProgramOptions, heiSchoolNames } from "../utils/programConstants";
@@ -27,6 +28,7 @@ import { checkAnyOngoingApplication } from "../services/applicationGuardService"
 import api from "../services/api";
 import ApplicationsClosedScreen from "./ApplicationsClosedScreen";
 import ApplicationResultState from "../components/ApplicationResultState";
+import LoadingOverlay from "../components/LoadingOverlay";
 import { getScholarshipFormAccess } from "../services/applicationGuardService";
 
 const infoFields = {
@@ -176,6 +178,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const [isApplicationsClosed, setIsApplicationsClosed] = useState(false);
   const [closedYear, setClosedYear] = useState(new Date().getFullYear());
   const [examplesModalVisible, setExamplesModalVisible] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
 
   const [provinces, setProvinces] = useState([]);
   const [fatherCities, setFatherCities] = useState([]);
@@ -356,6 +359,31 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
   const maxStep = 3;
   const requiresIncomeProof = (status) => ["Employed", "Self-Employed"].includes(status);
+  const isDeceased = (status) => status === "Deceased";
+
+  const clearFieldErrors = (...keys) => {
+    keys.forEach((key) => clearFieldError(key));
+  };
+
+  const getFamilyAddressReset = (prefix) => ({
+    [prefix + "Street"]: "",
+    [prefix + "Province"]: "",
+    [prefix + "City"]: "",
+    [prefix + "Barangay"]: "",
+    [prefix + "Country"]: "Philippines",
+    [prefix + "Zip"]: "",
+  });
+
+  const clearFamilyAddressErrors = (prefix) => {
+    clearFieldErrors(
+      prefix + "Street",
+      prefix + "Province",
+      prefix + "City",
+      prefix + "Barangay",
+      prefix + "Country",
+      prefix + "Zip"
+    );
+  };
 
   const parseStringToDate = (str) => {
     if (!str) return null;
@@ -478,6 +506,38 @@ export default function ProgramApplyScreen({ navigation, route }) {
           position: "",
         };
       }
+      if (key === "fatherStatus") {
+        if (isDeceased(value)) {
+          next = {
+            ...next,
+            fatherContact: "",
+            fatherOccupation: "",
+            fatherIncome: "",
+            ...getFamilyAddressReset("father"),
+          };
+        } else if (!requiresIncomeProof(value)) {
+          next.fatherOccupation = "";
+          next.fatherIncome = "";
+        }
+      }
+      if (key === "motherStatus") {
+        if (isDeceased(value)) {
+          next = {
+            ...next,
+            motherContact: "",
+            motherOccupation: "",
+            motherIncome: "",
+            ...getFamilyAddressReset("mother"),
+          };
+        } else if (!requiresIncomeProof(value)) {
+          next.motherOccupation = "";
+          next.motherIncome = "";
+        }
+      }
+      if (key === "guardianStatus" && !requiresIncomeProof(value)) {
+        next.guardianOccupation = "";
+        next.guardianIncome = "";
+      }
       return next;
     });
 
@@ -486,6 +546,30 @@ export default function ProgramApplyScreen({ navigation, route }) {
     }
 
     clearFieldError(key);
+    if (key === "fatherStatus") {
+      clearFieldErrors("fatherContact", "fatherOccupation", "fatherIncome");
+      if (isDeceased(value)) {
+        clearFamilyAddressErrors("father");
+        setFatherCities([]);
+        setFatherBarangays([]);
+      }
+      clearFieldError("hasGuardian");
+    }
+    if (key === "motherStatus") {
+      clearFieldErrors("motherContact", "motherOccupation", "motherIncome");
+      if (isDeceased(value)) {
+        clearFamilyAddressErrors("mother");
+        setMotherCities([]);
+        setMotherBarangays([]);
+      }
+      clearFieldError("hasGuardian");
+    }
+    if (key === "guardianStatus" && !requiresIncomeProof(value)) {
+      clearFieldErrors("guardianOccupation", "guardianIncome");
+    }
+    if (key === "hasGuardian") {
+      clearFieldError("hasGuardian");
+    }
   };
 
   const handleProvinceSelect = async (role, provinceName) => {
@@ -695,8 +779,13 @@ export default function ProgramApplyScreen({ navigation, route }) {
     if (selectedProgram === "tertiary") {
       // Steps 0, 1, 2 validate against server; step 3 is Review with no validate call
       if (step < maxStep) {
-        const isValid = await validateTertiaryStep(step, values, uploadText, familyMembers);
-        if (isValid) setStep((s) => s + 1);
+        setIsValidating(true);
+        try {
+          const isValid = await validateTertiaryStep(step, values, uploadText, familyMembers);
+          if (isValid) setStep((s) => s + 1);
+        } finally {
+          setIsValidating(false);
+        }
       }
       return;
     }
@@ -704,8 +793,13 @@ export default function ProgramApplyScreen({ navigation, route }) {
     if (isVocationalFlow) {
       // Same step structure as tertiary — steps 0, 1, 2 validate; step 3 is Review
       if (step < maxStep) {
-        const isValid = await validateVocationalStep(step, values, uploadText, familyMembers);
-        if (isValid) setStep((s) => s + 1);
+        setIsValidating(true);
+        try {
+          const isValid = await validateVocationalStep(step, values, uploadText, familyMembers);
+          if (isValid) setStep((s) => s + 1);
+        } finally {
+          setIsValidating(false);
+        }
       }
       return;
     }
@@ -717,13 +811,27 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
           const normalizedId = String(values.staffId || "").trim();
           if (!normalizedId || normalizedId !== verifiedStaffId) {
-            const lookupOk = await lookupAndFillStaff(normalizedId);
-            if (!lookupOk) return;
+            setIsValidating(true);
+            try {
+              const lookupOk = await lookupAndFillStaff(normalizedId);
+              if (!lookupOk) { setIsValidating(false); return; }
+            } catch (e) {
+              setIsValidating(false);
+              return;
+            }
+          } else {
+            setIsValidating(true);
           }
+        } else {
+          setIsValidating(true);
         }
 
-        const isValid = await validateStaffStep(step, values, uploadText);
-        if (isValid) setStep((s) => s + 1);
+        try {
+          const isValid = await validateStaffStep(step, values, uploadText);
+          if (isValid) setStep((s) => s + 1);
+        } finally {
+          setIsValidating(false);
+        }
       }
       return;
     }
@@ -773,10 +881,18 @@ export default function ProgramApplyScreen({ navigation, route }) {
     }
     closeSelect();
   };
-
   // ─── Render helpers ───────────────────────────────────────────────────────
 
-  const isPredictiveField = (key) => ["program", "vocationalProgram", "prevProgram", "tertiarySchool", "prevSchoolName"].includes(key);
+  const isPredictiveField = (key) =>
+    [
+      "program",
+      "vocationalProgram",
+      "prevProgram",
+      "tertiarySchool",
+      "prevSchoolName",
+      "secondarySchool",
+      "vocationalSchoolName"
+    ].includes(key);
 
   const renderInput = (label, key, placeholder = null, inputProps = {}) => {
     const isPredictive = isPredictiveField(key);
@@ -784,12 +900,15 @@ export default function ProgramApplyScreen({ navigation, route }) {
     const optionsSource =
       key === "vocationalProgram"
         ? vocationalProgramOptions
-        : ["tertiarySchool", "prevSchoolName"].includes(key)
+        : ["tertiarySchool", "prevSchoolName", "secondarySchool", "vocationalSchoolName"].includes(key)
           ? heiSchoolNames
           : programOptions;
-    const suggestions = isPredictive && query.trim().length >= 1
-      ? optionsSource.filter(opt => opt.toLowerCase().includes(query.toLowerCase()))
-      : [];
+
+    let suggestions = [];
+    if (isPredictive) {
+      const filtered = optionsSource.filter(opt => opt.toLowerCase().includes(query.toLowerCase()));
+      suggestions = filtered.length > 0 ? filtered : optionsSource;
+    }
 
     return (
       <View style={[styles.row, { position: "relative", zIndex: isPredictive && activePredictiveKey === key && suggestions.length > 0 ? 99 : 1 }]}>
@@ -816,7 +935,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
         {isPredictive && activePredictiveKey === key && suggestions.length > 0 && (
           <View style={styles.predictionsContainer}>
             <ScrollView keyboardShouldPersistTaps="handled" style={styles.predictionsScroll}>
-              {suggestions.slice(0, 6).map((item, idx) => (
+              {suggestions.map((item, idx) => (
                 <TouchableOpacity
                   key={idx}
                   style={styles.predictionItem}
@@ -1304,14 +1423,14 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderInput("Father's Name", "fatherName", "Enter Father's Name")}
           {renderDatePicker("Birthday", "fatherBirthday")}
           {renderSelect("Employment Status", "fatherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
-          {values.fatherStatus !== "Deceased" && renderContactInput("Contact Number", "fatherContact")}
+          {!isDeceased(values.fatherStatus) && renderContactInput("Contact Number", "fatherContact")}
           {requiresIncomeProof(values.fatherStatus) && (
             <>
               {renderInput("Occupation", "fatherOccupation", "Enter Occupation")}
               {renderNumericInput("Monthly Income", "fatherIncome", "Enter Monthly Income")}
             </>
           )}
-          {values.fatherStatus !== "Deceased" && (
+          {!isDeceased(values.fatherStatus) && (
             <>
               {renderInput("Street/Unit", "fatherStreet", "Enter Street/Unit")}
               {renderAddressSelect("Province", "father", "Province")}
@@ -1326,51 +1445,53 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderInput("Mother's Name", "motherName", "Enter Mother's Name")}
           {renderDatePicker("Birthday", "motherBirthday")}
           {renderSelect("Employment Status", "motherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
-          {values.motherStatus !== "Deceased" && renderContactInput("Contact Number", "motherContact")}
+          {!isDeceased(values.motherStatus) && renderContactInput("Contact Number", "motherContact")}
           {requiresIncomeProof(values.motherStatus) && (
             <>
               {renderInput("Occupation", "motherOccupation", "Enter Occupation")}
               {renderNumericInput("Monthly Income", "motherIncome", "Enter Monthly Income")}
             </>
           )}
-          {values.motherStatus !== "Deceased" && (
+          {!isDeceased(values.motherStatus) && (
             <>
-              <TouchableOpacity
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  backgroundColor: "#f4f5fa",
-                  padding: 10,
-                  borderRadius: 8,
-                  marginBottom: 16,
-                  borderWidth: 1,
-                  borderColor: "#e1e5f2",
-                  alignSelf: "flex-start",
-                }}
-                onPress={() => {
-                  setValues((prev) => ({
-                    ...prev,
-                    motherStreet: prev.fatherStreet || "",
-                    motherProvince: prev.fatherProvince || "",
-                    motherCity: prev.fatherCity || "",
-                    motherBarangay: prev.fatherBarangay || "",
-                    motherCountry: prev.fatherCountry || "Philippines",
-                    motherZip: prev.fatherZip || "",
-                  }));
-                  setMotherCities(fatherCities);
-                  setMotherBarangays(fatherBarangays);
-                  clearFieldError("motherStreet");
-                  clearFieldError("motherProvince");
-                  clearFieldError("motherCity");
-                  clearFieldError("motherBarangay");
-                  clearFieldError("motherZip");
-                }}
-              >
-                <Ionicons name="copy-outline" size={16} color="#5b6095" style={{ marginRight: 8 }} />
-                <Text style={{ fontSize: 13, fontWeight: "600", color: "#5b6095" }}>
-                  {"Copy Father's Address"}
-                </Text>
-              </TouchableOpacity>
+              {!isDeceased(values.fatherStatus) && (
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: "#f4f5fa",
+                    padding: 10,
+                    borderRadius: 8,
+                    marginBottom: 16,
+                    borderWidth: 1,
+                    borderColor: "#e1e5f2",
+                    alignSelf: "flex-start",
+                  }}
+                  onPress={() => {
+                    setValues((prev) => ({
+                      ...prev,
+                      motherStreet: prev.fatherStreet || "",
+                      motherProvince: prev.fatherProvince || "",
+                      motherCity: prev.fatherCity || "",
+                      motherBarangay: prev.fatherBarangay || "",
+                      motherCountry: prev.fatherCountry || "Philippines",
+                      motherZip: prev.fatherZip || "",
+                    }));
+                    setMotherCities(fatherCities);
+                    setMotherBarangays(fatherBarangays);
+                    clearFieldError("motherStreet");
+                    clearFieldError("motherProvince");
+                    clearFieldError("motherCity");
+                    clearFieldError("motherBarangay");
+                    clearFieldError("motherZip");
+                  }}
+                >
+                  <Ionicons name="copy-outline" size={16} color="#5b6095" style={{ marginRight: 8 }} />
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#5b6095" }}>
+                    {"Copy Father's Address"}
+                  </Text>
+                </TouchableOpacity>
+              )}
               {renderInput("Street/Unit", "motherStreet", "Enter Street/Unit")}
               {renderAddressSelect("Province", "mother", "Province")}
               {renderAddressSelect("City/Municipality", "mother", "City")}
@@ -1549,14 +1670,14 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderInput("Father's Name", "fatherName", "Enter Father's Name")}
           {renderDatePicker("Birthday", "fatherBirthday")}
           {renderSelect("Employment Status", "fatherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
-          {values.fatherStatus !== "Deceased" && renderContactInput("Contact Number", "fatherContact")}
+          {!isDeceased(values.fatherStatus) && renderContactInput("Contact Number", "fatherContact")}
           {requiresIncomeProof(values.fatherStatus) && (
             <>
               {renderInput("Occupation", "fatherOccupation", "Enter Occupation")}
               {renderNumericInput("Monthly Income", "fatherIncome", "Enter Monthly Income")}
             </>
           )}
-          {values.fatherStatus !== "Deceased" && (
+          {!isDeceased(values.fatherStatus) && (
             <>
               {renderInput("Street/Unit", "fatherStreet", "Enter Street/Unit")}
               {renderAddressSelect("Province", "father", "Province")}
@@ -1571,51 +1692,53 @@ export default function ProgramApplyScreen({ navigation, route }) {
           {renderInput("Mother's Name", "motherName", "Enter Mother's Name")}
           {renderDatePicker("Birthday", "motherBirthday")}
           {renderSelect("Employment Status", "motherStatus", ["--", "Employed", "Unemployed", "Self-Employed", "Deceased"])}
-          {values.motherStatus !== "Deceased" && renderContactInput("Contact Number", "motherContact")}
+          {!isDeceased(values.motherStatus) && renderContactInput("Contact Number", "motherContact")}
           {requiresIncomeProof(values.motherStatus) && (
             <>
               {renderInput("Occupation", "motherOccupation", "Enter Occupation")}
               {renderNumericInput("Monthly Income", "motherIncome", "Enter Monthly Income")}
             </>
           )}
-          {values.motherStatus !== "Deceased" && (
+          {!isDeceased(values.motherStatus) && (
             <>
-              <TouchableOpacity
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  backgroundColor: "#f4f5fa",
-                  padding: 10,
-                  borderRadius: 8,
-                  marginBottom: 16,
-                  borderWidth: 1,
-                  borderColor: "#e1e5f2",
-                  alignSelf: "flex-start",
-                }}
-                onPress={() => {
-                  setValues((prev) => ({
-                    ...prev,
-                    motherStreet: prev.fatherStreet || "",
-                    motherProvince: prev.fatherProvince || "",
-                    motherCity: prev.fatherCity || "",
-                    motherBarangay: prev.fatherBarangay || "",
-                    motherCountry: prev.fatherCountry || "Philippines",
-                    motherZip: prev.fatherZip || "",
-                  }));
-                  setMotherCities(fatherCities);
-                  setMotherBarangays(fatherBarangays);
-                  clearFieldError("motherStreet");
-                  clearFieldError("motherProvince");
-                  clearFieldError("motherCity");
-                  clearFieldError("motherBarangay");
-                  clearFieldError("motherZip");
-                }}
-              >
-                <Ionicons name="copy-outline" size={16} color="#5b6095" style={{ marginRight: 8 }} />
-                <Text style={{ fontSize: 13, fontWeight: "600", color: "#5b6095" }}>
-                  {"Copy Father's Address"}
-                </Text>
-              </TouchableOpacity>
+              {!isDeceased(values.fatherStatus) && (
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: "#f4f5fa",
+                    padding: 10,
+                    borderRadius: 8,
+                    marginBottom: 16,
+                    borderWidth: 1,
+                    borderColor: "#e1e5f2",
+                    alignSelf: "flex-start",
+                  }}
+                  onPress={() => {
+                    setValues((prev) => ({
+                      ...prev,
+                      motherStreet: prev.fatherStreet || "",
+                      motherProvince: prev.fatherProvince || "",
+                      motherCity: prev.fatherCity || "",
+                      motherBarangay: prev.fatherBarangay || "",
+                      motherCountry: prev.fatherCountry || "Philippines",
+                      motherZip: prev.fatherZip || "",
+                    }));
+                    setMotherCities(fatherCities);
+                    setMotherBarangays(fatherBarangays);
+                    clearFieldError("motherStreet");
+                    clearFieldError("motherProvince");
+                    clearFieldError("motherCity");
+                    clearFieldError("motherBarangay");
+                    clearFieldError("motherZip");
+                  }}
+                >
+                  <Ionicons name="copy-outline" size={16} color="#5b6095" style={{ marginRight: 8 }} />
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#5b6095" }}>
+                    {"Copy Father's Address"}
+                  </Text>
+                </TouchableOpacity>
+              )}
               {renderInput("Street/Unit", "motherStreet", "Enter Street/Unit")}
               {renderAddressSelect("Province", "mother", "Province")}
               {renderAddressSelect("City/Municipality", "mother", "City")}
@@ -1917,10 +2040,10 @@ export default function ProgramApplyScreen({ navigation, route }) {
       familyItems.push(
         { label: "Father's Name", value: values.fatherName, icon: "man-outline" },
         { label: "Father Status", value: values.fatherStatus, icon: "information-circle-outline" },
-        ...(values.fatherStatus !== "Deceased" ? [
+        ...(!isDeceased(values.fatherStatus) ? [
           { label: "Father Address", value: `${values.fatherStreet || ""}, ${values.fatherBarangay || ""}, ${values.fatherCity || ""}, ${values.fatherProvince || ""}, ${values.fatherCountry || "Philippines"} ${values.fatherZip || ""}`, icon: "location-outline" }
         ] : []),
-        ...(values.fatherStatus !== "Deceased" && requiresIncomeProof(values.fatherStatus) ? [
+        ...(!isDeceased(values.fatherStatus) && requiresIncomeProof(values.fatherStatus) ? [
           { label: "Father Income", value: values.fatherIncome, icon: "cash-outline" }
         ] : [])
       );
@@ -1931,10 +2054,10 @@ export default function ProgramApplyScreen({ navigation, route }) {
       familyItems.push(
         { label: "Mother's Name", value: values.motherName, icon: "woman-outline" },
         { label: "Mother Status", value: values.motherStatus, icon: "information-circle-outline" },
-        ...(values.motherStatus !== "Deceased" ? [
+        ...(!isDeceased(values.motherStatus) ? [
           { label: "Mother Address", value: `${values.motherStreet || ""}, ${values.motherBarangay || ""}, ${values.motherCity || ""}, ${values.motherProvince || ""}, ${values.motherCountry || "Philippines"} ${values.motherZip || ""}`, icon: "location-outline" }
         ] : []),
-        ...(values.motherStatus !== "Deceased" && requiresIncomeProof(values.motherStatus) ? [
+        ...(!isDeceased(values.motherStatus) && requiresIncomeProof(values.motherStatus) ? [
           { label: "Mother Income", value: values.motherIncome, icon: "cash-outline" }
         ] : [])
       );
@@ -2403,108 +2526,114 @@ export default function ProgramApplyScreen({ navigation, route }) {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity
-          onPress={() => (step > 0 ? setStep(step - 1) : navigation?.goBack?.())}
-          style={styles.backBtn}
-        >
-          <Ionicons name="arrow-back" size={22} color="#4c60d1" />
-        </TouchableOpacity>
-        <Text style={styles.title}>
-          {selectedProgram === "employeeChild"
-            ? isChildDesignation ? "Child Designation Application" : "Staff Advancement Application"
-            : selectedProgram === "vocational"
-              ? "VOCATIONAL AND TECHNOLOGY SCHOLARSHIP"
-              : "Tertiary Scholarship Program"}
-        </Text>
-        <View style={styles.empty} />
-      </View>
-
-      <View style={styles.progressBarRow}>
-        {[...Array(maxStep + 2)].map((_, idx) => (
-          <View
-            key={idx}
-            style={[
-              styles.progressStep,
-              completeStage === "qualificationReport" || idx <= step
-                ? styles.progressStepActive
-                : styles.progressStepInactive,
-            ]}
-          />
-        ))}
-      </View>
-
-      <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
-        <Animated.View
-          style={{
-            opacity: stepAnim,
-            transform: [{ translateY: stepAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
-          }}
-        >
-          {renderStep()}
-          {apiError ? <Text style={[styles.errorText, { marginTop: 8 }]}>{apiError}</Text> : null}
-        </Animated.View>
-      </ScrollView>
-
-      {!isSubmittingNow && completeStage === "none" && step < maxStep && (
-        <TouchableOpacity style={styles.nextBtn} onPress={advance}>
-          <Text style={styles.nextBtnText}>Next Step →</Text>
-        </TouchableOpacity>
-      )}
-
-      {!isSubmittingNow && completeStage === "none" && step === maxStep && (
-        <TouchableOpacity
-          style={[styles.nextBtn, !allDeclared && { backgroundColor: "#bcc1e8" }]}
-          onPress={() => { if (allDeclared) submitApplication(); }}
-          disabled={!allDeclared}
-        >
-          <Text style={styles.nextBtnText}>Submit Application</Text>
-        </TouchableOpacity>
-      )}
-
-      <Modal visible={selectVisible} transparent animationType="slide" statusBarTranslucent onRequestClose={closeSelect}>
-        <View style={styles.modalRoot}>
-          <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={closeSelect} />
-          <View style={[styles.modalCard, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Option</Text>
-              <TouchableOpacity onPress={closeSelect}>
-                <Ionicons name="close" size={24} color="#4f5fc5" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 20 }}
-            >
-              {(selectContext?.options || []).map((opt, idx) => {
-                const isSelected =
-                  selectContext?.type === "member"
-                    ? familyMembers[selectContext.index]?.[selectContext.key] === opt
-                    : values[selectContext?.key] === opt;
-                return (
-                  <TouchableOpacity
-                    key={idx}
-                    style={[
-                      styles.modalOption,
-                      isSelected && styles.modalOptionActive
-                    ]}
-                    onPress={() => applySelect(opt)}
-                  >
-                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextActive]}>{opt}</Text>
-                    {isSelected && (
-                      <Ionicons name="checkmark-circle" size={22} color="#fff" style={{ marginLeft: 10, flexShrink: 0 }} />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <View style={styles.container}>
+        <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
+          <TouchableOpacity
+            onPress={() => (step > 0 ? setStep(step - 1) : navigation?.goBack?.())}
+            style={styles.backBtn}
+          >
+            <Ionicons name="arrow-back" size={22} color="#4c60d1" />
+          </TouchableOpacity>
+          <Text style={styles.title}>
+            {selectedProgram === "employeeChild"
+              ? isChildDesignation ? "Child Designation Application" : "Staff Advancement Application"
+              : selectedProgram === "vocational"
+                ? "VOCATIONAL AND TECHNOLOGY SCHOLARSHIP"
+                : "Tertiary Scholarship Program"}
+          </Text>
+          <View style={styles.empty} />
         </View>
-      </Modal>
 
-      <ExamplesModal visible={examplesModalVisible} onClose={() => setExamplesModalVisible(false)} />
-    </View>
+        <View style={styles.progressBarRow}>
+          {[...Array(maxStep + 2)].map((_, idx) => (
+            <View
+              key={idx}
+              style={[
+                styles.progressStep,
+                completeStage === "qualificationReport" || idx <= step
+                  ? styles.progressStepActive
+                  : styles.progressStepInactive,
+              ]}
+            />
+          ))}
+        </View>
+
+        <ScrollView ref={scrollViewRef} style={styles.content} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
+          <Animated.View
+            style={{
+              opacity: stepAnim,
+              transform: [{ translateY: stepAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
+            }}
+          >
+            {renderStep()}
+            {apiError ? <Text style={[styles.errorText, { marginTop: 8 }]}>{apiError}</Text> : null}
+          </Animated.View>
+        </ScrollView>
+
+        {!isSubmittingNow && completeStage === "none" && step < maxStep && (
+          <TouchableOpacity style={[styles.nextBtn, isValidating && { opacity: 0.7 }]} onPress={advance} disabled={isValidating}>
+            <Text style={styles.nextBtnText}>{isValidating ? "Validating..." : "Next Step →"}</Text>
+          </TouchableOpacity>
+        )}
+
+        {!isSubmittingNow && completeStage === "none" && step === maxStep && (
+          <TouchableOpacity
+            style={[styles.nextBtn, !allDeclared && { backgroundColor: "#bcc1e8" }]}
+            onPress={() => { if (allDeclared) submitApplication(); }}
+            disabled={!allDeclared}
+          >
+            <Text style={styles.nextBtnText}>Submit Application</Text>
+          </TouchableOpacity>
+        )}
+
+        <Modal visible={selectVisible} transparent animationType="slide" statusBarTranslucent onRequestClose={closeSelect}>
+          <View style={styles.modalRoot}>
+            <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={closeSelect} />
+            <View style={[styles.modalCard, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Option</Text>
+                <TouchableOpacity onPress={closeSelect}>
+                  <Ionicons name="close" size={24} color="#4f5fc5" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 20 }}
+              >
+                {(selectContext?.options || []).map((opt, idx) => {
+                  const isSelected =
+                    selectContext?.type === "member"
+                      ? familyMembers[selectContext.index]?.[selectContext.key] === opt
+                      : values[selectContext?.key] === opt;
+                  return (
+                    <TouchableOpacity
+                      key={idx}
+                      style={[
+                        styles.modalOption,
+                        isSelected && styles.modalOptionActive
+                      ]}
+                      onPress={() => applySelect(opt)}
+                    >
+                      <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextActive]}>{opt}</Text>
+                      {isSelected && (
+                        <Ionicons name="checkmark-circle" size={22} color="#fff" style={{ marginLeft: 10, flexShrink: 0 }} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        <ExamplesModal visible={examplesModalVisible} onClose={() => setExamplesModalVisible(false)} />
+        <LoadingOverlay visible={isValidating} message="Validating your information..." />
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -2883,22 +3012,21 @@ const ExamplesModal = ({ visible, onClose }) => {
               <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, padding: 10 }}>
                 {/* Table Header */}
                 <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1.5, borderBottomColor: "#cbd5e1", marginBottom: 4 }}>
-                  <Text style={{ flex: 1.2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Grade</Text>
-                  <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Percentage</Text>
+                  <Text style={{ flex: 1.5, fontWeight: "800", color: "#475569", fontSize: 12 }}>Grade</Text>
                   <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Description</Text>
                 </View>
 
                 {/* Rows */}
                 {[
-                  ["1.00", "97% - 100%", "Excellent", "#16a34a"],
-                  ["1.25", "93% - 96%", "Superior", "#16a34a"],
-                  ["1.50", "89% - 92%", "Very Good", "#2563eb"],
-                  ["1.75", "85% - 88%", "Good", "#2563eb"],
-                  ["2.00", "81% - 84%", "Satisfactory", "#4f46e5"],
-                  ["2.50", "78% - 80%", "Fair", "#b45309"],
-                  ["3.00", "75% - 77%", "Pass", "#64748b"],
-                  ["5.00", "Below 75%", "Fail", "#dc2626"],
-                ].map(([grade, pct, desc, color], idx, arr) => (
+                  ["1.00", "Excellent", "#16a34a"],
+                  ["1.25", "Superior", "#16a34a"],
+                  ["1.50", "Very Good", "#2563eb"],
+                  ["1.75", "Good", "#2563eb"],
+                  ["2.00", "Satisfactory", "#4f46e5"],
+                  ["2.50", "Fair", "#b45309"],
+                  ["3.00", "Pass", "#64748b"],
+                  ["5.00", "Fail", "#dc2626"],
+                ].map(([grade, desc, color], idx, arr) => (
                   <View
                     key={grade}
                     style={{
@@ -2908,8 +3036,7 @@ const ExamplesModal = ({ visible, onClose }) => {
                       borderBottomColor: "#f1f5f9"
                     }}
                   >
-                    <Text style={{ flex: 1.2, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
-                    <Text style={{ flex: 2, color: "#334155", fontSize: 12 }}>{pct}</Text>
+                    <Text style={{ flex: 1.5, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
                     <Text style={{ flex: 2, fontWeight: "600", color: color, fontSize: 12 }}>{desc}</Text>
                   </View>
                 ))}
@@ -2925,22 +3052,21 @@ const ExamplesModal = ({ visible, onClose }) => {
               <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, padding: 10 }}>
                 {/* Table Header */}
                 <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1.5, borderBottomColor: "#cbd5e1", marginBottom: 4 }}>
-                  <Text style={{ flex: 1.2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Grade</Text>
-                  <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Percentage</Text>
+                  <Text style={{ flex: 1.5, fontWeight: "800", color: "#475569", fontSize: 12 }}>Grade</Text>
                   <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Description</Text>
                 </View>
 
                 {/* Rows */}
                 {[
-                  ["4.00", "97% - 100%", "Excellent", "#16a34a"],
-                  ["3.50", "93% - 96%", "Superior", "#16a34a"],
-                  ["3.00", "89% - 92%", "Very Good", "#2563eb"],
-                  ["2.50", "85% - 88%", "Good", "#2563eb"],
-                  ["2.00", "81% - 84%", "Satisfactory", "#4f46e5"],
-                  ["1.50", "78% - 80%", "Fair", "#b45309"],
-                  ["1.00", "75% - 77%", "Pass", "#64748b"],
-                  ["0.50", "Below 75%", "Fail", "#dc2626"],
-                ].map(([grade, pct, desc, color], idx, arr) => (
+                  ["4.00", "Excellent", "#16a34a"],
+                  ["3.50", "Superior", "#16a34a"],
+                  ["3.00", "Very Good", "#2563eb"],
+                  ["2.50", "Good", "#2563eb"],
+                  ["2.00", "Satisfactory", "#4f46e5"],
+                  ["1.50", "Fair", "#b45309"],
+                  ["1.00", "Pass", "#64748b"],
+                  ["0.50", "Fail", "#dc2626"],
+                ].map(([grade, desc, color], idx, arr) => (
                   <View
                     key={grade}
                     style={{
@@ -2950,8 +3076,7 @@ const ExamplesModal = ({ visible, onClose }) => {
                       borderBottomColor: "#f1f5f9"
                     }}
                   >
-                    <Text style={{ flex: 1.2, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
-                    <Text style={{ flex: 2, color: "#334155", fontSize: 12 }}>{pct}</Text>
+                    <Text style={{ flex: 1.5, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
                     <Text style={{ flex: 2, fontWeight: "600", color: color, fontSize: 12 }}>{desc}</Text>
                   </View>
                 ))}

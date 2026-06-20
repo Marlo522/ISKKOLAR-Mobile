@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,14 +7,37 @@ import {
   Platform,
   StatusBar,
   ScrollView,
+  NativeModules,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
+import { deletePushToken } from "../services/pushNotificationService";
 
 export default function TerminatedScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { user, logoutUser } = useContext(AuthContext);
+
+  useEffect(() => {
+    // Unregister push token dynamically for terminated accounts upon mounting this screen
+    const unregisterPushTokenForTerminated = async () => {
+      if (NativeModules.RNFBAppModule) {
+        try {
+          const messaging = require("@react-native-firebase/messaging").default;
+          const token = await messaging().getToken().catch(() => null);
+          if (token) {
+            await deletePushToken(token).catch(err => {
+              console.warn("FCM: Failed to delete push token in TerminatedScreen:", err);
+            });
+            console.log("FCM: Push token deleted in TerminatedScreen.");
+          }
+        } catch (error) {
+          console.warn("FCM: Error getting token to delete in TerminatedScreen:", error);
+        }
+      }
+    };
+    unregisterPushTokenForTerminated();
+  }, []);
 
   const handleLogout = async () => {
     await logoutUser();

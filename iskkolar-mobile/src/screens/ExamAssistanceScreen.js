@@ -10,6 +10,7 @@ import FormDatePicker from "../components/FormDatePicker";
 import { useExamAssistance } from "../hooks/useExamAssistance";
 import ApplicationResultState from "../components/ApplicationResultState";
 import ApplicationSubmissionGuard from "../components/ApplicationSubmissionGuard";
+import LoadingOverlay from "../components/LoadingOverlay";
 
 export default function ExamAssistanceScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -364,19 +365,7 @@ export default function ExamAssistanceScreen({ navigation }) {
       );
     }
 
-    if (submitting) {
-      return (
-        <View style={styles.centered}>
-          <Animated.View style={{ transform: [{ rotate: spin }] }}>
-            <Ionicons name="sync-circle" size={110} color="#4f5fc5" />
-          </Animated.View>
-          <Text style={styles.completeText}>Evaluating Application...</Text>
-          <Text style={{ textAlign: "center", color: "#848baf", paddingHorizontal: 40, fontSize: 15 }}>
-            Please hold on while we securely process your documents.
-          </Text>
-        </View>
-      );
-    }
+
 
     switch (step) {
       case -1:
@@ -602,7 +591,7 @@ export default function ExamAssistanceScreen({ navigation }) {
         </View>
       </View>
 
-      {completeStage === "none" && !submitting && step > -1 && (
+      {completeStage === "none" && step > -1 && (
         <View style={{ marginBottom: 20 }}>
           <View style={styles.progressBarRow}>
             {[...Array(maxStep + 1)].map((_, idx) => (
@@ -624,7 +613,7 @@ export default function ExamAssistanceScreen({ navigation }) {
         </Animated.View>
       </ScrollView>
 
-      {!submitting && completeStage === "none" && step > -1 && (
+      {completeStage === "none" && step > -1 && (
         <View style={styles.footerRow}>
           <TouchableOpacity
             style={styles.backButtonFooter}
@@ -675,6 +664,7 @@ export default function ExamAssistanceScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+      <LoadingOverlay visible={submitting} message="Submitting application..." />
     </View>
   );
 }

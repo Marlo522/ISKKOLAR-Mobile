@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Alert, Modal, Animated } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Alert, Modal, Animated, KeyboardAvoidingView } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import SafeTextInput from "../components/SafeTextInput";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,6 +10,7 @@ import * as ImagePicker from "expo-image-picker";
 import { validateAndSanitizeFile } from "../utils/fileSanitizer";
 import { AuthContext } from "../context/AuthContext";
 import { useSchoolTransfer } from "../hooks/useSchoolTransfer";
+import LoadingOverlay from "../components/LoadingOverlay";
 import { getMyApplications as getMyTertiaryApplications } from "../services/tertiaryAppService";
 import { getMyVocationalApplications } from "../services/vocationalAppService";
 import {
@@ -336,9 +338,12 @@ export default function TransferSchoolScreen({ navigation }) {
         : isVocational
         ? vocationalProgramOptions
         : programOptions;
-    const suggestions = isPredictive && query.trim().length >= 1
-      ? optionsSource.filter(opt => opt.toLowerCase().includes(query.toLowerCase()))
-      : [];
+
+    let suggestions = [];
+    if (isPredictive) {
+      const filtered = optionsSource.filter(opt => opt.toLowerCase().includes(query.toLowerCase()));
+      suggestions = filtered.length > 0 ? filtered : optionsSource;
+    }
 
     return (
       <View style={[styles.row, fieldErrors[key] && styles.rowWithError, { position: "relative", zIndex: isPredictive && activePredictiveKey === key && suggestions.length > 0 ? 99 : 1 }]}>
@@ -369,7 +374,7 @@ export default function TransferSchoolScreen({ navigation }) {
         {isPredictive && activePredictiveKey === key && suggestions.length > 0 && (
           <View style={styles.predictionsContainer}>
             <ScrollView keyboardShouldPersistTaps="handled" style={styles.predictionsScroll}>
-              {suggestions.slice(0, 6).map((item, idx) => (
+              {suggestions.map((item, idx) => (
                 <TouchableOpacity
                   key={idx}
                   style={styles.predictionItem}
@@ -440,200 +445,203 @@ export default function TransferSchoolScreen({ navigation }) {
     );
   }
 
-  // ─── Loading state ──────────────────────────────────────────
-  if (submitting) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.centered}>
-          <Animated.View style={{ transform: [{ rotate: spin }] }}>
-            <Ionicons name="sync-circle" size={110} color="#4f5fc5" />
-          </Animated.View>
-          <Text style={styles.completeText}>Processing Request...</Text>
-          <Text style={styles.completeSub}>Please wait while we securely transmit your transfer details.</Text>
-        </View>
-      </View>
-    );
-  }
+
 
   // ─── Form ───────────────────────────────────────────────────
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#5b6095" />
-        </TouchableOpacity>
-        <View style={styles.headerTitles}>
-          <Text style={styles.superTitle}>TRANSFER SCHOOL REQUEST</Text>
-          <Text style={styles.mainTitle}>Submit a Transfer Update</Text>
-          <Text style={styles.subTitle}>Your current details are auto-filled from your application and grade compliance.</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <LinearGradient
+        colors={['#ffffff', '#f1f2fa']}
+        style={[styles.container, { backgroundColor: 'transparent' }]}
+      >
+        {/* Header */}
+        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color="#5b6095" />
+          </TouchableOpacity>
+          <View style={styles.headerTitles}>
+            <Text style={styles.superTitle}>TRANSFER SCHOOL REQUEST</Text>
+            <Text style={styles.mainTitle}>Submit a Transfer Update</Text>
+            <Text style={styles.subTitle}>Your current details are auto-filled from your application and grade compliance.</Text>
+          </View>
         </View>
-      </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
-        <Animated.View style={{ opacity: stepAnim, transform: [{ translateY: stepAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+        <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+          <Animated.View style={{ opacity: stepAnim, transform: [{ translateY: stepAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
 
-          {/* Global error banner */}
-          {error ? (
-            <View style={styles.errorBanner}>
-              <Text style={styles.errorBannerText}>{error}</Text>
-            </View>
-          ) : null}
-
-          {/* Current Academic Information */}
-          <View style={styles.formSection}>
-            <View style={styles.sectionHeaderRow}>
-              <View style={styles.verticalPill} />
-              <Text style={styles.sectionTitle}>Current Academic Information</Text>
-            </View>
-
-            <View style={styles.rowTwoCol}>
-              <View style={styles.colHalf}>
-                {renderReadOnly("Current School", currentSchool || "Auto-filled")}
+            {/* Global error banner */}
+            {error ? (
+              <View style={styles.errorBanner}>
+                <Text style={styles.errorBannerText}>{error}</Text>
               </View>
-              <View style={styles.colHalf}>
-                {renderReadOnly("Current Program", currentProgram || "Auto-filled")}
+            ) : null}
+
+            {/* Current Academic Information */}
+            <View style={styles.formSection}>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.verticalPill} />
+                <Text style={styles.sectionTitle}>Current Academic Information</Text>
               </View>
-            </View>
 
-            {renderReadOnly("Current GWA", currentGwa || "Auto-filled from grade compliance")}
-          </View>
+              <View style={styles.rowTwoCol}>
+                <View style={styles.colHalf}>
+                  {renderReadOnly("Current School", currentSchool || "Auto-filled")}
+                </View>
+                <View style={styles.colHalf}>
+                  {renderReadOnly("Current Program", currentProgram || "Auto-filled")}
+                </View>
+              </View>
 
-          {/* Transfer Details */}
-          <View style={styles.formSection}>
-            <View style={styles.sectionHeaderRow}>
-              <View style={styles.verticalPill} />
-              <Text style={styles.sectionTitle}>Transfer Details</Text>
+              {renderReadOnly("Current GWA", currentGwa || "Auto-filled from grade compliance")}
             </View>
 
-            <View style={styles.rowTwoCol}>
-              <View style={styles.colHalf}>
-                {renderInput("New School", "newSchool", "Target university or college")}
+            {/* Transfer Details */}
+            <View style={styles.formSection}>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.verticalPill} />
+                <Text style={styles.sectionTitle}>Transfer Details</Text>
               </View>
-              <View style={styles.colHalf}>
-                {renderInput("New Program / Course", "newProgram", "Program you are transferring to")}
-              </View>
-            </View>
 
-            <View style={styles.rowTwoCol}>
-              <View style={styles.colHalf}>
-                {renderSelector("Year Level", "yearLevel", "Select Year Level", YEAR_LEVELS)}
+              <View style={styles.rowTwoCol}>
+                <View style={styles.colHalf}>
+                  {renderInput("New School", "newSchool", "Target university or college")}
+                </View>
+                <View style={styles.colHalf}>
+                  {renderInput("New Program / Course", "newProgram", "Program you are transferring to")}
+                </View>
               </View>
-              <View style={styles.colHalf}>
-                {renderSelector("Term Type", "termType", "Select Term Type", TERM_TYPES)}
-              </View>
-            </View>
 
-            <View style={styles.rowTwoCol}>
-              <View style={styles.colHalf}>
-                {renderSelector("Grading System", "gradingSystem", "Select Grading System", GRADING_SYSTEMS)}
+              <View style={styles.rowTwoCol}>
+                <View style={styles.colHalf}>
+                  {renderSelector("Year Level", "yearLevel", "Select Year Level", YEAR_LEVELS)}
+                </View>
+                <View style={styles.colHalf}>
+                  {renderSelector("Term Type", "termType", "Select Term Type", TERM_TYPES)}
+                </View>
               </View>
-              <View style={styles.colHalf}>
-                {renderReadOnly("Effective Academic Year", currentAcademicYear)}
-              </View>
-            </View>
-            <TouchableOpacity onPress={() => setExamplesModalVisible(true)} style={{ marginTop: -4, marginBottom: 16 }}>
-              <Text style={{ color: "#4f5fc5", fontSize: 13, fontWeight: "600", textDecorationLine: "underline" }}>
-                View grading scale examples
-              </Text>
-            </TouchableOpacity>
 
-            <View style={styles.rowTwoCol}>
-              <View style={styles.colHalf}>
-                {renderSelector("Effective Term", "term", "Select Term", TERMS)}
+              <View style={styles.rowTwoCol}>
+                <View style={styles.colHalf}>
+                  {renderSelector("Grading System", "gradingSystem", "Select Grading System", GRADING_SYSTEMS)}
+                </View>
+                <View style={styles.colHalf}>
+                  {renderReadOnly("Effective Academic Year", currentAcademicYear)}
+                </View>
               </View>
-              <View style={styles.colHalf}>
-                {renderInput("Expected Graduation Year", "expectedGraduationYear", "YYYY", "numeric")}
-              </View>
-            </View>
-
-            {renderTextArea("Reason for Transfer", "reason", "Provide a short explanation for the transfer request.")}
-          </View>
-
-          {/* Supporting Documents */}
-          <View style={styles.formSection}>
-            <View style={styles.sectionHeaderRow}>
-              <View style={styles.verticalPill} />
-              <Text style={styles.sectionTitle}>Supporting Documents</Text>
-            </View>
-            <Text style={[styles.label, { marginBottom: 4 }]}>Certificate of Registration (New School) <Text style={{ color: "red" }}>*</Text></Text>
-            <View style={fieldErrors.corNewSchool && styles.rowWithError}>
-              <TouchableOpacity
-                style={[styles.unifiedUploadContainer, fieldErrors.corNewSchool && styles.errorInput]}
-                onPress={pickCorFile}
-              >
-                <Ionicons
-                  name="share-outline"
-                  size={18}
-                  color={corFile ? "#4f5fc5" : "#848baf"}
-                  style={{ marginRight: 8 }}
-                />
-                <Text
-                  style={[
-                    styles.unifiedUploadText,
-                    corFile ? styles.unifiedUploadTextActive : styles.unifiedUploadTextInactive
-                  ]}
-                  numberOfLines={1}
-                  ellipsizeMode="middle"
-                >
-                  {corFile ? corFile.name : "Latest COR from the receiving school"}
+              <TouchableOpacity onPress={() => setExamplesModalVisible(true)} style={{ marginTop: -4, marginBottom: 16 }}>
+                <Text style={{ color: "#4f5fc5", fontSize: 13, fontWeight: "600", textDecorationLine: "underline" }}>
+                  View grading scale examples
                 </Text>
               </TouchableOpacity>
-              {fieldErrors.corNewSchool && <Text style={[styles.errorText, { marginTop: 4 }]}>{fieldErrors.corNewSchool}</Text>}
+
+              <View style={styles.rowTwoCol}>
+                <View style={styles.colHalf}>
+                  {renderSelector("Effective Term", "term", "Select Term", TERMS)}
+                </View>
+                <View style={styles.colHalf}>
+                  {renderInput("Expected Graduation Year", "expectedGraduationYear", "YYYY", "numeric")}
+                </View>
+              </View>
+
+              {renderTextArea("Reason for Transfer", "reason", "Provide a short explanation for the transfer request.")}
             </View>
-          </View>
 
-        </Animated.View>
-      </ScrollView>
-
-      {/* Footer */}
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <TouchableOpacity style={styles.btnSecondary} onPress={() => navigation.navigate("ScholarDashboardMain")}>
-          <Text style={styles.btnSecondaryText}>Back to Home</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.btnPrimary} onPress={handleSubmit}>
-          <Text style={styles.btnPrimaryText}>Submit Transfer Request</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Generic Selector Modal */}
-      <Modal visible={selectorVisible} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setSelectorVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={() => setSelectorVisible(false)} />
-          <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{selectorTitle}</Text>
-              <TouchableOpacity onPress={() => setSelectorVisible(false)}>
-                <Ionicons name="close" size={24} color="#4f5fc5" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              style={styles.modalScroll}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 20 }}
-            >
-              {selectorOptions.map((opt, idx) => (
+            {/* Supporting Documents */}
+            <View style={styles.formSection}>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.verticalPill} />
+                <Text style={styles.sectionTitle}>Supporting Documents</Text>
+              </View>
+              <Text style={[styles.label, { marginBottom: 4 }]}>Certificate of Registration (New School) <Text style={{ color: "red" }}>*</Text></Text>
+              <View style={fieldErrors.corNewSchool && styles.rowWithError}>
                 <TouchableOpacity
-                  key={idx}
-                  style={[styles.modalOption, values[selectorKey] === opt && styles.modalOptionActive]}
-                  onPress={() => {
-                    setField(selectorKey, opt);
-                    setSelectorVisible(false);
-                  }}
+                  style={[styles.unifiedUploadContainer, fieldErrors.corNewSchool && styles.errorInput]}
+                  onPress={pickCorFile}
                 >
-                  <Text style={[styles.modalOptionText, values[selectorKey] === opt && styles.modalOptionTextActive]}>{opt}</Text>
-                  {values[selectorKey] === opt && (
-                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                  )}
+                  <Ionicons
+                    name="share-outline"
+                    size={18}
+                    color={corFile ? "#4f5fc5" : "#848baf"}
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text
+                    style={[
+                      styles.unifiedUploadText,
+                      corFile ? styles.unifiedUploadTextActive : styles.unifiedUploadTextInactive
+                    ]}
+                    numberOfLines={1}
+                    ellipsizeMode="middle"
+                  >
+                    {corFile ? corFile.name : "Latest COR from the receiving school"}
+                  </Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+                {fieldErrors.corNewSchool && <Text style={[styles.errorText, { marginTop: 4 }]}>{fieldErrors.corNewSchool}</Text>}
+              </View>
+            </View>
 
-      <ExamplesModal visible={examplesModalVisible} onClose={() => setExamplesModalVisible(false)} />
-    </View>
+          </Animated.View>
+        </ScrollView>
+
+        {/* Footer */}
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <TouchableOpacity style={styles.btnSecondary} onPress={() => navigation.navigate("ScholarDashboardMain")}>
+            <Text style={styles.btnSecondaryText}>Back to Home</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={{ flex: 1.5, borderRadius: 12, overflow: "hidden" }} onPress={handleSubmit} activeOpacity={0.8}>
+            <LinearGradient
+              colors={['#5b61a7', '#727ab6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.btnPrimary, { flex: 0, width: "100%", backgroundColor: 'transparent' }]}
+            >
+              <Text style={styles.btnPrimaryText}>Submit Transfer Request</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
+        {/* Generic Selector Modal */}
+        <Modal visible={selectorVisible} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setSelectorVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={() => setSelectorVisible(false)} />
+            <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{selectorTitle}</Text>
+                <TouchableOpacity onPress={() => setSelectorVisible(false)}>
+                  <Ionicons name="close" size={24} color="#4f5fc5" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView
+                style={styles.modalScroll}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 20 }}
+              >
+                {selectorOptions.map((opt, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.modalOption, values[selectorKey] === opt && styles.modalOptionActive]}
+                    onPress={() => {
+                      setField(selectorKey, opt);
+                      setSelectorVisible(false);
+                    }}
+                  >
+                    <Text style={[styles.modalOptionText, values[selectorKey] === opt && styles.modalOptionTextActive]}>{opt}</Text>
+                    {values[selectorKey] === opt && (
+                      <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        <ExamplesModal visible={examplesModalVisible} onClose={() => setExamplesModalVisible(false)} />
+        <LoadingOverlay visible={submitting} message="Processing request..." />
+      </LinearGradient>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -814,22 +822,21 @@ const ExamplesModal = ({ visible, onClose }) => {
               <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, padding: 10 }}>
                 {/* Table Header */}
                 <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1.5, borderBottomColor: "#cbd5e1", marginBottom: 4 }}>
-                  <Text style={{ flex: 1.2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Grade</Text>
-                  <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Percentage</Text>
+                  <Text style={{ flex: 1.5, fontWeight: "800", color: "#475569", fontSize: 12 }}>Grade</Text>
                   <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Description</Text>
                 </View>
 
                 {/* Rows */}
                 {[
-                  ["1.00", "97% - 100%", "Excellent", "#16a34a"],
-                  ["1.25", "93% - 96%", "Superior", "#16a34a"],
-                  ["1.50", "89% - 92%", "Very Good", "#2563eb"],
-                  ["1.75", "85% - 88%", "Good", "#2563eb"],
-                  ["2.00", "81% - 84%", "Satisfactory", "#4f46e5"],
-                  ["2.50", "78% - 80%", "Fair", "#b45309"],
-                  ["3.00", "75% - 77%", "Pass", "#64748b"],
-                  ["5.00", "Below 75%", "Fail", "#dc2626"],
-                ].map(([grade, pct, desc, color], idx, arr) => (
+                  ["1.00", "Excellent", "#16a34a"],
+                  ["1.25", "Superior", "#16a34a"],
+                  ["1.50", "Very Good", "#2563eb"],
+                  ["1.75", "Good", "#2563eb"],
+                  ["2.00", "Satisfactory", "#4f46e5"],
+                  ["2.50", "Fair", "#b45309"],
+                  ["3.00", "Pass", "#64748b"],
+                  ["5.00", "Fail", "#dc2626"],
+                ].map(([grade, desc, color], idx, arr) => (
                   <View 
                     key={grade} 
                     style={{ 
@@ -839,8 +846,7 @@ const ExamplesModal = ({ visible, onClose }) => {
                       borderBottomColor: "#f1f5f9" 
                     }}
                   >
-                    <Text style={{ flex: 1.2, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
-                    <Text style={{ flex: 2, color: "#334155", fontSize: 12 }}>{pct}</Text>
+                    <Text style={{ flex: 1.5, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
                     <Text style={{ flex: 2, fontWeight: "600", color: color, fontSize: 12 }}>{desc}</Text>
                   </View>
                 ))}
@@ -856,22 +862,21 @@ const ExamplesModal = ({ visible, onClose }) => {
               <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, padding: 10 }}>
                 {/* Table Header */}
                 <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1.5, borderBottomColor: "#cbd5e1", marginBottom: 4 }}>
-                  <Text style={{ flex: 1.2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Grade</Text>
-                  <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Percentage</Text>
+                  <Text style={{ flex: 1.5, fontWeight: "800", color: "#475569", fontSize: 12 }}>Grade</Text>
                   <Text style={{ flex: 2, fontWeight: "800", color: "#475569", fontSize: 12 }}>Description</Text>
                 </View>
 
                 {/* Rows */}
                 {[
-                  ["4.00", "97% - 100%", "Excellent", "#16a34a"],
-                  ["3.50", "93% - 96%", "Superior", "#16a34a"],
-                  ["3.00", "89% - 92%", "Very Good", "#2563eb"],
-                  ["2.50", "85% - 88%", "Good", "#2563eb"],
-                  ["2.00", "81% - 84%", "Satisfactory", "#4f46e5"],
-                  ["1.50", "78% - 80%", "Fair", "#b45309"],
-                  ["1.00", "75% - 77%", "Pass", "#64748b"],
-                  ["0.50", "Below 75%", "Fail", "#dc2626"],
-                ].map(([grade, pct, desc, color], idx, arr) => (
+                  ["4.00", "Excellent", "#16a34a"],
+                  ["3.50", "Superior", "#16a34a"],
+                  ["3.00", "Very Good", "#2563eb"],
+                  ["2.50", "Good", "#2563eb"],
+                  ["2.00", "Satisfactory", "#4f46e5"],
+                  ["1.50", "Fair", "#b45309"],
+                  ["1.00", "Pass", "#64748b"],
+                  ["0.50", "Fail", "#dc2626"],
+                ].map(([grade, desc, color], idx, arr) => (
                   <View 
                     key={grade} 
                     style={{ 
@@ -881,8 +886,7 @@ const ExamplesModal = ({ visible, onClose }) => {
                       borderBottomColor: "#f1f5f9" 
                     }}
                   >
-                    <Text style={{ flex: 1.2, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
-                    <Text style={{ flex: 2, color: "#334155", fontSize: 12 }}>{pct}</Text>
+                    <Text style={{ flex: 1.5, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
                     <Text style={{ flex: 2, fontWeight: "600", color: color, fontSize: 12 }}>{desc}</Text>
                   </View>
                 ))}

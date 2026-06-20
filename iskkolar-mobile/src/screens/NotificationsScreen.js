@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { NotificationContext } from '../context/NotificationContext';
 import { getAttachmentDownloadUrl } from '../services/announcementService';
 
@@ -323,6 +324,36 @@ export default function NotificationsScreen({ navigation }) {
   const [refreshing, setRefreshing]         = useState(false);
   const [activeTab, setActiveTab]           = useState('all'); // all, unread, read, archived
 
+  const handleSwipeOpen = (direction, item) => {
+    if (activeTab === 'archived') {
+      void unarchiveAnnouncement(item.id);
+    } else {
+      void archiveAnnouncement(item.id);
+    }
+  };
+
+  const renderLeftActions = () => {
+    const isArchivedTab = activeTab === 'archived';
+    const bgColor = isArchivedTab ? '#4f5ec4' : '#2e7d32';
+    const iconName = isArchivedTab ? 'arrow-undo' : 'archive';
+    return (
+      <View style={[styles.swipeAction, { backgroundColor: bgColor, justifyContent: 'flex-start', paddingLeft: 24 }]}>
+        <Ionicons name={iconName} size={24} color="#fff" />
+      </View>
+    );
+  };
+
+  const renderRightActions = () => {
+    const isArchivedTab = activeTab === 'archived';
+    const bgColor = isArchivedTab ? '#4f5ec4' : '#2e7d32';
+    const iconName = isArchivedTab ? 'arrow-undo' : 'archive';
+    return (
+      <View style={[styles.swipeAction, { backgroundColor: bgColor, justifyContent: 'flex-end', paddingRight: 24 }]}>
+        <Ionicons name={iconName} size={24} color="#fff" />
+      </View>
+    );
+  };
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchAnnouncements();
@@ -457,18 +488,22 @@ export default function NotificationsScreen({ navigation }) {
           {filtered.map((item) => {
             const isActivity = item.type === 'activity';
             const isRead     = readIds.includes(item.id);
-            const isArchived = archivedIds.includes(item.id);
             const iconName   = isActivity ? 'calendar' : 'notifications';
             const iconColor  = isActivity ? '#3b82f6'  : '#4f5ec4';
             const iconBg     = isActivity ? '#eff6ff'   : '#ebedfa';
 
             return (
-              <TouchableOpacity
+              <Swipeable
                 key={item.id}
-                style={[styles.card, !isRead && styles.cardUnread]}
-                activeOpacity={0.75}
-                onPress={() => handlePress(item)}
+                renderLeftActions={renderLeftActions}
+                renderRightActions={renderRightActions}
+                onSwipeableOpen={(direction) => handleSwipeOpen(direction, item)}
               >
+                <TouchableOpacity
+                  style={[styles.card, !isRead && styles.cardUnread]}
+                  activeOpacity={0.75}
+                  onPress={() => handlePress(item)}
+                >
                 {/* Unread indicator */}
                 {!isRead && <View style={styles.unreadBar} />}
 
@@ -510,31 +545,14 @@ export default function NotificationsScreen({ navigation }) {
                         </View>
                       )}
                     </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Text style={styles.cardTimestamp}>{getRelativeTime(item.createdAt)}</Text>
-                      <TouchableOpacity 
-                        style={[styles.cardArchiveBtn, isArchived && { backgroundColor: '#ebedfa' }]}
-                        activeOpacity={0.8}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          if (isArchived) {
-                            void unarchiveAnnouncement(item.id);
-                          } else {
-                            void archiveAnnouncement(item.id);
-                          }
-                        }}
-                      >
-                        <Ionicons 
-                          name={isArchived ? "arrow-undo-outline" : "archive-outline"} 
-                          size={14} 
-                          color={isArchived ? "#4f5ec4" : "#6e7798"} 
-                        />
-                      </TouchableOpacity>
                     </View>
                   </View>
                 </View>
               </TouchableOpacity>
-            );
+            </Swipeable>
+          );
           })}
         </ScrollView>
       )}
@@ -629,7 +647,6 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
   },
   headerTextContainer: { flex: 1 },
   markAllButton: {
@@ -669,11 +686,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#fff',
   },
-  cardArchiveBtn: {
-    padding: 6,
-    borderRadius: 6,
-    backgroundColor: '#f1f3f9',
+  swipeAction: {
+    flex: 1,
+    borderRadius: 20,
+    marginBottom: 16,
     justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
   },
 

@@ -14,6 +14,7 @@ import {
   Easing,
   Alert,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import SafeTextInput from "../components/SafeTextInput";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -792,12 +793,7 @@ export default function SignupScreen({ navigation }) {
         ])}
 
         <TouchableOpacity
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            marginTop: 12,
-            marginBottom: 8,
-          }}
+          style={styles.checkboxRow}
           activeOpacity={0.8}
           onPress={() => setConfirmed(!confirmed)}
         >
@@ -806,15 +802,7 @@ export default function SignupScreen({ navigation }) {
             size={20}
             color={confirmed ? "#5b61aa" : "#848baf"}
           />
-          <Text style={{
-            marginLeft: 10,
-            fontSize: 13,
-            color: "#2d3a7c",
-            fontWeight: "700",
-            flex: 1,
-            lineHeight: 20,
-            flexWrap: "wrap",
-          }}>
+          <Text style={styles.checkboxText}>
             I confirm the details above are true and correct.
           </Text>
         </TouchableOpacity>
@@ -835,10 +823,18 @@ export default function SignupScreen({ navigation }) {
       </View>
 
       <TouchableOpacity
-        style={{ backgroundColor: '#5b5f97', width: '100%', borderRadius: 8, paddingVertical: 14, alignItems: 'center' }}
+        style={{ width: '100%', borderRadius: 14, overflow: 'hidden' }}
         onPress={() => navigation.navigate("Login")}
+        activeOpacity={0.8}
       >
-        <Text style={{ color: '#fff', fontWeight: '500', fontSize: 16 }}>Continue</Text>
+        <LinearGradient
+          colors={['#5b5f97', '#727ab6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ paddingVertical: 14, alignItems: 'center' }}
+        >
+          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>Continue</Text>
+        </LinearGradient>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -879,12 +875,21 @@ export default function SignupScreen({ navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    <LinearGradient
+      colors={['#ffffff', '#f1f2fa']}
+      style={{ flex: 1 }}
     >
+      <KeyboardAvoidingView
+        style={[styles.screen, { backgroundColor: 'transparent' }]}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
       {/* Header */}
-      <View style={[styles.headerContainer, { paddingTop: insets.top + 16 }]}>
+      <LinearGradient
+        colors={['#5b61a7', '#727ab6']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.headerContainer, { paddingTop: insets.top + 16 }]}
+      >
         <TouchableOpacity style={styles.backButton} onPress={backStep}>
           <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
@@ -901,7 +906,7 @@ export default function SignupScreen({ navigation }) {
             />
           ))}
         </View>
-      </View>
+      </LinearGradient>
 
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Animated.View style={[styles.card, { opacity: stepFade, transform: [{ translateY: stepSlide }] }]}>
@@ -910,18 +915,23 @@ export default function SignupScreen({ navigation }) {
 
         {step < 4 ? (
           <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              (loading || (step === 1 && form.citizenship === "Others") || (step === 3 && !confirmed)) && styles.primaryButtonDisabled
-            ]}
+            style={(loading || (step === 1 && form.citizenship === "Others") || (step === 3 && !confirmed)) && styles.primaryButtonDisabled}
             onPress={step === 3 ? handleRegister : nextStep}
             disabled={loading || (step === 1 && form.citizenship === "Others") || (step === 3 && !confirmed)}
+            activeOpacity={0.8}
           >
-            <Text style={styles.primaryButtonText}>
-              {step === 3
-                ? loading ? "Registering..." : "Register Account"
-                : loading ? "Validating..." : "Next Step →"}
-            </Text>
+            <LinearGradient
+              colors={['#5b5f97', '#727ab6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.primaryButton}
+            >
+              <Text style={styles.primaryButtonText}>
+                {step === 3
+                  ? loading ? "Registering..." : "Register Account"
+                  : loading ? "Validating..." : "Next Step →"}
+              </Text>
+            </LinearGradient>
           </TouchableOpacity>
         ) : null}
       </ScrollView>
@@ -943,7 +953,8 @@ export default function SignupScreen({ navigation }) {
         onConfirm={(date) => updateField("birthday", formatDate(date))}
         onClose={() => setDatePickerVisible(false)}
       />
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 
@@ -1110,6 +1121,9 @@ const styles = StyleSheet.create({
   reviewLabel: { fontSize: 12, fontWeight: "600", color: "#667084" },
   reviewValue: { fontSize: 14, fontWeight: "700", color: "#1c2131", marginTop: 1 },
   reviewDivider: { height: 1, backgroundColor: "#f1f3f9", marginLeft: 44 },
+  sectionIconWrapper: { width: 32, height: 32, borderRadius: 10, backgroundColor: "rgba(91,95,151,0.1)", justifyContent: "center", alignItems: "center", marginRight: 12 },
+  checkboxRow: { flexDirection: "row", alignItems: "center", marginTop: 12, marginBottom: 8 },
+  checkboxText: { marginLeft: 10, fontSize: 13, color: "#2d3a7c", fontWeight: "700", flexShrink: 1 },
 });
 
 const modalStyles = StyleSheet.create({
@@ -1178,21 +1192,6 @@ const modalStyles = StyleSheet.create({
   yearPickerOptionTextActive: { color: "#fff" },
   emptyState: { paddingVertical: 40, alignItems: "center" },
   emptyText: { color: "#9ca3af", fontSize: 15, fontWeight: "600" },
-  sectionIconWrapper: { width: 32, height: 32, borderRadius: 10, backgroundColor: "rgba(91,95,151,0.1)", justifyContent: "center", alignItems: "center", marginRight: 10 },
-  checkboxRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  checkboxText: {
-    marginLeft: 10,
-    fontSize: 13,
-    color: "#2d3a7c",
-    fontWeight: "700",
-    flex: 1,
-    lineHeight: 20,
-  },
 });
 
 const strengthStyles = StyleSheet.create({

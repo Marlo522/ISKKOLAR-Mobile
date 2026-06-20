@@ -1,8 +1,8 @@
 import api from "./api";
 import { sanitizeFilename } from "../utils/fileSanitizer";
 
-const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
-const MOBILE_PATTERN = /^0\d{10}$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MOBILE_PATTERN = /^09\d{9}$/;
 
 export const getProfile = async () => {
   try {
@@ -25,7 +25,7 @@ export const updateProfile = async (data) => {
   }
 
   if (!EMAIL_PATTERN.test(normalizedEmail)) {
-    throw new Error("Please enter a valid email address.");
+    throw new Error("Please enter a valid email address (e.g. user@example.com).");
   }
 
   if (!normalizedMobile) {
@@ -33,13 +33,17 @@ export const updateProfile = async (data) => {
   }
 
   if (!MOBILE_PATTERN.test(normalizedMobile)) {
-    throw new Error("Mobile number must start with 0 and contain 11 digits.");
+    throw new Error("Mobile number must start with 09 and contain 11 digits.");
   }
 
   try {
     const formData = new FormData();
     formData.append("email", normalizedEmail);
     formData.append("mobileNumber", normalizedMobile);
+
+    if (data.currentPassword) {
+      formData.append("currentPassword", data.currentPassword);
+    }
 
     if (data.profilePhoto) {
       formData.append("profilePhoto", {
@@ -69,7 +73,14 @@ export const updateProfile = async (data) => {
 
     throw new Error(response.data?.message || "Failed to update profile.");
   } catch (error) {
-    throw new Error(error.message || "Failed to update profile.");
+    const payload = error?.response?.data || error;
+    const message =
+      payload?.message ||
+      payload?.error ||
+      (Array.isArray(payload?.errors) && payload.errors[0]?.message) ||
+      error.message ||
+      "Failed to update profile.";
+    throw new Error(message);
   }
 };
 

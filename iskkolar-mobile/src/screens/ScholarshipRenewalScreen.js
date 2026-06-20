@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Animated,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import SafeTextInput from "../components/SafeTextInput";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import GraduationCelebration from '../components/GraduationCelebration';
 import ApplicationResultState from '../components/ApplicationResultState';
+import LoadingOverlay from '../components/LoadingOverlay';
 
 // Import our new services that match the web backend calls
 import {
@@ -368,540 +371,528 @@ export default function ScholarshipRenewalScreen({ navigation }) {
   const nextAcademicYear = getNextAcademicYear(form.academicYear);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => (currentStep === 1 && !success ? navigation.goBack() : goBack())}
-        >
-          <Ionicons name="arrow-back" size={24} color="#4a4e7d" />
-        </TouchableOpacity>
-        <View style={styles.headerTextContainer}>
-          <Text style={styles.superTitle}>SCHOLARSHIP RENEWAL</Text>
-          <Text style={styles.mainTitle}>
-            {nextAcademicYear ? `AY ${nextAcademicYear} Renewal Form` : 'AY Renewal Form'}
-          </Text>
-        </View>
-      </View>
-
-      {/* Progress Bar */}
-      {!success && !resolvedIsGraduate && (
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            {steps.map((step, idx) => (
-              <View
-                key={step.key}
-                style={[
-                  styles.progressStep,
-                  idx < currentStep ? styles.progressStepActive : styles.progressStepInactive,
-                ]}
-              />
-            ))}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => (currentStep === 1 && !success ? navigation.goBack() : goBack())}
+          >
+            <Ionicons name="arrow-back" size={24} color="#4a4e7d" />
+          </TouchableOpacity>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.superTitle}>SCHOLARSHIP RENEWAL</Text>
+            <Text style={styles.mainTitle}>
+              {nextAcademicYear ? `AY ${nextAcademicYear} Renewal Form` : 'AY Renewal Form'}
+            </Text>
           </View>
-          <Text style={styles.progressLabel}>{steps[currentStep - 1].label}</Text>
         </View>
-      )}
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 60, paddingHorizontal: 20 }}>
-        {resolvedIsGraduate ? (
-          <GraduationCelebration
-            firstName={user?.firstName || user?.first_name}
-            onBack={() => navigation.goBack()}
-          />
-        ) : (
-          <>
-            {/* Success Screen */}
-            {success && (
-              <ApplicationResultState
-                aiCheckingEnabled={aiCheckingEnabled}
-                successTitle="Success!"
-                successMessage="Renewal submitted. We will review your details and notify you via email."
-                aiSummary={aiFeedback?.summary}
-                onViewApplications={() => navigation.goBack()}
-                viewApplicationsText="Return to Dashboard"
-              />
-            )}
+        {/* Progress Bar */}
+        {!success && !resolvedIsGraduate && (
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBar}>
+              {steps.map((step, idx) => (
+                <View
+                  key={step.key}
+                  style={[
+                    styles.progressStep,
+                    idx < currentStep ? styles.progressStepActive : styles.progressStepInactive,
+                  ]}
+                />
+              ))}
+            </View>
+            <Text style={styles.progressLabel}>{steps[currentStep - 1].label}</Text>
+          </View>
+        )}
 
-            {errorMessage ? (
-              <View style={styles.errorBanner}>
-                <Text style={styles.errorBannerText}>{errorMessage}</Text>
-              </View>
-            ) : null}
+        <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 60, paddingHorizontal: 20 }}>
+          {resolvedIsGraduate ? (
+            <GraduationCelebration
+              firstName={user?.firstName || user?.first_name}
+              onBack={() => navigation.goBack()}
+            />
+          ) : (
+            <>
+              {/* Success Screen */}
+              {success && (
+                <ApplicationResultState
+                  aiCheckingEnabled={aiCheckingEnabled}
+                  successTitle="Success!"
+                  successMessage="Renewal submitted. We will review your details and notify you via email."
+                  aiSummary={aiFeedback?.summary}
+                  onViewApplications={() => navigation.goBack()}
+                  viewApplicationsText="Return to Dashboard"
+                />
+              )}
 
-            {submitting && !success && (
-              <View style={styles.centered}>
-                <Animated.View
-                  style={{
-                    transform: [
-                      {
-                        rotate: spinAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ['0deg', '360deg'],
-                        }),
-                      },
-                    ],
-                  }}
-                >
-                  <Ionicons name="sync-circle" size={110} color="#5b5f97" />
-                </Animated.View>
-                <Text style={styles.completeText}>Submitting Renewal...</Text>
-              </View>
-            )}
+              {errorMessage ? (
+                <View style={styles.errorBanner}>
+                  <Text style={styles.errorBannerText}>{errorMessage}</Text>
+                </View>
+              ) : null}
 
-            {/* Step 1: Scholar Status */}
-            {!success && !submitting && currentStep === 1 && (
-              <Animated.View style={{ opacity: stepAnim }}>
-                {alreadySubmittedThisYear ? (
-                  <View style={styles.failedSubjectsBanner}>
-                    <Ionicons name="alert-circle" size={24} color="#ef4444" />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.failedSubjectsTitle}>Already Submitted</Text>
-                      <Text style={styles.failedSubjectsText}>
-                        Renewal blocked: Scholarship renewal can only be submitted once a year.
-                      </Text>
+
+
+              {/* Step 1: Scholar Status */}
+              {!success && currentStep === 1 && (
+                <Animated.View style={{ opacity: stepAnim }}>
+                  {alreadySubmittedThisYear ? (
+                    <View style={styles.failedSubjectsBanner}>
+                      <Ionicons name="alert-circle" size={24} color="#ef4444" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.failedSubjectsTitle}>Already Submitted</Text>
+                        <Text style={styles.failedSubjectsText}>
+                          Renewal blocked: Scholarship renewal can only be submitted once a year.
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                ) : (
-                  <>
-                    <View style={styles.sectionHeaderRow}>
-                      <View style={styles.verticalPill} />
-                      <Text style={styles.sectionHeader}>Scholar Status Evaluation</Text>
-                    </View>
-
-                    {/* AI Eligibility Card */}
-                    <View
-                      style={[
-                        styles.evalCard,
-                        loadingEligibility
-                          ? styles.evalCardLoading
-                          : eligibility?.isQualified
-                            ? styles.evalCardSuccess
-                            : styles.evalCardWarning,
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.evalHeader,
-                          loadingEligibility
-                            ? styles.evalHeaderLoading
-                            : eligibility?.isQualified
-                              ? styles.evalHeaderSuccess
-                              : styles.evalHeaderWarning,
-                        ]}
-                      >
-                        <Text style={styles.evalHeaderIcon}>📋</Text>
-                        <Text style={styles.evalHeaderTitle}>Status Evaluation</Text>
-                        {!loadingEligibility && eligibility?.aiEvaluation && (
-                          <View
-                            style={[
-                              styles.aiBadge,
-                              eligibility.aiEvaluation.recommended_action === 'Approve'
-                                ? styles.aiBadgeSuccess
-                                : eligibility.aiEvaluation.recommended_action === 'Reject'
-                                  ? styles.aiBadgeError
-                                  : styles.aiBadgeWarning,
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.aiBadgeText,
-                                eligibility.aiEvaluation.recommended_action === 'Approve'
-                                  ? styles.aiBadgeTextSuccess
-                                  : eligibility.aiEvaluation.recommended_action === 'Reject'
-                                    ? styles.aiBadgeTextError
-                                    : styles.aiBadgeTextWarning,
-                              ]}
-                            >
-                              {eligibility.aiEvaluation.recommended_action === 'Approve'
-                                ? '✓ '
-                                : eligibility.aiEvaluation.recommended_action === 'Reject'
-                                  ? '✗ '
-                                  : '⚠ '}
-                              AI: {eligibility.aiEvaluation.recommended_action}
-                            </Text>
-                          </View>
-                        )}
+                  ) : (
+                    <>
+                      <View style={styles.sectionHeaderRow}>
+                        <View style={styles.verticalPill} />
+                        <Text style={styles.sectionHeader}>Scholar Status Evaluation</Text>
                       </View>
 
-                      <View style={styles.evalBody}>
-                        {loadingEligibility ? (
-                          <Text style={styles.evalLoadingText}>Running smart eligibility checker...</Text>
-                        ) : eligibility ? (
-                          <>
-                            <Text style={styles.evalSubHeader}>SYSTEM CHECKS</Text>
-                            <View style={styles.tagList}>
-                              {eligibility.tags?.map((tag, idx) => {
-                                const isAttendance = tag.startsWith('Attendance:');
-                                const isNoRecord = tag.includes('No records') || tag.toLowerCase().includes('no activites') || tag.toLowerCase().includes('no activities') || tag.toLowerCase().includes('no record');
-                                const isFlag = (!isNoRecord && (
-                                  tag.includes('Below') || tag.includes('Late') || tag.includes('Failed') || tag.includes('INC')
-                                )) || (!isAttendance && isNoRecord);
-                                const isNeutral = isAttendance && isNoRecord;
-
-                                return (
-                                  <View
-                                    key={idx}
-                                    style={[
-                                      styles.tagItem,
-                                      isNeutral
-                                        ? styles.tagItemNeutral
-                                        : isFlag
-                                          ? styles.tagItemError
-                                          : styles.tagItemSuccess,
-                                    ]}
-                                  >
-                                    <Text
-                                      style={[
-                                        styles.tagIcon,
-                                        isNeutral
-                                          ? styles.tagTextNeutral
-                                          : isFlag
-                                            ? styles.tagTextError
-                                            : styles.tagTextSuccess,
-                                      ]}
-                                    >
-                                      {isNeutral ? '–' : isFlag ? '✗' : '✓'}
-                                    </Text>
-                                    <Text
-                                      style={[
-                                        styles.tagText,
-                                        isNeutral
-                                          ? styles.tagTextNeutral
-                                          : isFlag
-                                            ? styles.tagTextError
-                                            : styles.tagTextSuccess,
-                                        isFlag && { fontWeight: '700' },
-                                      ]}
-                                    >
-                                      {tag}
-                                    </Text>
-                                  </View>
-                                );
-                              })}
-                            </View>
-
+                      {/* AI Eligibility Card */}
+                      <View
+                        style={[
+                          styles.evalCard,
+                          loadingEligibility
+                            ? styles.evalCardLoading
+                            : eligibility?.isQualified
+                              ? styles.evalCardSuccess
+                              : styles.evalCardWarning,
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.evalHeader,
+                            loadingEligibility
+                              ? styles.evalHeaderLoading
+                              : eligibility?.isQualified
+                                ? styles.evalHeaderSuccess
+                                : styles.evalHeaderWarning,
+                          ]}
+                        >
+                          <Text style={styles.evalHeaderIcon}>📋</Text>
+                          <Text style={styles.evalHeaderTitle}>Status Evaluation</Text>
+                          {!loadingEligibility && eligibility?.aiEvaluation && (
                             <View
                               style={[
-                                styles.verdictBox,
-                                cannotSubmit
-                                  ? styles.verdictError
-                                  : eligibility?.isQualified
-                                    ? styles.verdictSuccess
-                                    : styles.verdictWarning,
+                                styles.aiBadge,
+                                eligibility.aiEvaluation.recommended_action === 'Approve'
+                                  ? styles.aiBadgeSuccess
+                                  : eligibility.aiEvaluation.recommended_action === 'Reject'
+                                    ? styles.aiBadgeError
+                                    : styles.aiBadgeWarning,
                               ]}
                             >
                               <Text
                                 style={[
-                                  styles.verdictText,
-                                  cannotSubmit
-                                    ? styles.verdictTextError
-                                    : eligibility?.isQualified
-                                      ? styles.verdictTextSuccess
-                                      : styles.verdictTextWarning,
+                                  styles.aiBadgeText,
+                                  eligibility.aiEvaluation.recommended_action === 'Approve'
+                                    ? styles.aiBadgeTextSuccess
+                                    : eligibility.aiEvaluation.recommended_action === 'Reject'
+                                      ? styles.aiBadgeTextError
+                                      : styles.aiBadgeTextWarning,
                                 ]}
                               >
-                                {cannotSubmit
-                                  ? (alreadySubmittedThisYear
-                                      ? '✗ Cannot submit renewal: You have already submitted a scholarship renewal this year.'
-                                      : '✗ Cannot submit renewal: You have incomplete/failing grades or your GWA is below 85%.')
-                                  : (eligibility?.isQualified
-                                      ? '✓ You meet all requirements. Your renewal will be automatically approved upon submission.'
-                                      : '⚠ You have attendance or late submission flags. Your renewal will be submitted for manual review.')}
+                                {eligibility.aiEvaluation.recommended_action === 'Approve'
+                                  ? '✓ '
+                                  : eligibility.aiEvaluation.recommended_action === 'Reject'
+                                    ? '✗ '
+                                    : '⚠ '}
+                                AI: {eligibility.aiEvaluation.recommended_action}
                               </Text>
                             </View>
+                          )}
+                        </View>
 
-                            {eligibility.aiEvaluation && (
-                              <View style={styles.aiSummarySection}>
-                                <Text style={styles.evalSubHeader}>🤖 AI SMART EVALUATION</Text>
-                                <Text style={styles.aiSummaryText}>{eligibility.aiEvaluation.summary}</Text>
-                                {eligibility.aiEvaluation.reasoning && (
-                                  <Text style={styles.aiReasoningText}>
-                                    <Text style={styles.aiReasoningLabel}>Basis: </Text>
-                                    {eligibility.aiEvaluation.reasoning}
-                                  </Text>
-                                )}
+                        <View style={styles.evalBody}>
+                          {loadingEligibility ? (
+                            <Text style={styles.evalLoadingText}>Running smart eligibility checker...</Text>
+                          ) : eligibility ? (
+                            <>
+                              <Text style={styles.evalSubHeader}>SYSTEM CHECKS</Text>
+                              <View style={styles.tagList}>
+                                {eligibility.tags?.map((tag, idx) => {
+                                  const isAttendance = tag.startsWith('Attendance:');
+                                  const isNoRecord = tag.includes('No records') || tag.toLowerCase().includes('no activites') || tag.toLowerCase().includes('no activities') || tag.toLowerCase().includes('no record');
+                                  const isFlag = (!isNoRecord && (
+                                    tag.includes('Below') || tag.includes('Late') || tag.includes('Failed') || tag.includes('INC')
+                                  )) || (!isAttendance && isNoRecord);
+                                  const isNeutral = isAttendance && isNoRecord;
+
+                                  return (
+                                    <View
+                                      key={idx}
+                                      style={[
+                                        styles.tagItem,
+                                        isNeutral
+                                          ? styles.tagItemNeutral
+                                          : isFlag
+                                            ? styles.tagItemError
+                                            : styles.tagItemSuccess,
+                                      ]}
+                                    >
+                                      <Text
+                                        style={[
+                                          styles.tagIcon,
+                                          isNeutral
+                                            ? styles.tagTextNeutral
+                                            : isFlag
+                                              ? styles.tagTextError
+                                              : styles.tagTextSuccess,
+                                        ]}
+                                      >
+                                        {isNeutral ? '–' : isFlag ? '✗' : '✓'}
+                                      </Text>
+                                      <Text
+                                        style={[
+                                          styles.tagText,
+                                          isNeutral
+                                            ? styles.tagTextNeutral
+                                            : isFlag
+                                              ? styles.tagTextError
+                                              : styles.tagTextSuccess,
+                                          isFlag && { fontWeight: '700' },
+                                        ]}
+                                      >
+                                        {tag}
+                                      </Text>
+                                    </View>
+                                  );
+                                })}
                               </View>
-                            )}
-                          </>
-                        ) : (
-                          <Text style={styles.evalLoadingText}>Eligibility feedback unavailable right now.</Text>
-                        )}
+
+                              <View
+                                style={[
+                                  styles.verdictBox,
+                                  cannotSubmit
+                                    ? styles.verdictError
+                                    : eligibility?.isQualified
+                                      ? styles.verdictSuccess
+                                      : styles.verdictWarning,
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.verdictText,
+                                    cannotSubmit
+                                      ? styles.verdictTextError
+                                      : eligibility?.isQualified
+                                        ? styles.verdictTextSuccess
+                                        : styles.verdictTextWarning,
+                                  ]}
+                                >
+                                  {cannotSubmit
+                                    ? (alreadySubmittedThisYear
+                                        ? '✗ Cannot submit renewal: You have already submitted a scholarship renewal this year.'
+                                        : '✗ Cannot submit renewal: You have incomplete/failing grades or your GWA is below 85%.')
+                                    : (eligibility?.isQualified
+                                        ? '✓ You meet all requirements. Your renewal will be automatically approved upon submission.'
+                                        : '⚠ You have attendance or late submission flags. Your renewal will be submitted for manual review.')}
+                                </Text>
+                              </View>
+
+                              {eligibility.aiEvaluation && (
+                                <View style={styles.aiSummarySection}>
+                                  <Text style={styles.evalSubHeader}>🤖 AI SMART EVALUATION</Text>
+                                  <Text style={styles.aiSummaryText}>{eligibility.aiEvaluation.summary}</Text>
+                                  {eligibility.aiEvaluation.reasoning && (
+                                    <Text style={styles.aiReasoningText}>
+                                      <Text style={styles.aiReasoningLabel}>Basis: </Text>
+                                      {eligibility.aiEvaluation.reasoning}
+                                    </Text>
+                                  )}
+                                </View>
+                              )}
+                            </>
+                          ) : (
+                            <Text style={styles.evalLoadingText}>Eligibility feedback unavailable right now.</Text>
+                          )}
+                        </View>
                       </View>
+                    </>
+                  )}
+
+                  <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
+                    <View style={styles.verticalPill} />
+                    <Text style={styles.sectionHeader}>Academic Information</Text>
+                  </View>
+
+                  <View style={styles.readOnlyField}>
+                    <Text style={styles.label}>Academic Year</Text>
+                    <View style={styles.inputReadOnlyContainer}>
+                      <Text style={styles.textReadOnly}>{form.academicYear || '--'}</Text>
                     </View>
-                  </>
-                )}
-
-                <View style={[styles.sectionHeaderRow, { marginTop: 24 }]}>
-                  <View style={styles.verticalPill} />
-                  <Text style={styles.sectionHeader}>Academic Information</Text>
-                </View>
-
-                <View style={styles.readOnlyField}>
-                  <Text style={styles.label}>Academic Year</Text>
-                  <View style={styles.inputReadOnlyContainer}>
-                    <Text style={styles.textReadOnly}>{form.academicYear || '--'}</Text>
+                    {errors.academicYear && <Text style={styles.errorText}>{errors.academicYear}</Text>}
                   </View>
-                  {errors.academicYear && <Text style={styles.errorText}>{errors.academicYear}</Text>}
-                </View>
 
-                <View style={styles.readOnlyField}>
-                  <Text style={styles.label}>Term</Text>
-                  <View style={styles.inputReadOnlyContainer}>
-                    <Text style={styles.textReadOnly}>{form.term || '--'}</Text>
+                  <View style={styles.readOnlyField}>
+                    <Text style={styles.label}>Term</Text>
+                    <View style={styles.inputReadOnlyContainer}>
+                      <Text style={styles.textReadOnly}>{form.term || '--'}</Text>
+                    </View>
+                    {errors.term && <Text style={styles.errorText}>{errors.term}</Text>}
                   </View>
-                  {errors.term && <Text style={styles.errorText}>{errors.term}</Text>}
-                </View>
 
-                <View style={styles.readOnlyField}>
-                  <Text style={styles.label}>School</Text>
-                  <View style={styles.inputReadOnlyContainer}>
-                    <Text style={styles.textReadOnly}>{form.school || '--'}</Text>
+                  <View style={styles.readOnlyField}>
+                    <Text style={styles.label}>School</Text>
+                    <View style={styles.inputReadOnlyContainer}>
+                      <Text style={styles.textReadOnly}>{form.school || '--'}</Text>
+                    </View>
+                    {errors.school && <Text style={styles.errorText}>{errors.school}</Text>}
                   </View>
-                  {errors.school && <Text style={styles.errorText}>{errors.school}</Text>}
-                </View>
 
-                <View style={styles.readOnlyField}>
-                  <Text style={styles.label}>Program / Course</Text>
-                  <View style={styles.inputReadOnlyContainer}>
-                    <Text style={styles.textReadOnly}>{form.program || '--'}</Text>
+                  <View style={styles.readOnlyField}>
+                    <Text style={styles.label}>Program / Course</Text>
+                    <View style={styles.inputReadOnlyContainer}>
+                      <Text style={styles.textReadOnly}>{form.program || '--'}</Text>
+                    </View>
+                    {errors.program && <Text style={styles.errorText}>{errors.program}</Text>}
                   </View>
-                  {errors.program && <Text style={styles.errorText}>{errors.program}</Text>}
-                </View>
 
-                <View style={styles.readOnlyField}>
-                  <Text style={styles.label}>Current GWA</Text>
-                  <View style={styles.inputReadOnlyContainer}>
-                    <Text style={styles.textReadOnly}>{form.gwa || '--'}</Text>
+                  <View style={styles.readOnlyField}>
+                    <Text style={styles.label}>Current GWA</Text>
+                    <View style={styles.inputReadOnlyContainer}>
+                      <Text style={styles.textReadOnly}>{form.gwa || '--'}</Text>
+                    </View>
+                    {errors.gwa && <Text style={styles.errorText}>{errors.gwa}</Text>}
                   </View>
-                  {errors.gwa && <Text style={styles.errorText}>{errors.gwa}</Text>}
-                </View>
 
-                {/* EAP Reflection Questions */}
-                <View style={[styles.sectionHeaderRow, { marginTop: 24, marginBottom: 8 }]}>
-                  <View style={styles.verticalPill} />
-                  <Text style={styles.sectionHeader}>Educational Assistance Program (EAP) Reflection Questions</Text>
-                </View>
-                <Text style={styles.eapSectionSubtitle}>
-                  All questions are required. Maximum of 250 words per answer.
+                  {/* EAP Reflection Questions */}
+                  <View style={[styles.sectionHeaderRow, { marginTop: 24, marginBottom: 8 }]}>
+                    <View style={styles.verticalPill} />
+                    <Text style={styles.sectionHeader}>Educational Assistance Program (EAP) Reflection Questions</Text>
+                  </View>
+                  <Text style={styles.eapSectionSubtitle}>
+                    All questions are required. Maximum of 250 words per answer.
+                  </Text>
+
+                  <View style={styles.eapQuestionCard}>
+                    <Text style={styles.eapLabel}>
+                      1. What is the most challenging aspect of the previous semester for you? What did you do to overcome the challenge?*
+                    </Text>
+                    <SafeTextInput
+                      style={[
+                        styles.input,
+                        styles.textArea,
+                        errors.challenge_response && { borderColor: '#ef4444' }
+                      ]}
+                      placeholder="Type your answer here..."
+                      placeholderTextColor="#848baf"
+                      multiline
+                      numberOfLines={4}
+                      value={form.challenge_response}
+                      onChangeText={(text) => setField('challenge_response', text)}
+                    />
+                    <View style={styles.eapFooterRow}>
+                      {errors.challenge_response ? (
+                        <Text style={[styles.errorText, { marginTop: 0, flex: 1, marginRight: 12 }]}>{errors.challenge_response}</Text>
+                      ) : <View style={{ flex: 1 }} />}
+                      <Text
+                        style={[
+                          styles.wordCountText,
+                          countWords(form.challenge_response) > 250 && styles.wordCountError
+                        ]}
+                      >
+                        {countWords(form.challenge_response)}/250 words
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.eapQuestionCard}>
+                    <Text style={styles.eapLabel}>
+                      2. What have you accomplished? Cite an example or situation and its lesson to you.*
+                    </Text>
+                    <SafeTextInput
+                      style={[
+                        styles.input,
+                        styles.textArea,
+                        errors.accomplishment_response && { borderColor: '#ef4444' }
+                      ]}
+                      placeholder="Type your answer here..."
+                      placeholderTextColor="#848baf"
+                      multiline
+                      numberOfLines={4}
+                      value={form.accomplishment_response}
+                      onChangeText={(text) => setField('accomplishment_response', text)}
+                    />
+                    <View style={styles.eapFooterRow}>
+                      {errors.accomplishment_response ? (
+                        <Text style={[styles.errorText, { marginTop: 0, flex: 1, marginRight: 12 }]}>{errors.accomplishment_response}</Text>
+                      ) : <View style={{ flex: 1 }} />}
+                      <Text
+                        style={[
+                          styles.wordCountText,
+                          countWords(form.accomplishment_response) > 250 && styles.wordCountError
+                        ]}
+                      >
+                        {countWords(form.accomplishment_response)}/250 words
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.eapQuestionCard}>
+                    <Text style={styles.eapLabel}>
+                      3. What have you learned about yourself through your accomplishments/challenges and how did Educational Assistance Program (EAP) helped you achieve it?*
+                    </Text>
+                    <SafeTextInput
+                      style={[
+                        styles.input,
+                        styles.textArea,
+                        errors.eap_reflection_response && { borderColor: '#ef4444' }
+                      ]}
+                      placeholder="Type your answer here..."
+                      placeholderTextColor="#848baf"
+                      multiline
+                      numberOfLines={4}
+                      value={form.eap_reflection_response}
+                      onChangeText={(text) => setField('eap_reflection_response', text)}
+                    />
+                    <View style={styles.eapFooterRow}>
+                      {errors.eap_reflection_response ? (
+                        <Text style={[styles.errorText, { marginTop: 0, flex: 1, marginRight: 12 }]}>{errors.eap_reflection_response}</Text>
+                      ) : <View style={{ flex: 1 }} />}
+                      <Text
+                        style={[
+                          styles.wordCountText,
+                          countWords(form.eap_reflection_response) > 250 && styles.wordCountError
+                        ]}
+                      >
+                        {countWords(form.eap_reflection_response)}/250 words
+                      </Text>
+                    </View>
+                  </View>
+                </Animated.View>
+              )}
+
+              {/* Step 2: Review & Confirm */}
+              {!success && currentStep === 2 && (
+                <Animated.View style={{ opacity: stepAnim }}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={styles.verticalPill} />
+                    <Text style={styles.sectionHeader}>Review & Confirm</Text>
+                  </View>
+
+                  <View style={styles.infoBox}>
+                    <Text style={styles.infoBoxText}>
+                      Please review your details below. Ensure information reflects your
+                      current academic standing.
+                    </Text>
+                  </View>
+
+                  <View style={styles.reviewCard}>
+                    <Text style={styles.reviewCardTitle}>Renewal Information</Text>
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Academic Year</Text>
+                      <Text style={styles.reviewValue}>{form.academicYear || '--'}</Text>
+                    </View>
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Term</Text>
+                      <Text style={styles.reviewValue}>{form.term || '--'}</Text>
+                    </View>
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>School</Text>
+                      <Text style={styles.reviewValue}>{form.school || '--'}</Text>
+                    </View>
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Program</Text>
+                      <Text style={styles.reviewValue}>{form.program || '--'}</Text>
+                    </View>
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>GWA</Text>
+                      <Text style={styles.reviewValue}>{form.gwa || '--'}</Text>
+                    </View>
+                    {form.challenge_response ? (
+                      <View style={styles.remarksReviewSection}>
+                        <Text style={styles.reviewLabel}>Challenge Response</Text>
+                        <Text style={styles.remarksText}>{form.challenge_response}</Text>
+                      </View>
+                    ) : null}
+                    {form.accomplishment_response ? (
+                      <View style={styles.remarksReviewSection}>
+                        <Text style={styles.reviewLabel}>Accomplishment Response</Text>
+                        <Text style={styles.remarksText}>{form.accomplishment_response}</Text>
+                      </View>
+                    ) : null}
+                    {form.eap_reflection_response ? (
+                      <View style={styles.remarksReviewSection}>
+                        <Text style={styles.reviewLabel}>EAP Reflection Response</Text>
+                        <Text style={styles.remarksText}>{form.eap_reflection_response}</Text>
+                      </View>
+                    ) : null}
+                    {form.remarks ? (
+                      <View style={styles.remarksReviewSection}>
+                        <Text style={styles.remarksText}>{form.remarks}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.checkboxContainer}
+                    onPress={() => {
+                      setAgree(!agree);
+                      clearFieldError('agree');
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.checkbox, agree && styles.checkboxChecked]}>
+                      {agree && <Ionicons name="checkmark" size={14} color="#fff" />}
+                    </View>
+                    <Text style={styles.checkboxText}>
+                      I confirm the details are correct and wish to submit my renewal.
+                    </Text>
+                  </TouchableOpacity>
+                  {errors.agree && <Text style={styles.errorText}>{errors.agree}</Text>}
+                </Animated.View>
+              )}
+            </>
+          )}
+        </ScrollView>
+
+        {/* Footer Navigation Buttons */}
+        {!success && !resolvedIsGraduate && (
+          <View style={styles.footer}>
+            {currentStep > 1 && (
+              <TouchableOpacity style={styles.secondaryBtn} onPress={goBack}>
+                <Text style={styles.secondaryBtnText}>Previous</Text>
+              </TouchableOpacity>
+            )}
+
+            {currentStep < steps.length ? (
+              <TouchableOpacity
+                style={[
+                  styles.primaryBtn,
+                  (currentStep === 1 && isContinueDisabled) && styles.primaryBtnDisabled
+                ]}
+                onPress={goNext}
+                disabled={currentStep === 1 && isContinueDisabled}
+              >
+                <Text style={styles.primaryBtnText}>
+                  {loadingEligibility ? 'Loading...' : 'Continue'}
                 </Text>
-
-                <View style={styles.eapQuestionCard}>
-                  <Text style={styles.eapLabel}>
-                    1. What is the most challenging aspect of the previous semester for you? What did you do to overcome the challenge?*
-                  </Text>
-                  <SafeTextInput
-                    style={[
-                      styles.input,
-                      styles.textArea,
-                      errors.challenge_response && { borderColor: '#ef4444' }
-                    ]}
-                    placeholder="Type your answer here..."
-                    placeholderTextColor="#848baf"
-                    multiline
-                    numberOfLines={4}
-                    value={form.challenge_response}
-                    onChangeText={(text) => setField('challenge_response', text)}
-                  />
-                  <View style={styles.eapFooterRow}>
-                    {errors.challenge_response ? (
-                      <Text style={[styles.errorText, { marginTop: 0, flex: 1, marginRight: 12 }]}>{errors.challenge_response}</Text>
-                    ) : <View style={{ flex: 1 }} />}
-                    <Text
-                      style={[
-                        styles.wordCountText,
-                        countWords(form.challenge_response) > 250 && styles.wordCountError
-                      ]}
-                    >
-                      {countWords(form.challenge_response)}/250 words
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.eapQuestionCard}>
-                  <Text style={styles.eapLabel}>
-                    2. What have you accomplished? Cite an example or situation and its lesson to you.*
-                  </Text>
-                  <SafeTextInput
-                    style={[
-                      styles.input,
-                      styles.textArea,
-                      errors.accomplishment_response && { borderColor: '#ef4444' }
-                    ]}
-                    placeholder="Type your answer here..."
-                    placeholderTextColor="#848baf"
-                    multiline
-                    numberOfLines={4}
-                    value={form.accomplishment_response}
-                    onChangeText={(text) => setField('accomplishment_response', text)}
-                  />
-                  <View style={styles.eapFooterRow}>
-                    {errors.accomplishment_response ? (
-                      <Text style={[styles.errorText, { marginTop: 0, flex: 1, marginRight: 12 }]}>{errors.accomplishment_response}</Text>
-                    ) : <View style={{ flex: 1 }} />}
-                    <Text
-                      style={[
-                        styles.wordCountText,
-                        countWords(form.accomplishment_response) > 250 && styles.wordCountError
-                      ]}
-                    >
-                      {countWords(form.accomplishment_response)}/250 words
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.eapQuestionCard}>
-                  <Text style={styles.eapLabel}>
-                    3. What have you learned about yourself through your accomplishments/challenges and how did Educational Assistance Program (EAP) helped you achieve it?*
-                  </Text>
-                  <SafeTextInput
-                    style={[
-                      styles.input,
-                      styles.textArea,
-                      errors.eap_reflection_response && { borderColor: '#ef4444' }
-                    ]}
-                    placeholder="Type your answer here..."
-                    placeholderTextColor="#848baf"
-                    multiline
-                    numberOfLines={4}
-                    value={form.eap_reflection_response}
-                    onChangeText={(text) => setField('eap_reflection_response', text)}
-                  />
-                  <View style={styles.eapFooterRow}>
-                    {errors.eap_reflection_response ? (
-                      <Text style={[styles.errorText, { marginTop: 0, flex: 1, marginRight: 12 }]}>{errors.eap_reflection_response}</Text>
-                    ) : <View style={{ flex: 1 }} />}
-                    <Text
-                      style={[
-                        styles.wordCountText,
-                        countWords(form.eap_reflection_response) > 250 && styles.wordCountError
-                      ]}
-                    >
-                      {countWords(form.eap_reflection_response)}/250 words
-                    </Text>
-                  </View>
-                </View>
-              </Animated.View>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.primaryBtn, !agree && styles.primaryBtnDisabled]}
+                onPress={handleSubmit}
+                disabled={!agree}
+              >
+                <Text style={styles.primaryBtnText}>Submit Renewal</Text>
+              </TouchableOpacity>
             )}
-
-            {/* Step 2: Review & Confirm */}
-            {!success && !submitting && currentStep === 2 && (
-              <Animated.View style={{ opacity: stepAnim }}>
-                <View style={styles.sectionHeaderRow}>
-                  <View style={styles.verticalPill} />
-                  <Text style={styles.sectionHeader}>Review & Confirm</Text>
-                </View>
-
-                <View style={styles.infoBox}>
-                  <Text style={styles.infoBoxText}>
-                    Please review your details below. Ensure information reflects your
-                    current academic standing.
-                  </Text>
-                </View>
-
-                <View style={styles.reviewCard}>
-                  <Text style={styles.reviewCardTitle}>Renewal Information</Text>
-                  <View style={styles.reviewRow}>
-                    <Text style={styles.reviewLabel}>Academic Year</Text>
-                    <Text style={styles.reviewValue}>{form.academicYear || '--'}</Text>
-                  </View>
-                  <View style={styles.reviewRow}>
-                    <Text style={styles.reviewLabel}>Term</Text>
-                    <Text style={styles.reviewValue}>{form.term || '--'}</Text>
-                  </View>
-                  <View style={styles.reviewRow}>
-                    <Text style={styles.reviewLabel}>School</Text>
-                    <Text style={styles.reviewValue}>{form.school || '--'}</Text>
-                  </View>
-                  <View style={styles.reviewRow}>
-                    <Text style={styles.reviewLabel}>Program</Text>
-                    <Text style={styles.reviewValue}>{form.program || '--'}</Text>
-                  </View>
-                  <View style={styles.reviewRow}>
-                    <Text style={styles.reviewLabel}>GWA</Text>
-                    <Text style={styles.reviewValue}>{form.gwa || '--'}</Text>
-                  </View>
-                  {form.challenge_response ? (
-                    <View style={styles.remarksReviewSection}>
-                      <Text style={styles.reviewLabel}>Challenge Response</Text>
-                      <Text style={styles.remarksText}>{form.challenge_response}</Text>
-                    </View>
-                  ) : null}
-                  {form.accomplishment_response ? (
-                    <View style={styles.remarksReviewSection}>
-                      <Text style={styles.reviewLabel}>Accomplishment Response</Text>
-                      <Text style={styles.remarksText}>{form.accomplishment_response}</Text>
-                    </View>
-                  ) : null}
-                  {form.eap_reflection_response ? (
-                    <View style={styles.remarksReviewSection}>
-                      <Text style={styles.reviewLabel}>EAP Reflection Response</Text>
-                      <Text style={styles.remarksText}>{form.eap_reflection_response}</Text>
-                    </View>
-                  ) : null}
-                  {form.remarks ? (
-                    <View style={styles.remarksReviewSection}>
-                      <Text style={styles.remarksText}>{form.remarks}</Text>
-                    </View>
-                  ) : null}
-                </View>
-
-                <TouchableOpacity
-                  style={styles.checkboxContainer}
-                  onPress={() => {
-                    setAgree(!agree);
-                    clearFieldError('agree');
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.checkbox, agree && styles.checkboxChecked]}>
-                    {agree && <Ionicons name="checkmark" size={14} color="#fff" />}
-                  </View>
-                  <Text style={styles.checkboxText}>
-                    I confirm the details are correct and wish to submit my renewal.
-                  </Text>
-                </TouchableOpacity>
-                {errors.agree && <Text style={styles.errorText}>{errors.agree}</Text>}
-              </Animated.View>
-            )}
-          </>
+          </View>
         )}
-      </ScrollView>
-
-      {/* Footer Navigation Buttons */}
-      {!success && !submitting && !resolvedIsGraduate && (
-        <View style={styles.footer}>
-          {currentStep > 1 && (
-            <TouchableOpacity style={styles.secondaryBtn} onPress={goBack}>
-              <Text style={styles.secondaryBtnText}>Previous</Text>
-            </TouchableOpacity>
-          )}
-
-          {currentStep < steps.length ? (
-            <TouchableOpacity
-              style={[
-                styles.primaryBtn,
-                (currentStep === 1 && isContinueDisabled) && styles.primaryBtnDisabled
-              ]}
-              onPress={goNext}
-              disabled={currentStep === 1 && isContinueDisabled}
-            >
-              <Text style={styles.primaryBtnText}>
-                {loadingEligibility ? 'Loading...' : 'Continue'}
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[styles.primaryBtn, !agree && styles.primaryBtnDisabled]}
-              onPress={handleSubmit}
-              disabled={!agree}
-            >
-              <Text style={styles.primaryBtnText}>Submit Renewal</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
-    </View>
+        <LoadingOverlay visible={submitting} message="Submitting renewal..." />
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

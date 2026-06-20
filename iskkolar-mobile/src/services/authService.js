@@ -107,11 +107,22 @@ export const login = async (email, password) => {
 
     const payload = response.data?.data || response.data;
     const profile = payload.user || payload.account || payload.profile || payload;
+    const token =
+      payload.token ||
+      payload.accessToken ||
+      payload.access_token ||
+      response.data?.token ||
+      response.data?.accessToken ||
+      response.data?.access_token ||
+      profile.token ||
+      profile.accessToken ||
+      profile.access_token;
 
     return {
       user: {
         ...profile, // Pass all profile attributes including school, program, course, etc.
         id: profile.userId || profile.id,
+        token,
         firstName: profile.firstName,
         lastName: profile.lastName,
         email: profile.email,
@@ -219,4 +230,4 @@ export const logout = async () => {
   } catch (error) {
     throw createAuthError(error.message || 'Logout failed.', error.code);
   }
-};
+};

@@ -295,12 +295,31 @@ export const useSignup = (navigation) => {
       setStep(4); // success screen
     } catch (err) {
       if (err.errors && Array.isArray(err.errors)) {
-        setErrors(mapBackendErrors(err.errors));
-        // Go back to the step that has the error
-        if (step !== 3) return;
-        setStep(0); // fallback to start if it's a general field error
+        const mappedErrors = mapBackendErrors(err.errors);
+        setErrors(mappedErrors);
+        
+        // Find which step the errors belong to
+        const errorFields = Object.keys(mappedErrors);
+        const step0Fields = ['email', 'password', 'confirmPassword'];
+        const step1Fields = ['profilePhoto', 'firstName', 'middleName', 'lastName', 'suffix', 'birthday', 'gender', 'civilStatus', 'citizenship'];
+        const step2Fields = ['mobile', 'facebook', 'street', 'barangay', 'city', 'province', 'country', 'zip'];
+
+        let targetStep = 0;
+        if (errorFields.some(f => step2Fields.includes(f))) {
+          targetStep = 2;
+        } else if (errorFields.some(f => step1Fields.includes(f))) {
+          targetStep = 1;
+        }
+        
+        setStep(targetStep);
       } else {
-        setErrors({ general: err.message || 'Registration failed. Please try again.' });
+        const msg = err.message || '';
+        if (msg.toLowerCase().includes('email already')) {
+          setErrors({ email: 'Email already registered' });
+          setStep(0);
+        } else {
+          setErrors({ general: msg || 'Registration failed. Please try again.' });
+        }
       }
     } finally {
       setLoading(false);

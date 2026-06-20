@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import SafeTextInput from "../components/SafeTextInput";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -91,10 +92,18 @@ export default function ResetPasswordScreen({ route, navigation }) {
               Your password has been changed successfully. You can now log in with your new password.
             </Text>
             <TouchableOpacity
-              style={styles.primaryButton}
+              style={{ width: "100%", borderRadius: 12, overflow: "hidden", marginTop: 8 }}
               onPress={() => navigation.navigate("Login")}
+              activeOpacity={0.8}
             >
-              <Text style={styles.primaryButtonText}>Go to Login</Text>
+              <LinearGradient
+                colors={['#5b5f97', '#727ab6']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[styles.primaryButton, { marginTop: 0 }]}
+              >
+                <Text style={styles.primaryButtonText}>Go to Login</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
@@ -105,10 +114,14 @@ export default function ResetPasswordScreen({ route, navigation }) {
   const linkProblem = (!accessToken || type !== "recovery") && !urlError;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    <LinearGradient
+      colors={['#ffffff', '#f1f2fa']}
+      style={{ flex: 1 }}
     >
+      <KeyboardAvoidingView
+        style={[styles.screen, { backgroundColor: 'transparent' }]}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
       <ScrollView
         contentContainerStyle={[
           styles.container,
@@ -185,21 +198,30 @@ export default function ResetPasswordScreen({ route, navigation }) {
               </View>
 
               <TouchableOpacity
-                style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
+                style={[loading && styles.primaryButtonDisabled, { width: "100%", borderRadius: 12, overflow: "hidden", marginTop: 8 }]}
                 onPress={handleSubmit}
                 disabled={loading}
+                activeOpacity={0.8}
               >
-                {loading ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.primaryButtonText}>Update Password</Text>
-                )}
+                <LinearGradient
+                  colors={['#5b5f97', '#727ab6']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.primaryButton, { marginTop: 0 }]}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.primaryButtonText}>Update Password</Text>
+                  )}
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           )}
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 

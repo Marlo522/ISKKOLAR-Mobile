@@ -158,6 +158,7 @@ export const useFinancialAssistance = () => {
       academicYear: values.academicYear,
       term: values.term,
       purpose: values.purpose,
+      defaultReason: values.defaultReason || "Study Needs",
       receipts: activeReceiptItems.map(r => ({ 
         purchaseDate: toIsoDate(r.purchaseDate), 
         amount: Number(String(r.amount || "").replace(/,/g, "")),

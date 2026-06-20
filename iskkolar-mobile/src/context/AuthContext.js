@@ -25,6 +25,7 @@ const normalizeUser = (value) => {
   const role = normalizeRole(rawRole);
   return {
     ...value,
+    id: value.id || value.userId || value.uid || value._id,
     role,
     userType: role,
     firstName: value.firstName || value.first_name || '',
@@ -41,6 +42,15 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     userRef.current = user;
   }, [user]);
+
+  useEffect(() => {
+    api.onUnauthorized = () => {
+      setUser(null);
+    };
+    return () => {
+      api.onUnauthorized = null;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -119,8 +129,20 @@ export const AuthProvider = ({ children }) => {
       const latestUser = response.data?.data || response.data;
       if (latestUser) {
         const storedRememberMe = await AsyncStorage.getItem("remember_me");
+        const storedUser = await AsyncStorage.getItem("user");
+        const parsedStoredUser = storedUser ? JSON.parse(storedUser) : null;
         const rememberMe = storedRememberMe === "true";
-        const normalized = normalizeUser(latestUser);
+        const preservedToken =
+          latestUser.token ||
+          latestUser.accessToken ||
+          latestUser.access_token ||
+          parsedStoredUser?.token ||
+          parsedStoredUser?.accessToken ||
+          parsedStoredUser?.access_token;
+        const normalized = normalizeUser({
+          ...latestUser,
+          ...(preservedToken ? { token: preservedToken } : {}),
+        });
         
         const previousUser = userRef.current;
         const serializedUser = JSON.stringify(normalized);
@@ -144,4 +166,4 @@ export const AuthProvider = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
-};
+};

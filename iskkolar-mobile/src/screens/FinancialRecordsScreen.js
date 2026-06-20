@@ -15,6 +15,14 @@ import { getScholarDashboardSummary } from "../services/scholarDashboardService"
 import { getGradeComplianceTerms } from "../services/gradeComplianceService";
 import ApplicationResultState from "../components/ApplicationResultState";
 
+const STUDY_NEEDS_REASON = "Study Needs";
+const RECEIPT_SUBMISSION_CLOSED_MESSAGE =
+  "Receipt submission opens after your current-term supply allowance is released.";
+
+const valueOrFallback = (value, fallback) => (
+  value === null || value === undefined ? fallback : value
+);
+
 export default function FinancialRecordsScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
@@ -35,6 +43,7 @@ export default function FinancialRecordsScreen({ navigation }) {
     academicYear: user?.academicYear || "2025-2026",
     term: user?.term || "1st Semester",
     purpose: "",
+    defaultReason: STUDY_NEEDS_REASON,
   });
   
   const [receiptItems, setReceiptItems] = useState([
@@ -464,28 +473,28 @@ export default function FinancialRecordsScreen({ navigation }) {
     (t) => (t.type?.toLowerCase().includes("monthly") || !t.type)
   );
 
-  const monthlyAllowanceTotal = summary?.monthly?.total || monthlyTransactions
+  const monthlyAllowanceTotal = valueOrFallback(summary?.monthly?.total, monthlyTransactions
     .filter((t) => ["Confirmed", "Released"].includes(t.status))
-    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0));
 
   const latestYear = transactions.length > 0
     ? Math.max(...transactions.map(t => parseInt(t.periodYear || 0))).toString()
     : new Date().getFullYear().toString();
 
-  const monthlyThisYear = summary?.monthly?.thisYear || monthlyTransactions
+  const monthlyThisYear = valueOrFallback(summary?.monthly?.thisYear, monthlyTransactions
     .filter((t) => 
       ["Confirmed", "Released"].includes(t.status) && 
       t.periodYear === latestYear
     )
-    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0));
 
   const supplyTransactions = transactions.filter(
     (t) => t.type?.toLowerCase().includes("supply")
   );
 
-  const supplyAllowanceTotal = summary?.supply?.total || supplyTransactions
+  const supplyAllowanceTotal = valueOrFallback(summary?.supply?.total, supplyTransactions
     .filter((t) => ["Confirmed", "Released"].includes(t.status))
-    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0));
 
   // Total amount spent based on approved and pending receipts (all-time)
   const totalAmountSpent = applications
@@ -501,13 +510,14 @@ export default function FinancialRecordsScreen({ navigation }) {
   // Identify current term from latest transaction to determine "This Semester" context
   const currentTerm = transactions.length > 0 ? transactions[0].term : null;
 
-  const supplyThisSemester = summary?.supply?.thisSemester || transactions
+  const supplyThisSemester = valueOrFallback(summary?.supply?.thisSemester, transactions
     .filter((t) => 
       ["Confirmed", "Released"].includes(t.status) && 
       t.type?.toLowerCase().includes("supply") &&
       (currentTerm ? t.term === currentTerm : true)
     )
-    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0));
+  const hasCurrentTermSupplyAllowance = Number(supplyThisSemester || 0) > 0;
 
   const totalRequested = receiptItems.reduce((sum, item) => {
     const val = parseFloat(String(item.amount || "").replace(/,/g, ""));
@@ -515,6 +525,11 @@ export default function FinancialRecordsScreen({ navigation }) {
   }, 0);
 
   const submitReceipt = async () => {
+    if (!hasCurrentTermSupplyAllowance) {
+      Alert.alert("Submission Closed", RECEIPT_SUBMISSION_CLOSED_MESSAGE);
+      return;
+    }
+
     const validation = validateForm(values, receiptItems);
     const isValid = typeof validation === "boolean" ? validation : validation.isValid;
     const errors = typeof validation === "boolean" ? {} : validation.errors;
@@ -713,14 +728,45 @@ export default function FinancialRecordsScreen({ navigation }) {
             </View>
 
             {activeTab === 'proofs' && (
-              <TouchableOpacity style={[styles.actionBlock, { backgroundColor: '#29d0a5', marginTop: 0, marginBottom: 20 }]} onPress={() => setStep(20)}>
-                <Ionicons name="receipt-outline" size={30} color="#fff" />
-                <View style={styles.actionBlockTextCol}>
-                  <Text style={styles.actionBlockTitle}>Submit Proof of Expense</Text>
-                  <Text style={styles.actionBlockSub}>Upload receipts and details</Text>
-                </View>
-                <Ionicons name="arrow-forward" size={24} color="#fff" />
-              </TouchableOpacity>
+              <>
+                {!hasCurrentTermSupplyAllowance && (
+                  <View style={styles.closedReceiptBanner}>
+                    <Ionicons name="information-circle-outline" size={18} color="#92400e" style={{ marginRight: 8 }} />
+                    <Text style={styles.closedReceiptBannerText}>
+                      Receipt submission is closed until your supply allowance for the current term is released.
+                    </Text>
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={[
+                    styles.actionBlock,
+                    {
+                      backgroundColor: hasCurrentTermSupplyAllowance ? '#29d0a5' : '#b8becd',
+                      marginTop: 0,
+                      marginBottom: 20,
+                      opacity: hasCurrentTermSupplyAllowance ? 1 : 0.75,
+                    }
+                  ]}
+                  disabled={!hasCurrentTermSupplyAllowance}
+                  activeOpacity={hasCurrentTermSupplyAllowance ? 0.8 : 1}
+                  onPress={() => {
+                    if (!hasCurrentTermSupplyAllowance) {
+                      Alert.alert("Submission Closed", RECEIPT_SUBMISSION_CLOSED_MESSAGE);
+                      return;
+                    }
+                    setStep(20);
+                  }}
+                >
+                  <Ionicons name="receipt-outline" size={30} color="#fff" />
+                  <View style={styles.actionBlockTextCol}>
+                    <Text style={styles.actionBlockTitle}>Submit Proof of Expense</Text>
+                    <Text style={styles.actionBlockSub}>
+                      {hasCurrentTermSupplyAllowance ? "Upload receipts and details" : "Available after supply allowance release"}
+                    </Text>
+                  </View>
+                  <Ionicons name={hasCurrentTermSupplyAllowance ? "arrow-forward" : "lock-closed-outline"} size={24} color="#fff" />
+                </TouchableOpacity>
+              </>
             )}
 
             {activeTab === 'disbursements' ? (
@@ -1174,8 +1220,16 @@ export default function FinancialRecordsScreen({ navigation }) {
             <Text style={[styles.nextBtnText, { color: "#5b61a7" }]}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.nextBtn, { paddingHorizontal: 24 }]} 
+            style={[
+              styles.nextBtn,
+              {
+                paddingHorizontal: 24,
+                backgroundColor: hasCurrentTermSupplyAllowance ? "#5b61a7" : "#b8becd",
+                opacity: hasCurrentTermSupplyAllowance ? 1 : 0.75,
+              }
+            ]}
             onPress={submitReceipt}
+            disabled={!hasCurrentTermSupplyAllowance}
           >
             <Text style={styles.nextBtnText}>Submit Proof</Text>
           </TouchableOpacity>
@@ -1294,7 +1348,9 @@ const styles = StyleSheet.create({
   actionBlockTextCol: { flex: 1, marginLeft: 16 },
   actionBlockTitle: { fontSize: 15, fontWeight: "800", color: "#fff", marginBottom: 2 },
   actionBlockSub: { fontSize: 11, color: "#dbe0f9", fontWeight: "500" },
-  
+  closedReceiptBanner: { flexDirection: "row", alignItems: "flex-start", backgroundColor: "#fffbeb", borderColor: "#fde68a", borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 12 },
+  closedReceiptBannerText: { flex: 1, color: "#92400e", fontSize: 12, fontWeight: "600", lineHeight: 18 },
+
   formContainer: { paddingHorizontal: 20, paddingTop: 16 },
   sectionTitleHeader: { fontSize: 18, fontWeight: "900", color: "#4f5fc5", marginBottom: 12, marginTop: 4 },
   row: { marginBottom: 16 },

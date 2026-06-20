@@ -1,3 +1,16 @@
-export const API_URL = "http://192.168.1.8:5000/api";
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+
+const getLocalhostIp = () => {
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (hostUri) {
+    return hostUri.split(':').shift();
+  }
+  return Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+};
+
+const localIp = getLocalhostIp();
+export const API_URL = `http://${localIp}:5000/api`;
+
 
 

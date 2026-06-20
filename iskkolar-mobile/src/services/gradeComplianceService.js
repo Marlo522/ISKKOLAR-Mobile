@@ -10,42 +10,51 @@ export const getGradeComplianceTerms = async () => {
   }
 };
 
-const toIsoDate = (dateStr) => {
-  if (!dateStr || !dateStr.includes('/')) return dateStr;
-  const [m, d, y] = dateStr.split('/');
-  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+const appendFile = (data, key, file, defaultName, defaultType) => {
+  if (!file) return;
+
+  if (file.uri) {
+    data.append(key, {
+      uri: file.uri,
+      type: file.mimeType || file.type || defaultType,
+      name: sanitizeFilename(file.name || defaultName),
+    });
+    return;
+  }
+
+  data.append(key, file);
 };
 
-export const submitGradeCompliance = async ({ term, scholarshipName, remarks, nextTermStartDate, nextTermEndDate, gwa, files }) => {
+const buildGradeComplianceFormData = ({
+  term,
+  scholarshipName,
+  remarks,
+  nextTermStartDate,
+  nextTermEndDate,
+  gwa,
+  files,
+}) => {
+  const data = new FormData();
+  data.append('term', term);
+
+  if (scholarshipName) data.append('scholarshipName', scholarshipName);
+  if (remarks) data.append('remarks', remarks);
+  if (nextTermStartDate) data.append('nextTermStartDate', nextTermStartDate);
+  if (nextTermEndDate) data.append('nextTermEndDate', nextTermEndDate);
+  if (gwa) data.append('gwa', String(gwa));
+
+  appendFile(data, 'gradeReport', files?.gradeReport, 'gradeReport.pdf', 'application/pdf');
+  appendFile(data, 'cor', files?.cor, 'cor.pdf', 'application/pdf');
+
+  return data;
+};
+
+const postGradeComplianceForm = async (endpoint, payload) => {
   try {
-    const data = new FormData();
-    data.append('term', term);
-
-    if (scholarshipName) data.append('scholarshipName', scholarshipName);
-    if (remarks) data.append('remarks', remarks);
-    if (nextTermStartDate) data.append('nextTermStartDate', toIsoDate(nextTermStartDate));
-    if (nextTermEndDate) data.append('nextTermEndDate', toIsoDate(nextTermEndDate));
-    if (gwa) data.append('gwa', String(gwa));
-
-    if (files?.gradeReport?.uri) {
-      data.append('gradeReport', {
-        uri: files.gradeReport.uri,
-        type: files.gradeReport.mimeType || files.gradeReport.type || 'application/pdf',
-        name: sanitizeFilename(files.gradeReport.name || 'gradeReport.pdf'),
-      });
-    }
-
-    if (files?.cor?.uri) {
-      data.append('cor', {
-        uri: files.cor.uri,
-        type: files.cor.mimeType || files.cor.type || 'application/pdf',
-        name: sanitizeFilename(files.cor.name || 'cor.pdf'),
-      });
-    }
-
-    const response = await api.post('/assistance/grade-compliance/submit', data, {
+    const data = buildGradeComplianceFormData(payload);
+    const response = await api.post(endpoint, data, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 120000, // 2 minutes — AI/OCR processing can be slow
+      timeout: 120000,
     });
 
     if (response.data && response.data.success === false) {
@@ -58,3 +67,10 @@ export const submitGradeCompliance = async ({ term, scholarshipName, remarks, ne
   }
 };
 
+export const evaluateGradeCompliance = async (payload) => (
+  postGradeComplianceForm('/assistance/grade-compliance/evaluate', payload)
+);
+
+export const submitGradeCompliance = async (payload) => (
+  postGradeComplianceForm('/assistance/grade-compliance/submit', payload)
+);
