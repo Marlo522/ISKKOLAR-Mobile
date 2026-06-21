@@ -30,6 +30,8 @@ import ApplicationsClosedScreen from "./ApplicationsClosedScreen";
 import ApplicationResultState from "../components/ApplicationResultState";
 import LoadingOverlay from "../components/LoadingOverlay";
 import { getScholarshipFormAccess } from "../services/applicationGuardService";
+import { LinearGradient } from "expo-linear-gradient";
+import { COLORS } from "../config/colors";
 
 const infoFields = {
   educPath: "Tertiary Education",
@@ -494,6 +496,10 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const updateValue = (key, value) => {
     setValues((prev) => {
       let next = { ...prev, [key]: value };
+      if (key === "incomingFreshman" && value === "Yes") {
+        next.yearLevel = "1st";
+        next.term = "1st";
+      }
       if (key === "staffId") {
         if (value === prev.staffId) return prev;
         return {
@@ -1012,15 +1018,16 @@ export default function ProgramApplyScreen({ navigation, route }) {
     </View>
   );
 
-  const renderSelect = (label, key, options, customPlaceholder = null) => (
+  const renderSelect = (label, key, options, customPlaceholder = null, disabled = false) => (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
       <TouchableOpacity
-        style={[styles.pickerInput, fieldErrors[key] && styles.errorInput]}
-        onPress={() => openSelect({ type: "value", key, options })}
+        style={[styles.pickerInput, fieldErrors[key] && styles.errorInput, disabled && { backgroundColor: "#f3f4f6" }]}
+        onPress={() => !disabled && openSelect({ type: "value", key, options })}
+        disabled={disabled}
       >
-        <Text style={[styles.pickerText, !values[key] && { color: "#888" }]}>{values[key] || customPlaceholder || `Select ${label}`}</Text>
-        <Ionicons name="chevron-down" size={20} color="#5b6095" style={{ flexShrink: 0 }} />
+        <Text style={[styles.pickerText, !values[key] && { color: "#888" }, disabled && { color: "#9ca3af" }]}>{values[key] || customPlaceholder || `Select ${label}`}</Text>
+        {!disabled && <Ionicons name="chevron-down" size={20} color="#5b6095" style={{ flexShrink: 0 }} />}
       </TouchableOpacity>
       {fieldErrors[key] && <Text style={styles.errorText}>{fieldErrors[key]}</Text>}
     </View>
@@ -1328,10 +1335,12 @@ export default function ProgramApplyScreen({ navigation, route }) {
               View grading scale examples
             </Text>
           </TouchableOpacity>
-          {renderSelect("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th"])}
+          {renderSelect("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th"], null, values.incomingFreshman === "Yes")}
           {renderSelect("Term", "term",
             values.termType === "Quarter System" ? ["1st", "2nd", "3rd", "4th"] :
-              values.termType === "Trimester" ? ["1st", "2nd", "3rd"] : ["1st", "2nd"]
+              values.termType === "Trimester" ? ["1st", "2nd", "3rd"] : ["1st", "2nd"],
+            null,
+            values.incomingFreshman === "Yes"
           )}
           {renderDatePicker("Term Start Date", "termStartDate")}
           {renderDatePicker("Term End Date", "termEndDate", {
@@ -1896,10 +1905,12 @@ export default function ProgramApplyScreen({ navigation, route }) {
               View grading scale examples
             </Text>
           </TouchableOpacity>
-          {renderSelect("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th"])}
+          {renderSelect("Year Level", "yearLevel", ["1st", "2nd", "3rd", "4th", "5th"], null, values.incomingFreshman === "Yes")}
           {renderSelect("Term", "term",
             values.termType === "Quarter System" ? ["1st", "2nd", "3rd", "4th"] :
-              values.termType === "Trimester" ? ["1st", "2nd", "3rd"] : ["1st", "2nd"]
+              values.termType === "Trimester" ? ["1st", "2nd", "3rd"] : ["1st", "2nd"],
+            null,
+            values.incomingFreshman === "Yes"
           )}
           {renderDatePicker("Term Start Date", "termStartDate")}
           {renderDatePicker("Term End Date", "termEndDate", {
@@ -2530,7 +2541,10 @@ export default function ProgramApplyScreen({ navigation, route }) {
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View style={styles.container}>
+      <LinearGradient
+        colors={['#ffffff', COLORS.surfaceAlt]}
+        style={styles.container}
+      >
         <View style={[styles.progressHeader, { paddingTop: insets.top + 16 }]}>
           <TouchableOpacity
             onPress={() => (step > 0 ? setStep(step - 1) : navigation?.goBack?.())}
@@ -2632,13 +2646,13 @@ export default function ProgramApplyScreen({ navigation, route }) {
 
         <ExamplesModal visible={examplesModalVisible} onClose={() => setExamplesModalVisible(false)} />
         <LoadingOverlay visible={isValidating} message="Validating your information..." />
-      </View>
+      </LinearGradient>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f4f5ff" },
+  container: { flex: 1, backgroundColor: "transparent" },
   progressHeader: {
     flexDirection: "row", alignItems: "center",
     paddingBottom: 12, paddingHorizontal: 14,

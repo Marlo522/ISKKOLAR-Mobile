@@ -582,6 +582,7 @@ export default function GradeComplianceScreen({ navigation }) {
       setAiCheckingEnabled(response?.ai_checking_enabled ?? response?.data?.ai_checking_enabled ?? true);
       setLastAiSummary(getAiSummary(response));
       setCompleteStage("preAssessment");
+      setIsSubmitting(false);
       await Promise.all([
         loadTerms(),
         refreshSession?.().catch(() => null),

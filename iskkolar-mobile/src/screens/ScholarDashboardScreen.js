@@ -9,6 +9,7 @@ import { NotificationContext } from '../context/NotificationContext';
 import { getScholarDashboardSummary, getScholarApplicationHistory } from '../services/scholarDashboardService';
 import { getGradeComplianceTerms } from '../services/gradeComplianceService';
 import { getApplicationSettings } from '../services/settingsService';
+import { COLORS } from '../config/colors';
 
 const getNextAcademicYear = (value) => {
   const match = /^(\d{4})-(\d{4})$/.exec((value || '').trim());
@@ -120,19 +121,19 @@ export default function ScholarDashboardScreen({ navigation }) {
 
   const stats = useMemo(
     () => [
-      { title: displayYearLevel, sub: currentProgram, icon: 'school-outline', iconBg: '#f4effe', iconColor: '#7e52d8', fullWidth: true },
-      { title: currentGwa, sub: 'Current GWA', icon: 'checkmark-circle-outline', iconBg: '#e7f6ea', iconColor: '#39a751', fullWidth: false },
-      { title: expectedGraduationYear, sub: 'Expected Year of Graduation', icon: 'calendar-outline', iconBg: '#eefafc', iconColor: '#41b5bd', fullWidth: false },
-      { title: displayTerm, sub: 'Current Term', icon: 'layers-outline', iconBg: '#fcefe9', iconColor: '#e96e5e', fullWidth: true },
+      { title: displayYearLevel, sub: currentProgram, icon: 'school-outline', iconBg: COLORS.purpleBg, iconColor: COLORS.purple, fullWidth: true },
+      { title: currentGwa, sub: 'Current GWA', icon: 'checkmark-circle-outline', iconBg: COLORS.successBg, iconColor: COLORS.success, fullWidth: false },
+      { title: expectedGraduationYear, sub: 'Expected Year of Graduation', icon: 'calendar-outline', iconBg: COLORS.infoBg, iconColor: COLORS.info, fullWidth: false },
+      { title: displayTerm, sub: 'Current Term', icon: 'layers-outline', iconBg: COLORS.warningBg, iconColor: COLORS.warning, fullWidth: true },
     ],
     [displayYearLevel, currentProgram, currentGwa, expectedGraduationYear, displayTerm]
   );
 
   const quickLinks = [
-    { title: "Certificate of Registration & Grade Compliance", route: "GradeCompliance", icon: "clipboard-outline", iconBg: "#e7f6ea", iconColor: "#39a751" },
-    { title: "Financial Records", route: "FinancialRecords", icon: "receipt-outline", iconBg: "#fcefe9", iconColor: "#e96e5e" },
-    { title: "Academic Records", route: "AcademicRecords", icon: "school-outline", iconBg: "#f4effe", iconColor: "#7e52d8" },
-    { title: "Activities", route: "Activities", icon: "calendar-outline", iconBg: "#eefafc", iconColor: "#41b5bd" }
+    { title: "Certificate of Registration & Grade Compliance", route: "GradeCompliance", icon: "clipboard-outline", iconBg: COLORS.successBg, iconColor: COLORS.success },
+    { title: "Financial Records", route: "FinancialRecords", icon: "receipt-outline", iconBg: COLORS.warningBg, iconColor: COLORS.warning },
+    { title: "Academic Records", route: "AcademicRecords", icon: "school-outline", iconBg: COLORS.purpleBg, iconColor: COLORS.purple },
+    { title: "Activities", route: "Activities", icon: "calendar-outline", iconBg: COLORS.infoBg, iconColor: COLORS.info }
   ];
 
   const baseAcademicYear = firstPresent(
@@ -162,8 +163,8 @@ export default function ScholarDashboardScreen({ navigation }) {
         : 'Renewals are currently closed by the administrator.',
       route: 'ScholarshipRenewal',
       icon: 'sync',
-      iconBg: '#f4effe',
-      iconColor: '#7e52d8',
+      iconBg: COLORS.purpleBg,
+      iconColor: COLORS.purple,
       isLocked: !renewalsOpen,
       lockMessage: 'Closed',
     },
@@ -172,8 +173,8 @@ export default function ScholarDashboardScreen({ navigation }) {
       sub: 'Apply for board exam financial assistance.',
       route: 'ExamAssistance',
       icon: 'shield-checkmark-outline',
-      iconBg: '#e8f4fd',
-      iconColor: '#2196f3',
+      iconBg: COLORS.blueBg,
+      iconColor: COLORS.blue,
       isLocked: !resolvedIsGraduate,
       lockMessage: 'Locked (Graduates Only)',
     }
@@ -293,18 +294,18 @@ export default function ScholarDashboardScreen({ navigation }) {
 
   return (
     <LinearGradient
-      colors={['#ffffff', '#f1f3fa']}
+      colors={['#ffffff', COLORS.surfaceAlt]}
       style={styles.container}
     >
       <Animated.ScrollView
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
         showsVerticalScrollIndicator={false}
         style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#727ab6']} tintColor="#727ab6" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primaryLight]} tintColor={COLORS.primaryLight} />}
       >
         {/* Header Banner */}
         <LinearGradient
-          colors={['#5b61a7', '#727ab6']}
+          colors={COLORS.primaryGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroBanner}
