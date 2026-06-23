@@ -103,6 +103,59 @@ export const usePushNotifications = () => {
     return null;
   };
 
+  const navigateFromNotification = (data) => {
+    if (!navigationRef.isReady()) {
+      console.warn('FCM Routing: Navigation ref is not ready');
+      return;
+    }
+
+    const type = data?.type;
+    const clickAction = data?.clickAction || '';
+    
+    console.log('FCM Routing: Routing message with type:', type, 'clickAction:', clickAction);
+
+    // 1. Route by notification payload type
+    if (type === 'expense_proof_status') {
+      navigationRef.navigate('Home', { screen: 'FinancialRecords' });
+      return;
+    }
+    if (type === 'grade_compliance_status') {
+      navigationRef.navigate('Home', { screen: 'GradeCompliance' });
+      return;
+    }
+    if (type === 'activity') {
+      navigationRef.navigate('Activities');
+      return;
+    }
+    if (type === 'announcement') {
+      navigationRef.navigate('Notifications');
+      return;
+    }
+
+    // 2. Route by clickAction keyword matches
+    if (clickAction) {
+      if (clickAction.includes('tab=financial-records') || clickAction.includes('financial')) {
+        navigationRef.navigate('Home', { screen: 'FinancialRecords' });
+        return;
+      }
+      if (clickAction.includes('tab=grade-compliance') || clickAction.includes('compliance')) {
+        navigationRef.navigate('Home', { screen: 'GradeCompliance' });
+        return;
+      }
+      if (clickAction.includes('tab=activities') || clickAction.includes('activities')) {
+        navigationRef.navigate('Activities');
+        return;
+      }
+      if (clickAction.includes('tab=notification') || clickAction.includes('notification')) {
+        navigationRef.navigate('Notifications');
+        return;
+      }
+    }
+
+    // Default fallback
+    navigationRef.navigate('Notifications');
+  };
+
   useEffect(() => {
     if (!isFirebaseAvailable) {
       console.log('FCM: Firebase Native Modules are not linked. Push notifications are disabled in this environment (e.g. Expo Go).');
@@ -176,9 +229,8 @@ export const usePushNotifications = () => {
         console.log('FCM: Native notification click ignored because user is logged out or terminated.');
         return;
       }
-      if (navigationRef.isReady()) {
-        navigationRef.navigate('Notifications');
-      }
+      const data = response.notification?.request?.content?.data;
+      navigateFromNotification(data);
     });
 
     // 5. Handle FCM notification clicks that open the app from background state
@@ -188,9 +240,7 @@ export const usePushNotifications = () => {
         console.log('FCM: Notification background click ignored because user is logged out or terminated.');
         return;
       }
-      if (navigationRef.isReady()) {
-        navigationRef.navigate('Notifications');
-      }
+      navigateFromNotification(remoteMessage?.data);
     });
 
     // Check if the app was opened from a completely killed state via an FCM notification click
@@ -204,9 +254,7 @@ export const usePushNotifications = () => {
               console.log('FCM: Notification quit-state click ignored because user is logged out or terminated.');
               return;
             }
-            if (navigationRef.isReady()) {
-              navigationRef.navigate('Notifications');
-            }
+            navigateFromNotification(remoteMessage?.data);
           }, 800);
         }
       })

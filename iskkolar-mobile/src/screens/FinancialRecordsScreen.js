@@ -117,6 +117,7 @@ export default function FinancialRecordsScreen({ navigation }) {
   const [disbursementYearFilter, setDisbursementYearFilter] = useState(user?.academicYear || "2025-2026");
   const [proofYearFilter, setProofYearFilter] = useState(user?.academicYear || "2025-2026");
   const [activePicker, setActivePicker] = useState(null); // 'disbursements' | 'proofs' | null
+  const [viewingSignature, setViewingSignature] = useState(null);
 
   // Update default filters when the active academic year resolves from API
   useEffect(() => {
@@ -125,6 +126,24 @@ export default function FinancialRecordsScreen({ navigation }) {
       setProofYearFilter(values.academicYear);
     }
   }, [values.academicYear]);
+
+  const getSubmissionAcademicYear = (app, submissionData) => {
+    if (submissionData?.academic_year && submissionData.academic_year !== "Unknown") {
+      return submissionData.academic_year;
+    }
+    if (values.academicYear) return values.academicYear;
+    if (app.submitted_at) {
+      const date = new Date(app.submitted_at);
+      if (!isNaN(date.getTime())) {
+        const month = date.getMonth();
+        const year = date.getFullYear();
+        const startYear = month >= 6 ? year : year - 1;
+        return `${startYear}-${startYear + 1}`;
+      }
+    }
+    const currentYear = new Date().getFullYear();
+    return `${currentYear}-${currentYear + 1}`;
+  };
 
   const disbursementYears = useMemo(() => {
     const yearsSet = new Set();
@@ -145,15 +164,16 @@ export default function FinancialRecordsScreen({ navigation }) {
 
   const proofYears = useMemo(() => {
     const yearsSet = new Set();
-    if (values.academicYear) {
+    if (values.academicYear && values.academicYear !== "Unknown") {
       yearsSet.add(values.academicYear);
     }
     applications.forEach((app) => {
       const submissionData = Array.isArray(app.expense_proof_submissions) 
         ? app.expense_proof_submissions[0] 
         : app.expense_proof_submissions;
-      if (submissionData?.academic_year) {
-        yearsSet.add(submissionData.academic_year);
+      const year = getSubmissionAcademicYear(app, submissionData);
+      if (year && year !== "Unknown") {
+        yearsSet.add(year);
       }
     });
     return Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
@@ -176,7 +196,8 @@ export default function FinancialRecordsScreen({ navigation }) {
       const submissionData = Array.isArray(app.expense_proof_submissions) 
         ? app.expense_proof_submissions[0] 
         : app.expense_proof_submissions;
-      return submissionData?.academic_year === proofYearFilter;
+      const year = getSubmissionAcademicYear(app, submissionData);
+      return year === proofYearFilter;
     });
   }, [applications, proofYearFilter]);
 
@@ -488,6 +509,27 @@ export default function FinancialRecordsScreen({ navigation }) {
     )
     .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0));
 
+  const normalizeTermOrdinal = (term) => {
+    if (!term) return "";
+    const lower = String(term).toLowerCase().trim();
+    if (lower.includes("summer")) return "summer";
+    const match = lower.match(/^(\d+(?:st|nd|rd|th))/);
+    return match ? match[1] : lower;
+  };
+
+  const getSubmissionReceipts = (sub) => {
+    const subData = Array.isArray(sub.expense_proof_submissions)
+      ? sub.expense_proof_submissions[0]
+      : sub.expense_proof_submissions;
+    return subData?.expense_proof_receipts || [];
+  };
+
+  const getApprovedSubmissionReceiptTotal = (sub) => {
+    if ((sub.status || "").toLowerCase() !== "approved") return 0;
+    const receipts = getSubmissionReceipts(sub);
+    return receipts.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  };
+
   const supplyTransactions = transactions.filter(
     (t) => t.type?.toLowerCase().includes("supply")
   );
@@ -496,15 +538,16 @@ export default function FinancialRecordsScreen({ navigation }) {
     .filter((t) => ["Confirmed", "Released"].includes(t.status))
     .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0));
 
-  // Total amount spent based on approved and pending receipts (all-time)
-  const totalAmountSpent = applications
-    .filter((s) => ["approved", "pending", "success"].includes(s.status))
-    .reduce((sum, sub) => {
-      const subData = Array.isArray(sub.expense_proof_submissions) 
-        ? sub.expense_proof_submissions[0] 
+  // Amount spent THIS TERM from approved receipts (backend computes per-term)
+  const totalAmountSpentThisTerm = summary?.supply?.spent ?? applications
+    .filter((sub) => {
+      const subData = Array.isArray(sub.expense_proof_submissions)
+        ? sub.expense_proof_submissions[0]
         : sub.expense_proof_submissions;
-      const receipts = subData?.expense_proof_receipts || [];
-      return sum + receipts.reduce((rSum, r) => rSum + Number(r.amount || 0), 0);
+      return normalizeTermOrdinal(subData?.term) === normalizeTermOrdinal(values.term);
+    })
+    .reduce((sum, sub) => {
+      return sum + getApprovedSubmissionReceiptTotal(sub);
     }, 0);
 
   // Identify current term from latest transaction to determine "This Semester" context
@@ -514,7 +557,7 @@ export default function FinancialRecordsScreen({ navigation }) {
     .filter((t) => 
       ["Confirmed", "Released"].includes(t.status) && 
       t.type?.toLowerCase().includes("supply") &&
-      (currentTerm ? t.term === currentTerm : true)
+      (currentTerm ? normalizeTermOrdinal(t.term) === normalizeTermOrdinal(currentTerm) : true)
     )
     .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0));
   const hasCurrentTermSupplyAllowance = Number(supplyThisSemester || 0) > 0;
@@ -705,7 +748,7 @@ export default function FinancialRecordsScreen({ navigation }) {
                     <Text style={styles.totalStatLabel}>This Semester</Text>
                   </View>
                   <View style={styles.totalStatColRight}>
-                    <Text style={styles.totalStatNum}>{formatCurrency(totalAmountSpent)}</Text>
+                    <Text style={styles.totalStatNum}>{formatCurrency(totalAmountSpentThisTerm)}</Text>
                     <Text style={styles.totalStatLabel}>Amount Spent</Text>
                   </View>
                 </View>
@@ -840,6 +883,32 @@ export default function FinancialRecordsScreen({ navigation }) {
                               <Text style={styles.txFooterValue}>{tx.type || "Disbursement"}</Text>
                             </View>
                           </View>
+
+                          {tx.signatureUrl ? (
+                            <>
+                              <View style={styles.lineDivider} />
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 }}>
+                                <Text style={{ fontSize: 13, fontWeight: '600', color: '#6b72aa' }}>Signature</Text>
+                                <TouchableOpacity 
+                                  onPress={() => setViewingSignature(tx.signatureUrl)}
+                                  activeOpacity={0.7}
+                                  style={{ 
+                                    flexDirection: 'row', 
+                                    alignItems: 'center', 
+                                    backgroundColor: '#f8fafc', 
+                                    borderWidth: 1, 
+                                    borderColor: '#e2e8f0', 
+                                    paddingHorizontal: 10, 
+                                    paddingVertical: 5, 
+                                    borderRadius: 6 
+                                  }}
+                                >
+                                  <Ionicons name="eye-outline" size={15} color="#5b5f97" style={{ marginRight: 6 }} />
+                                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#5b5f97' }}>View Signature</Text>
+                                </TouchableOpacity>
+                              </View>
+                            </>
+                          ) : null}
                         </View>
                       );
                     })}
@@ -904,8 +973,9 @@ export default function FinancialRecordsScreen({ navigation }) {
                     if (!submissionData) return null;
                     
                     const receipts = submissionData.expense_proof_receipts || [];
-                    const totalAmount = receipts.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+                    const totalAmount = getApprovedSubmissionReceiptTotal(sub);
                     const statusStyle = getApplicationStatusStyle(sub.status);
+                    const subYear = getSubmissionAcademicYear(sub, submissionData);
 
                     return (
                       <View key={sub.id} style={styles.proofCard}>
@@ -930,10 +1000,10 @@ export default function FinancialRecordsScreen({ navigation }) {
                         <View style={styles.infoGrid}>
                           <View style={styles.infoCol}>
                             <Text style={styles.infoLabel}>Academic Term</Text>
-                            <Text style={styles.infoValue}>{submissionData.term} AY {submissionData.academic_year}</Text>
+                            <Text style={styles.infoValue}>{submissionData.term} AY {subYear}</Text>
                           </View>
                           <View style={styles.infoCol}>
-                            <Text style={styles.infoLabel}>Total Amount</Text>
+                            <Text style={styles.infoLabel}>Approved Amount</Text>
                             <Text style={[styles.infoValue, { color: '#0d7c47', fontWeight: '800' }]}>{formatCurrency(totalAmount)}</Text>
                           </View>
                         </View>
@@ -1291,6 +1361,41 @@ export default function FinancialRecordsScreen({ navigation }) {
             </ScrollView>
           </View>
         </View>
+      </Modal>
+
+      {/* Signature Modal */}
+      <Modal
+        visible={!!viewingSignature}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setViewingSignature(null)}
+      >
+        <TouchableOpacity 
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}
+          activeOpacity={1}
+          onPress={() => setViewingSignature(null)}
+        >
+          <TouchableOpacity 
+            style={{ backgroundColor: '#fff', borderRadius: 20, padding: 20, width: '100%', maxWidth: 360, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 }}
+            activeOpacity={1}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#f0f0f0', paddingBottom: 12, marginBottom: 16 }}>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#1a1a2e' }}>Disbursement Signature</Text>
+              <TouchableOpacity onPress={() => setViewingSignature(null)}>
+                <Ionicons name="close" size={24} color="#6b72aa" />
+              </TouchableOpacity>
+            </View>
+            <View style={{ backgroundColor: '#fbfbfe', borderWidth: 1, borderColor: '#f0f0f0', borderRadius: 12, padding: 16, height: 180, justifyContent: 'center', alignItems: 'center' }}>
+              {viewingSignature && (
+                <Image 
+                  source={{ uri: viewingSignature }} 
+                  style={{ width: '100%', height: '100%' }} 
+                  resizeMode="contain" 
+                />
+              )}
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
