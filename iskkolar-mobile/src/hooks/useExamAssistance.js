@@ -3,7 +3,7 @@ import { submitExamAssistance, getExamAssistanceApplications } from "../services
 
 const REQUIRED_FIELDS = {
   assistanceType: "Type of assistance is required.",
-  examType: "Exam/certification type is required.",
+  examType: "Board exam type is required.",
   examDate: "Exam date is required.",
   testingCenter: "Testing center/location is required.",
 };

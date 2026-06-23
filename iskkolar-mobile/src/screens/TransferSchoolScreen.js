@@ -341,8 +341,15 @@ export default function TransferSchoolScreen({ navigation }) {
 
     let suggestions = [];
     if (isPredictive) {
-      const filtered = optionsSource.filter(opt => opt.toLowerCase().includes(query.toLowerCase()));
-      suggestions = filtered.length > 0 ? filtered : optionsSource;
+      const trimmedQuery = query.trim().toLowerCase();
+      if (trimmedQuery.length > 0) {
+        const hasExactMatch = optionsSource.some(opt => opt.trim().toLowerCase() === trimmedQuery);
+        if (!hasExactMatch) {
+          suggestions = optionsSource.filter(opt => opt.toLowerCase().includes(trimmedQuery));
+        }
+      } else {
+        suggestions = optionsSource.slice(0, 50);
+      }
     }
 
     return (
