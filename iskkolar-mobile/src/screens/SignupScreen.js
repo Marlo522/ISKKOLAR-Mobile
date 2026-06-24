@@ -208,6 +208,7 @@ function DatePickerModal({ visible, date, onConfirm, onClose }) {
 // ─── MAIN SCREEN ─────────────────────────────────────────────
 export default function SignupScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef(null);
   // All logic lives in the hook
   const {
     step, loading, form, errors, addressData,
@@ -244,6 +245,10 @@ export default function SignupScreen({ navigation }) {
       easing: Easing.out(Easing.ease),
       useNativeDriver: true,
     }).start();
+
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: 0, animated: true });
+    }
   }, [step]);
 
   const [pickerConfig, setPickerConfig] = useState({
@@ -908,7 +913,7 @@ export default function SignupScreen({ navigation }) {
         </View>
       </LinearGradient>
 
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Animated.View style={[styles.card, { opacity: stepFade, transform: [{ translateY: stepSlide }] }]}>
           {renderStepContent()}
         </Animated.View>
