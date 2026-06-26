@@ -24,6 +24,7 @@ import {
   checkScholarEligibility,
   fetchScholarAcademicStatus
 } from '../services/scholarshipRenewalService';
+import { getGradeComplianceTerms } from '../services/gradeComplianceService';
 
 // Form Steps defining the flow of the renewal process
 const steps = [
@@ -39,6 +40,16 @@ const getNextAcademicYear = (value) => {
   const end = Number(match[2]);
   if (!Number.isFinite(start) || !Number.isFinite(end)) return '';
   return `${start + 1}-${end + 1}`;
+};
+
+// Helper to calculate the previous academic year based on a given string like "2024-2025"
+const getPrevAcademicYear = (value) => {
+  const match = /^(\d{4})-(\d{4})$/.exec(value?.trim() || '');
+  if (!match) return '';
+  const start = Number(match[1]);
+  const end = Number(match[2]);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return '';
+  return `${start - 1}-${end - 1}`;
 };
 
 // Helper to determine the current academic year based on the current date
@@ -61,18 +72,39 @@ export default function ScholarshipRenewalScreen({ navigation }) {
   const insets = useSafeAreaInsets();
 
   const [academicStatus, setAcademicStatus] = useState(null);
+  const [gradeComplianceLatest, setGradeComplianceLatest] = useState(null);
+  const [eligibility, setEligibility] = useState(null);
+  const [loadingEligibility, setLoadingEligibility] = useState(true);
+
+  // State management for the current step (1 or 2)
+  const [currentStep, setCurrentStep] = useState(1);
+
+  // State for the final confirmation checkbox
+  const [agree, setAgree] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [aiFeedback, setAiFeedback] = useState(null);
+  const [aiCheckingEnabled, setAiCheckingEnabled] = useState(true);
 
   const resolvedIsGraduate = user?.is_graduate || user?.isGraduate || academicStatus?.isGraduate || academicStatus?.is_graduate || false;
 
   // Auto-fill values from fetched academic status or user context
   const autoSchool = academicStatus?.school_name || user?.school || '';
   const autoProgram = academicStatus?.program || user?.course || user?.program || '';
-  const autoGwa = academicStatus?.latest_gwa || user?.gwa || '';
-  const autoAcademicYear = academicStatus?.academic_year || getCurrentAcademicYear();
-  const autoTerm = academicStatus?.current_term || user?.term || '';
-
-  // State management for the current step (1 or 2)
-  const [currentStep, setCurrentStep] = useState(1);
+  const autoGwa = gradeComplianceLatest?.gwa || academicStatus?.latest_gwa || user?.gwa || '';
+  const autoAcademicYear =
+    eligibility?.detailedData?.latestComplianceAcademicYear ||
+    gradeComplianceLatest?.academic_year ||
+    academicStatus?.latest_compliance_academic_year ||
+    (academicStatus?.academic_year
+      ? (["2nd Semester", "Summer", "3rd Trimester", "4th Quarter"].includes(gradeComplianceLatest?.term || academicStatus?.current_term)
+          ? getPrevAcademicYear(academicStatus.academic_year)
+          : academicStatus.academic_year)
+      : null) ||
+    getCurrentAcademicYear();
+  const autoTerm = gradeComplianceLatest?.term || academicStatus?.current_term || user?.term || '';
 
   // Form fields state
   const [form, setForm] = useState({
@@ -87,31 +119,19 @@ export default function ScholarshipRenewalScreen({ navigation }) {
     eap_reflection_response: '',
   });
 
-  // State for the final confirmation checkbox
-  const [agree, setAgree] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [aiFeedback, setAiFeedback] = useState(null);
-  const [aiCheckingEnabled, setAiCheckingEnabled] = useState(true);
-
-  // Eligibility state from the AI checker backend
-  const [eligibility, setEligibility] = useState(null);
-  const [loadingEligibility, setLoadingEligibility] = useState(true);
-
   const detailed = eligibility?.detailedData;
   const hasFailedGrades = detailed?.hasFailedSubjects === true;
   const hasIncGrades = detailed?.hasIncSubjects === true;
   const isGwaBelow85 = detailed?.latestGwa !== null && detailed?.latestGwa !== undefined && detailed?.meets85Percent === false;
-  const isGwaMissing = detailed?.latestGwa === null || detailed?.latestGwa === undefined;
   const alreadySubmittedThisYear = detailed?.alreadySubmittedThisYear === true;
+  const missingGradeCompliance = detailed?.hasGradeComplianceSubmission === false;
 
   const cannotSubmit = Boolean(
     hasFailedGrades ||
     hasIncGrades ||
     isGwaBelow85 ||
-    alreadySubmittedThisYear
+    alreadySubmittedThisYear ||
+    missingGradeCompliance
   );
 
   const isContinueDisabled = loadingEligibility || cannotSubmit;
@@ -120,8 +140,9 @@ export default function ScholarshipRenewalScreen({ navigation }) {
     console.log('Eligibility state:', eligibility);
     console.log('cannotSubmit:', cannotSubmit);
     console.log('alreadySubmittedThisYear:', alreadySubmittedThisYear);
+    console.log('missingGradeCompliance:', missingGradeCompliance);
     console.log('isContinueDisabled:', isContinueDisabled);
-  }, [eligibility, cannotSubmit, alreadySubmittedThisYear, isContinueDisabled]);
+  }, [eligibility, cannotSubmit, alreadySubmittedThisYear, missingGradeCompliance, isContinueDisabled]);
 
   // Animations
   const stepAnim = useRef(new Animated.Value(0)).current;
@@ -194,6 +215,26 @@ export default function ScholarshipRenewalScreen({ navigation }) {
     });
   }, [autoSchool, autoProgram, autoGwa, autoAcademicYear, autoTerm]);
 
+  // Fetch dynamic grade compliance terms to resolve gradeComplianceLatest
+  useEffect(() => {
+    let mounted = true;
+    const fetchGradeCompliance = async () => {
+      try {
+        const res = await getGradeComplianceTerms();
+        if (mounted && res) {
+          const latest = res.latestSubmission || res.data?.latestSubmission || null;
+          setGradeComplianceLatest(latest);
+        }
+      } catch (err) {
+        console.error("Failed to fetch grade compliance terms:", err);
+      }
+    };
+    fetchGradeCompliance();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   // Fetch AI eligibility status on mount
   useEffect(() => {
     let mounted = true;
@@ -256,6 +297,8 @@ export default function ScholarshipRenewalScreen({ navigation }) {
       if (cannotSubmit) {
         if (alreadySubmittedThisYear) {
           nextErrors.eligibility = 'Renewal blocked: Scholarship renewal can only be submitted once a year.';
+        } else if (missingGradeCompliance) {
+          nextErrors.eligibility = 'Renewal blocked: You cannot access renewals yet because you have not submitted any grade compliance records.';
         } else {
           nextErrors.eligibility = 'Renewal blocked: You have incomplete/failing grades or your GWA is below 85%.';
         }
@@ -441,13 +484,17 @@ export default function ScholarshipRenewalScreen({ navigation }) {
               {/* Step 1: Scholar Status */}
               {!success && currentStep === 1 && (
                 <Animated.View style={{ opacity: stepAnim }}>
-                  {alreadySubmittedThisYear ? (
+                  {alreadySubmittedThisYear || missingGradeCompliance ? (
                     <View style={styles.failedSubjectsBanner}>
                       <Ionicons name="alert-circle" size={24} color="#ef4444" />
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.failedSubjectsTitle}>Already Submitted</Text>
+                        <Text style={styles.failedSubjectsTitle}>
+                          {alreadySubmittedThisYear ? 'Already Submitted' : 'Grade Compliance Required'}
+                        </Text>
                         <Text style={styles.failedSubjectsText}>
-                          Renewal blocked: Scholarship renewal can only be submitted once a year.
+                          {alreadySubmittedThisYear
+                            ? 'Renewal blocked: Scholarship renewal can only be submitted once a year.'
+                            : 'You cannot access renewals yet because you have not submitted any grade compliance records. Please submit at least one grade compliance report before applying for renewal.'}
                         </Text>
                       </View>
                     </View>
@@ -593,7 +640,9 @@ export default function ScholarshipRenewalScreen({ navigation }) {
                                   {cannotSubmit
                                     ? (alreadySubmittedThisYear
                                         ? '✗ Cannot submit renewal: You have already submitted a scholarship renewal this year.'
-                                        : '✗ Cannot submit renewal: You have incomplete/failing grades or your GWA is below 85%.')
+                                        : missingGradeCompliance
+                                          ? '✗ Cannot submit renewal: You have not submitted any grade compliance records.'
+                                          : '✗ Cannot submit renewal: You have incomplete/failing grades or your GWA is below 85%.')
                                     : (eligibility?.isQualified
                                         ? '✓ You meet all requirements. Your renewal will be automatically approved upon submission.'
                                         : '⚠ You have attendance or late submission flags. Your renewal will be submitted for manual review.')}

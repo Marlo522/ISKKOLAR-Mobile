@@ -62,6 +62,12 @@ const addOneMonth = (date) => {
   return next;
 };
 
+const addSixMonths = (date) => {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + 6);
+  return next;
+};
+
 const getSubmissionWindowState = (term) => {
   const deadline = parseDateOnly(term?.deadline);
 
@@ -139,6 +145,18 @@ const validateNextTermDates = (currentTermEndDate, startDateValue, endDateValue)
           month: 'long',
           day: 'numeric',
         })} or later).`,
+      });
+    }
+
+    const maximumEndDate = addSixMonths(startDate);
+    if (endDate > maximumEndDate) {
+      issues.push({
+        field: "nextTermEndDate",
+        message: `End date must be at most 6 months after start date (${maximumEndDate.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })} or earlier).`,
       });
     }
   }

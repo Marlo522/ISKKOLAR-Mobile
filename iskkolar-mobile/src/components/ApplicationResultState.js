@@ -137,7 +137,7 @@ export default function ApplicationResultState({
                 <Text style={styles.smartEvalTitle}>🤖 AI Smart Evaluation</Text>
 
                 {/* Strengths */}
-                {(detailedAiSummary?.strengths || []).length > 0 && (
+                {Array.isArray(detailedAiSummary?.strengths) && detailedAiSummary.strengths.length > 0 && (
                   <View style={styles.evalSection}>
                     <View style={styles.evalSectionHeader}>
                       <Ionicons
@@ -162,7 +162,7 @@ export default function ApplicationResultState({
                 )}
 
                 {/* Red Flags */}
-                {(detailedAiSummary?.red_flags || []).length > 0 && (
+                {Array.isArray(detailedAiSummary?.red_flags) && detailedAiSummary.red_flags.length > 0 && (
                   <View style={styles.evalSection}>
                     <View style={styles.evalSectionHeader}>
                       <Ionicons name="warning" size={14} color="#dc2626" />
@@ -237,8 +237,7 @@ export default function ApplicationResultState({
                 <Text style={styles.sectionLabel}>QUALIFICATION RULES</Text>
                 {qualificationRuleEntries.map(([ruleCode, result], idx) => {
                   const passed = Boolean(result?.passed);
-                  const state =
-                    result?.status || (passed ? "passed" : "failed");
+                  const state = String(result?.status || (passed ? 'passed' : 'failed')).toLowerCase();
 
                   let pillBg, pillText, pillIcon, accentColor;
                   if (state === "for_review") {
@@ -246,7 +245,7 @@ export default function ApplicationResultState({
                     pillText = "#b45309";
                     pillIcon = "time-outline";
                     accentColor = "#d97706";
-                  } else if (passed) {
+                  } else if (state === "passed") {
                     pillBg = "#ecfdf5";
                     pillText = "#059669";
                     pillIcon = "checkmark-circle";

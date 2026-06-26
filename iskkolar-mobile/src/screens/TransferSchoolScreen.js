@@ -336,8 +336,8 @@ export default function TransferSchoolScreen({ navigation }) {
       key === "newSchool"
         ? heiSchoolNames
         : isVocational
-        ? vocationalProgramOptions
-        : programOptions;
+          ? vocationalProgramOptions
+          : programOptions;
 
     let suggestions = [];
     if (isPredictive) {
@@ -825,7 +825,7 @@ const ExamplesModal = ({ visible, onClose }) => {
               <Text style={{ fontSize: 15, fontWeight: "800", color: "#4f5fc5", marginBottom: 10 }}>
                 {"1.0 - 5.00 Grading System"}
               </Text>
-              
+
               <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, padding: 10 }}>
                 {/* Table Header */}
                 <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1.5, borderBottomColor: "#cbd5e1", marginBottom: 4 }}>
@@ -844,13 +844,13 @@ const ExamplesModal = ({ visible, onClose }) => {
                   ["3.00", "Pass", "#64748b"],
                   ["5.00", "Fail", "#dc2626"],
                 ].map(([grade, desc, color], idx, arr) => (
-                  <View 
-                    key={grade} 
-                    style={{ 
-                      flexDirection: "row", 
-                      paddingVertical: 8, 
-                      borderBottomWidth: idx === arr.length - 1 ? 0 : 1, 
-                      borderBottomColor: "#f1f5f9" 
+                  <View
+                    key={grade}
+                    style={{
+                      flexDirection: "row",
+                      paddingVertical: 8,
+                      borderBottomWidth: idx === arr.length - 1 ? 0 : 1,
+                      borderBottomColor: "#f1f5f9"
                     }}
                   >
                     <Text style={{ flex: 1.5, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>
@@ -865,7 +865,7 @@ const ExamplesModal = ({ visible, onClose }) => {
               <Text style={{ fontSize: 15, fontWeight: "800", color: "#4f5fc5", marginBottom: 10 }}>
                 {"4.00 GPA System"}
               </Text>
-              
+
               <View style={{ backgroundColor: "#f8fafc", borderRadius: 12, padding: 10 }}>
                 {/* Table Header */}
                 <View style={{ flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1.5, borderBottomColor: "#cbd5e1", marginBottom: 4 }}>
@@ -884,13 +884,13 @@ const ExamplesModal = ({ visible, onClose }) => {
                   ["1.00", "Pass", "#64748b"],
                   ["0.50", "Fail", "#dc2626"],
                 ].map(([grade, desc, color], idx, arr) => (
-                  <View 
-                    key={grade} 
-                    style={{ 
-                      flexDirection: "row", 
-                      paddingVertical: 8, 
-                      borderBottomWidth: idx === arr.length - 1 ? 0 : 1, 
-                      borderBottomColor: "#f1f5f9" 
+                  <View
+                    key={grade}
+                    style={{
+                      flexDirection: "row",
+                      paddingVertical: 8,
+                      borderBottomWidth: idx === arr.length - 1 ? 0 : 1,
+                      borderBottomColor: "#f1f5f9"
                     }}
                   >
                     <Text style={{ flex: 1.5, fontWeight: "700", color: "#334155", fontSize: 12 }}>{grade}</Text>

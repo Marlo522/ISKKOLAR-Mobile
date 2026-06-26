@@ -78,6 +78,13 @@ export default function ScholarDashboardScreen({ navigation }) {
     (item) => String(item?.status || '').toLowerCase() === 'pending'
   )?.term;
 
+  const hasSubmittedGradeCompliance = Boolean(
+    gradeComplianceLatest?.submittedAt ||
+    gradeComplianceLatest?.submitted_at ||
+    gradeComplianceLatest?.term ||
+    gradeComplianceTerms.some((item) => String(item?.status || '').toLowerCase() === 'submitted' || item?.submission)
+  );
+
   const currentTerm = firstPresent(
     nextPendingGradeComplianceTerm,
     dashboardSummary?.currentTerm,
@@ -155,18 +162,24 @@ export default function ScholarDashboardScreen({ navigation }) {
     dashboardSummary?.is_graduate ||
     false;
 
+  const isRenewalLocked = !renewalsOpen || !hasSubmittedGradeCompliance;
+  const renewalLockMessage = !renewalsOpen ? 'Closed' : 'Compliance Required';
+  const renewalSub = renewalsOpen
+    ? (!hasSubmittedGradeCompliance
+        ? 'You cannot access renewals yet because you have not submitted any grade compliance records.'
+        : (nextAcademicYear ? `Renew for AY ${nextAcademicYear}` : 'Renew for next academic year'))
+    : 'Renewals are currently closed by the administrator.';
+
   const services = [
     {
       title: 'Scholarship Renewal',
-      sub: renewalsOpen
-        ? (nextAcademicYear ? `Renew for AY ${nextAcademicYear}` : 'Renew for next academic year')
-        : 'Renewals are currently closed by the administrator.',
+      sub: renewalSub,
       route: 'ScholarshipRenewal',
       icon: 'sync',
       iconBg: COLORS.purpleBg,
       iconColor: COLORS.purple,
-      isLocked: !renewalsOpen,
-      lockMessage: 'Closed',
+      isLocked: isRenewalLocked,
+      lockMessage: renewalLockMessage,
     },
     {
       title: 'Exam Financial Assistance',
