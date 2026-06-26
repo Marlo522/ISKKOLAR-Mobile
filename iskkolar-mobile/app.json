@@ -22,7 +22,10 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.integra.iskkolarmobile",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "single",
@@ -54,9 +57,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "a0e3774e-8495-4ca8-a78f-60fa8e53fc79"
+        "projectId": "b2abd6b1-dc54-403d-a084-7735729fb553"
       }
     },
-    "owner": "iskkolar-kkfi"
+    "owner": "kkfi-iskkolar"
   }
 }
