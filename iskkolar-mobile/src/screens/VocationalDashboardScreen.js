@@ -15,6 +15,7 @@ import { AuthContext } from '../context/AuthContext';
 import { NotificationContext } from '../context/NotificationContext';
 import { getScholarDashboardSummary } from '../services/scholarDashboardService';
 import { getMyVocationalCompletion } from '../services/vocationalDashboardService';
+import { COLORS } from '../config/colors';
 
 // Format display date helper matching the web implementation
 const formatDisplayDate = (value) => {
@@ -139,10 +140,10 @@ export default function VocationalDashboardScreen({ navigation }) {
 
   // Dynamic colors for status bar
   const getStatusColor = () => {
-    if (completionStatus === 'approved') return '#16a34a'; // Emerald
-    if (completionStatus === 'pending') return '#d97706'; // Amber
-    if (completionStatus === 'rejected') return '#dc2626'; // Red
-    return '#8b93b0';
+    if (completionStatus === 'approved') return COLORS.success; // Emerald
+    if (completionStatus === 'pending') return COLORS.warning; // Amber
+    if (completionStatus === 'rejected') return COLORS.danger; // Red
+    return COLORS.textMuted;
   };
 
   const fullName = [
@@ -172,18 +173,18 @@ export default function VocationalDashboardScreen({ navigation }) {
 
   return (
     <LinearGradient
-      colors={['#ffffff', '#f1f3fa']}
+      colors={['#ffffff', COLORS.surfaceAlt]}
       style={styles.container}
     >
       <Animated.ScrollView
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
         showsVerticalScrollIndicator={false}
         style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#727ab6']} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primaryLight]} />}
       >
         {/* Banner with Circle Progress (Mirroring Web) */}
         <LinearGradient
-          colors={['#5b61a7', '#727ab6']}
+          colors={COLORS.primaryGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[styles.heroBanner, { position: 'relative' }]}
@@ -229,7 +230,7 @@ export default function VocationalDashboardScreen({ navigation }) {
           ].map((item, idx) => (
             <View key={idx} style={[styles.statCard, item.fullWidth ? { width: '100%' } : { width: '48%' }]}>
               <View style={styles.statIconHeader}>
-                <Ionicons name={item.icon} size={16} color="#727ab6" />
+                <Ionicons name={item.icon} size={16} color={COLORS.primaryLight} />
                 <Text style={styles.statLabel}>{item.label}</Text>
               </View>
               <Text style={styles.statValue}>{item.value}</Text>
@@ -246,8 +247,8 @@ export default function VocationalDashboardScreen({ navigation }) {
           })}
           activeOpacity={0.8}
         >
-          <View style={[styles.actionIconBox, { backgroundColor: '#eefafc' }]}>
-            <Ionicons name="ribbon-outline" size={28} color="#41b5bd" />
+          <View style={[styles.actionIconBox, { backgroundColor: COLORS.infoBg }]}>
+            <Ionicons name="ribbon-outline" size={28} color={COLORS.info} />
           </View>
           <View style={styles.actionTextCol}>
             <Text style={styles.actionTitle}>Submit Completion Proof</Text>
@@ -260,8 +261,8 @@ export default function VocationalDashboardScreen({ navigation }) {
         <Text style={styles.sectionHeader}>Quick Links</Text>
         <View style={styles.quickLinksGrid}>
           {[
-            { title: "My Profile", route: "Profile", icon: "person-outline", bg: "#f4effe", color: "#7e52d8" },
-            { title: "Application History", route: "Application", icon: "clipboard-outline", bg: "#eefafc", color: "#41b5bd" }
+            { title: "My Profile", route: "Profile", icon: "person-outline", bg: COLORS.purpleBg, color: COLORS.purple },
+            { title: "Application History", route: "Application", icon: "clipboard-outline", bg: COLORS.infoBg, color: COLORS.info }
           ].map((link, idx) => (
             <TouchableOpacity
               key={idx}

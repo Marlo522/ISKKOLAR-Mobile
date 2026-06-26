@@ -6,6 +6,8 @@ import { AuthContext } from "../context/AuthContext";
 import { useIsFocused } from "@react-navigation/native";
 import { getApplicationSettings } from "../services/settingsService";
 import ApplicationsClosedGuard from "../components/ApplicationsClosedGuard";
+import { COLORS } from "../config/colors";
+import { LinearGradient } from "expo-linear-gradient";
 
 const programs = [
   {
@@ -147,8 +149,24 @@ export default function HomeScreen({ navigation }) {
     );
   }
 
+  const getProgramBadgeProps = (index) => {
+    switch (index) {
+      case 0:
+        return { bg: COLORS.purpleBg, color: COLORS.purple };
+      case 1:
+        return { bg: COLORS.blueBg, color: COLORS.blue };
+      case 2:
+        return { bg: COLORS.warningBg, color: COLORS.warning };
+      default:
+        return { bg: COLORS.surfaceAlt, color: COLORS.textSecondary };
+    }
+  };
+
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#ffffff', COLORS.surfaceAlt]}
+      style={styles.container}
+    >
       <Animated.View style={[styles.headerRow, { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }], paddingTop: insets.top + 8 }]}>
         <View>
           <Text style={styles.userSubtitle}>Hello,</Text>
@@ -161,7 +179,7 @@ export default function HomeScreen({ navigation }) {
       </Animated.View>
 
       <Text style={styles.sectionTitle}>Programs</Text>
-      <ScrollView contentContainerStyle={[styles.cardsContainer, { paddingBottom: 120 }]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#5b5f97']} tintColor="#5b5f97" />}>
+      <ScrollView contentContainerStyle={[styles.cardsContainer, { paddingBottom: 120 }]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} tintColor={COLORS.primary} />}>
         {programs.map((program, index) => (
           <Animated.View key={index} style={[styles.card, { opacity: cardsAnim[index], transform: [{ translateY: cardsAnim[index].interpolate({ inputRange: [0, 1], outputRange: [50, 0] }) }] }]}>
             <TouchableOpacity
@@ -180,10 +198,18 @@ export default function HomeScreen({ navigation }) {
               <View style={styles.cardBody}>
                 <View style={styles.amountRow}>
                   <Text style={styles.cardAmount}>{program.amount}</Text>
-                  <Text style={styles.metaRight}>{program.metas[1]}</Text>
                 </View>
                 
-                <Text style={styles.metaLeft}>{program.metas[0]}</Text>
+                <View style={styles.badgeRow}>
+                  {program.metas.map((meta, idx) => {
+                    const badgeProps = getProgramBadgeProps(index);
+                    return (
+                      <View key={idx} style={[styles.badgeChip, { backgroundColor: badgeProps.bg }]}>
+                        <Text style={[styles.badgeText, { color: badgeProps.color }]}>{meta}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
                 
                 <Text style={styles.cardDescription}>{program.description}</Text>
               </View>
@@ -191,28 +217,29 @@ export default function HomeScreen({ navigation }) {
           </Animated.View>
         ))}
       </ScrollView>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f6f8fb" },
+  container: { flex: 1, backgroundColor: 'transparent' },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24, paddingHorizontal: 18 },
-  userSubtitle: { fontSize: 16, color: "#7a82a0", fontWeight: "600", marginBottom: 2 },
-  userTitle: { fontSize: 32, fontWeight: "900", color: "#131b3e", letterSpacing: -0.5 },
-  iconBubble: { width: 50, height: 50, borderRadius: 25, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 4 },
-  notifyDot: { position: "absolute", top: 14, right: 14, width: 10, height: 10, backgroundColor: "#e94e4e", borderRadius: 5, borderWidth: 2, borderColor: "#fff" },
-  sectionTitle: { fontSize: 22, fontWeight: "800", color: "#1d2e57", marginBottom: 16, paddingHorizontal: 18 },
+  userSubtitle: { fontSize: 16, color: COLORS.textSecondary, fontWeight: "600", marginBottom: 2 },
+  userTitle: { fontSize: 32, fontWeight: "900", color: COLORS.textPrimary, letterSpacing: -0.5 },
+  iconBubble: { width: 50, height: 50, borderRadius: 25, backgroundColor: COLORS.surface, justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 4 },
+  notifyDot: { position: "absolute", top: 14, right: 14, width: 10, height: 10, backgroundColor: COLORS.dangerLight, borderRadius: 5, borderWidth: 2, borderColor: COLORS.surface },
+  sectionTitle: { fontSize: 22, fontWeight: "800", color: COLORS.textPrimary, marginBottom: 16, paddingHorizontal: 18 },
   cardsContainer: { paddingHorizontal: 18, paddingBottom: 20 },
-  card: { backgroundColor: "#fff", borderRadius: 12, marginBottom: 22, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3 },
+  card: { backgroundColor: COLORS.surface, borderRadius: 12, marginBottom: 22, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3 },
   cardImage: { height: 160, justifyContent: 'flex-end' },
   cardImageStyle: { borderTopLeftRadius: 12, borderTopRightRadius: 12 },
   imageOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(19, 27, 62, 0.45)', justifyContent: 'flex-end', padding: 16, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
   imageTitle: { color: '#fff', fontSize: 22, fontWeight: '900', lineHeight: 28 },
   cardBody: { padding: 18 },
-  amountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  cardAmount: { fontSize: 17, fontWeight: '900', color: '#131b3e' },
-  metaRight: { fontSize: 13, color: '#9ea6bd', fontWeight: '500' },
-  metaLeft: { fontSize: 13, color: '#6e7798', marginBottom: 16, fontWeight: '500' },
-  cardDescription: { fontSize: 14, color: '#6e7798', lineHeight: 22 },
+  amountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  cardAmount: { fontSize: 17, fontWeight: '900', color: COLORS.textPrimary },
+  cardDescription: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 22 },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14, marginTop: 4 },
+  badgeChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, alignSelf: "flex-start" },
+  badgeText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.2 },
 });

@@ -737,105 +737,115 @@ export default function ProfileScreen({ navigation }) {
           statusBarTranslucent
           onRequestClose={closeEmailModal}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.emailModalCard}>
-              <View style={styles.modalHeaderRow}>
-                <Text style={styles.modalTitle}>Change Email Address</Text>
-                <TouchableOpacity
-                  onPress={closeEmailModal}
-                  disabled={loading}
-                  style={styles.modalCloseBtn}
-                >
-                  <Ionicons name="close" size={20} color="#6b7280" />
-                </TouchableOpacity>
-              </View>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1 }}
+          >
+            <ScrollView
+              style={{ flex: 1, backgroundColor: "rgba(8, 13, 25, 0.6)" }}
+              contentContainerStyle={styles.modalOverlay}
+              bounces={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.emailModalCard}>
+                <View style={styles.modalHeaderRow}>
+                  <Text style={styles.modalTitle}>Change Email Address</Text>
+                  <TouchableOpacity
+                    onPress={closeEmailModal}
+                    disabled={loading}
+                    style={styles.modalCloseBtn}
+                  >
+                    <Ionicons name="close" size={20} color="#6b7280" />
+                  </TouchableOpacity>
+                </View>
 
-              <View style={styles.verificationNotice}>
-                <Text style={styles.verificationTitle}>Verification required</Text>
-                <Text style={styles.verificationText}>
-                  We will send a verification link to confirm this change. Your current email will remain active until the new address is verified.
-                </Text>
-              </View>
+                <View style={styles.verificationNotice}>
+                  <Text style={styles.verificationTitle}>Verification required</Text>
+                  <Text style={styles.verificationText}>
+                    We will send a verification link to confirm this change. Your current email will remain active until the new address is verified.
+                  </Text>
+                </View>
 
-              <View style={styles.modalField}>
-                <Text style={styles.formLabel}>New email address</Text>
-                <SafeTextInput
-                  placeholderTextColor="#888"
-                  value={form.email}
-                  onChangeText={(val) => {
-                    setForm((prev) => ({ ...prev, email: val }));
-                    if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
-                      setEmailError("Please enter a valid email address (e.g. user@example.com).");
-                    } else if (emailError.toLowerCase().includes("email")) {
-                      setEmailError("");
-                    }
-                  }}
-                  placeholder="name@example.com"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoFocus
-                  style={[styles.formInput, emailError.toLowerCase().includes("email") && styles.errorInput]}
-                />
-              </View>
-
-              <View style={styles.modalField}>
-                <Text style={styles.formLabel}>Current password</Text>
-                <View style={styles.passwordInputWrapper}>
+                <View style={styles.modalField}>
+                  <Text style={styles.formLabel}>New email address</Text>
                   <SafeTextInput
                     placeholderTextColor="#888"
-                    value={emailCurrentPassword}
-                    secureTextEntry={!showEmailCurrentPassword}
-                    onChangeText={(value) => {
-                      setEmailCurrentPassword(value);
-                      if (emailError.toLowerCase().includes("password")) {
+                    value={form.email}
+                    onChangeText={(val) => {
+                      setForm((prev) => ({ ...prev, email: val }));
+                      if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+                        setEmailError("Please enter a valid email address (e.g. user@example.com).");
+                      } else if (emailError.toLowerCase().includes("email")) {
                         setEmailError("");
                       }
                     }}
-                    placeholder="Enter your current password"
-                    style={[styles.formInput, { flex: 1 }, emailError.toLowerCase().includes("password") && styles.errorInput]}
-                    contextMenuHidden={true}
+                    placeholder="name@example.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoFocus
+                    style={[styles.formInput, emailError.toLowerCase().includes("email") && styles.errorInput]}
                   />
+                </View>
+
+                <View style={styles.modalField}>
+                  <Text style={styles.formLabel}>Current password</Text>
+                  <View style={styles.passwordInputWrapper}>
+                    <SafeTextInput
+                      placeholderTextColor="#888"
+                      value={emailCurrentPassword}
+                      secureTextEntry={!showEmailCurrentPassword}
+                      onChangeText={(value) => {
+                        setEmailCurrentPassword(value);
+                        if (emailError.toLowerCase().includes("password")) {
+                          setEmailError("");
+                        }
+                      }}
+                      placeholder="Enter your current password"
+                      style={[styles.formInput, { flex: 1 }, emailError.toLowerCase().includes("password") && styles.errorInput]}
+                      contextMenuHidden={true}
+                    />
+                    <TouchableOpacity
+                      style={styles.eyeIcon}
+                      onPress={() => setShowEmailCurrentPassword((visible) => !visible)}
+                    >
+                      <Ionicons name={showEmailCurrentPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#7f88a3" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {!!emailError && (
+                  <View style={styles.modalErrorBox}>
+                    <Text style={styles.modalErrorText}>{emailError}</Text>
+                  </View>
+                )}
+
+                <View style={styles.modalActions}>
                   <TouchableOpacity
-                    style={styles.eyeIcon}
-                    onPress={() => setShowEmailCurrentPassword((visible) => !visible)}
+                    onPress={closeEmailModal}
+                    disabled={loading}
+                    style={styles.modalCancelBtn}
                   >
-                    <Ionicons name={showEmailCurrentPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#7f88a3" />
+                    <Text style={styles.modalCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleSaveEmail}
+                    disabled={loading}
+                    style={[loading && { opacity: 0.7 }, { flex: 1.5, borderRadius: 10, overflow: "hidden" }]}
+                    activeOpacity={0.8}
+                  >
+                    <LinearGradient
+                      colors={['#5b5f97', '#727ab6']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.modalSaveBtn, { flex: 0, width: "100%", backgroundColor: 'transparent' }]}
+                    >
+                      <Text style={styles.modalSaveText}>{loading ? "Sending..." : "Send Verification Email"}</Text>
+                    </LinearGradient>
                   </TouchableOpacity>
                 </View>
               </View>
-
-              {!!emailError && (
-                <View style={styles.modalErrorBox}>
-                  <Text style={styles.modalErrorText}>{emailError}</Text>
-                </View>
-              )}
-
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  onPress={closeEmailModal}
-                  disabled={loading}
-                  style={styles.modalCancelBtn}
-                >
-                  <Text style={styles.modalCancelText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleSaveEmail}
-                  disabled={loading}
-                  style={[loading && { opacity: 0.7 }, { flex: 1.5, borderRadius: 10, overflow: "hidden" }]}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient
-                    colors={['#5b5f97', '#727ab6']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.modalSaveBtn, { flex: 0, width: "100%", backgroundColor: 'transparent' }]}
-                  >
-                    <Text style={styles.modalSaveText}>{loading ? "Sending..." : "Send Verification Email"}</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
         </Modal>
         <SuccessModal
           visible={successConfig.visible}
@@ -901,7 +911,7 @@ const styles = StyleSheet.create({
   preferenceSublabel: { fontSize: 12, color: "#7f88a3", lineHeight: 16 },
   hintText: { fontSize: 12, color: "#666", marginTop: 6 },
   modalOverlay: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: "rgba(8, 13, 25, 0.6)",
     justifyContent: "center",
     alignItems: "center",

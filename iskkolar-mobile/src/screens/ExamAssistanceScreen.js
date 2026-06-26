@@ -385,7 +385,7 @@ export default function ExamAssistanceScreen({ navigation }) {
                   {renderSelect("Type of Assistance", "assistanceType", ["Review Support", "Cash Incentive"])}
                 </View>
                 <View style={styles.colHalf}>
-                  {renderInput("Exam / Certification Type", "examType", "Licensure Exam")}
+                  {renderInput("Board Exam Type", "examType", "Licensure Exam")}
                 </View>
               </View>
 
@@ -494,9 +494,9 @@ export default function ExamAssistanceScreen({ navigation }) {
               <Ionicons name="arrow-back" size={20} color="#fff" />
             </TouchableOpacity>
             <View style={styles.heroBadge}>
-              <Text style={styles.heroBadgeText}>Board Exam / Certification</Text>
+              <Text style={styles.heroBadgeText}>Board Exam</Text>
             </View>
-            <Text style={styles.heroTitle}>Board Exam & Certification Assistance</Text>
+            <Text style={styles.heroTitle}>Board Exam Assistance</Text>
             <Text style={styles.heroSub}>From graduation to licensure, we cover review needs and exam costs so you can focus on passing.</Text>
           </View>
 
@@ -585,7 +585,7 @@ export default function ExamAssistanceScreen({ navigation }) {
           <Ionicons name="arrow-back" size={24} color="#5b6095" />
         </TouchableOpacity>
         <View style={styles.headerTitles}>
-          <Text style={styles.superTitle}>BOARD EXAM/CERTIFICATION ASSISTANCE</Text>
+          <Text style={styles.superTitle}>BOARD EXAM ASSISTANCE</Text>
           <Text style={styles.mainTitle}>Application Form</Text>
           <Text style={styles.subTitle}>Choose your support option and provide exam details with required documents.</Text>
         </View>
@@ -729,7 +729,7 @@ const styles = StyleSheet.create({
   optionItemText: { marginLeft: 10, fontSize: 13, color: "#2c354a", flex: 1, lineHeight: 20, fontWeight: "500" },
 
   landingFooter: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", marginTop: 24 },
-  footerNote: { fontSize: 10, color: "#7a84a1", marginRight: 14 },
+  footerNote: { fontSize: 10, color: "#7a84a1", marginRight: 14, flex: 1 },
   landingApplyBtn: { backgroundColor: "#5b61aa", paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12 },
   landingApplyBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
   content: { flex: 1 },

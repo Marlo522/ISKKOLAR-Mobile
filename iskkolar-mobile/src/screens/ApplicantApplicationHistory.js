@@ -704,7 +704,14 @@ const SubmittedInfoModal = ({ visible, onClose, application, loading }) => {
             ) : null}
 
             {/* KKFI Grant Education Information */}
-            {isKkfiGrant && (
+            {(isKkfiGrant && Boolean(
+              details.school_name ||
+              details.program ||
+              details.gwa ||
+              details.year_level ||
+              details.term_type ||
+              details.term
+            )) && (
               <View style={styles.reviewCard}>
                 <Text style={styles.reviewCardTitle}>
                   {details.education_path === "Vocational / Tech" ? "Vocational Education Information" :
@@ -875,6 +882,12 @@ const SubmittedInfoModal = ({ visible, onClose, application, loading }) => {
                     <Text style={styles.reviewLabel}>Duration</Text>
                     <Text style={styles.reviewValue}>{formatValue(vocational.course_duration)}</Text>
                   </View>
+                  {vocational.completion_date !== undefined && vocational.completion_date !== null && (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Completion Date</Text>
+                      <Text style={styles.reviewValue}>{formatDate(vocational.completion_date)}</Text>
+                    </View>
+                  )}
                   <View style={styles.reviewRow}>
                     <Text style={styles.reviewLabel}>GWA</Text>
                     <Text style={styles.reviewValue}>{formatValue(vocational.gwa)}</Text>
@@ -896,10 +909,48 @@ const SubmittedInfoModal = ({ visible, onClose, application, loading }) => {
                     <Text style={styles.reviewLabel}>Program</Text>
                     <Text style={styles.reviewValue}>{formatValue(masters.program)}</Text>
                   </View>
+                  {masters.year_level !== undefined && masters.year_level !== null && (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Year Level</Text>
+                      <Text style={styles.reviewValue}>{formatValue(masters.year_level)}</Text>
+                    </View>
+                  )}
+                  {masters.term_type !== undefined && masters.term_type !== null && (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Term Type</Text>
+                      <Text style={styles.reviewValue}>{formatValue(masters.term_type)}</Text>
+                    </View>
+                  )}
+                  {masters.grade_scale !== undefined && masters.grade_scale !== null && (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Grade Scale</Text>
+                      <Text style={styles.reviewValue}>{formatValue(masters.grade_scale)}</Text>
+                    </View>
+                  )}
+                  {masters.term !== undefined && masters.term !== null && (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Term</Text>
+                      <Text style={styles.reviewValue}>{formatValue(masters.term)}</Text>
+                    </View>
+                  )}
+                  {(masters.term_start_date || masters.term_end_date) ? (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Term Duration</Text>
+                      <Text style={styles.reviewValue}>
+                        {formatDate(masters.term_start_date)} - {formatDate(masters.term_end_date)}
+                      </Text>
+                    </View>
+                  ) : null}
                   <View style={styles.reviewRow}>
-                    <Text style={styles.reviewLabel}>GWA</Text>
+                    <Text style={styles.reviewLabel}>Current GWA</Text>
                     <Text style={styles.reviewValue}>{formatValue(masters.gwa)}</Text>
                   </View>
+                  {masters.expected_graduation_year !== undefined && masters.expected_graduation_year !== null && (
+                    <View style={styles.reviewRow}>
+                      <Text style={styles.reviewLabel}>Expected Graduation</Text>
+                      <Text style={styles.reviewValue}>{formatValue(masters.expected_graduation_year)}</Text>
+                    </View>
+                  )}
                 </View>
               </View>
             )}

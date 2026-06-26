@@ -214,28 +214,7 @@ export default function ApplicationScreen({ navigation }) {
     return result;
   }, [applicationItems, statusFilter, categoryFilter, yearFilter]);
 
-  const validItems = useMemo(() => {
-    let result = applicationItems.filter(i => i.status !== "not_started");
-    if (yearFilter) {
-      result = result.filter((item) => item.category === "exam_assistance" || item.academicYear === yearFilter);
-    }
-    return result;
-  }, [applicationItems, yearFilter]);
 
-  const underReviewCount = validItems.filter(i => {
-    const s = normalizeStatus(i.status);
-    return s === "under_review" || s === "submitted";
-  }).length;
-
-  const approvedCount = validItems.filter(i => normalizeStatus(i.status) === "approved").length;
-  const disapprovedCount = validItems.filter(i => normalizeStatus(i.status) === "rejected").length;
-  const totalCount = validItems.length;
-
-  // Dynamic counts for vocational completeness
-  const vocTotalCount = vocSubmission ? 1 : 0;
-  const vocIsApproved = vocSubmission?.status === 'approved';
-  const vocIsRejected = vocSubmission?.status === 'rejected';
-  const vocIsUnderReview = vocSubmission?.status === 'pending';
 
   const renderStepper = (currentStep, isRejected, category) => {
     const steps = category === "grade_compliance"
@@ -330,25 +309,7 @@ export default function ApplicationScreen({ navigation }) {
           <Text style={styles.title}>Application</Text>
           <Text style={styles.subtitle}>Track the progress of your certification completion submission.</Text>
 
-          {/* Stats pills */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsRow}>
-            <View style={styles.statPill}>
-              <View style={[styles.statDot, { backgroundColor: "#5b5f97" }]} />
-              <Text style={styles.statText}>{vocIsUnderReview ? 1 : 0} Under Review</Text>
-            </View>
-            <View style={styles.statPill}>
-              <View style={[styles.statDot, { backgroundColor: "#10b981" }]} />
-              <Text style={styles.statText}>{vocIsApproved ? 1 : 0} Approved</Text>
-            </View>
-            <View style={styles.statPill}>
-              <View style={[styles.statDot, { backgroundColor: "#ef4444" }]} />
-              <Text style={styles.statText}>{vocIsRejected ? 1 : 0} Disapproved</Text>
-            </View>
-            <View style={styles.statPill}>
-              <View style={[styles.statDot, { backgroundColor: "#d1d5db" }]} />
-              <Text style={styles.statText}>{vocTotalCount} Total</Text>
-            </View>
-          </ScrollView>
+
         </View>
 
         <Animated.ScrollView
@@ -422,25 +383,7 @@ export default function ApplicationScreen({ navigation }) {
       <View style={[styles.header, { paddingTop: insets.top + 16, zIndex: 100, elevation: 15 }]}>
         <Text style={styles.title}>Application</Text>
 
-        {/* Stats Row */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsRow}>
-          <View style={styles.statPill}>
-            <View style={[styles.statDot, { backgroundColor: "#5b5f97" }]} />
-            <Text style={styles.statText}>{underReviewCount} Under Review</Text>
-          </View>
-          <View style={styles.statPill}>
-            <View style={[styles.statDot, { backgroundColor: "#10b981" }]} />
-            <Text style={styles.statText}>{approvedCount} Approved</Text>
-          </View>
-          <View style={styles.statPill}>
-            <View style={[styles.statDot, { backgroundColor: "#ef4444" }]} />
-            <Text style={styles.statText}>{disapprovedCount} Disapproved</Text>
-          </View>
-          <View style={styles.statPill}>
-            <View style={[styles.statDot, { backgroundColor: "#d1d5db" }]} />
-            <Text style={styles.statText}>{totalCount} Total</Text>
-          </View>
-        </ScrollView>
+
 
         {/* Status Filters */}
         <View style={styles.filterRow}>
@@ -616,20 +559,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: "900", color: "#111827", letterSpacing: -0.5, marginBottom: 16 },
   subtitle: { fontSize: 13, color: "#6b7280", marginTop: -10, marginBottom: 16, fontWeight: "500", lineHeight: 18 },
 
-  statsRow: { flexDirection: "row", gap: 8, marginBottom: 20 },
-  statPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#f3f4f6",
-    marginRight: 8
-  },
-  statDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
-  statText: { fontSize: 13, fontWeight: "600", color: "#4b5563" },
+
 
   filterRow: {
     flexDirection: "row",

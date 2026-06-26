@@ -11,6 +11,8 @@ import api from "../services/api";
 import { getPublicFormTemplates } from "../services/formTemplateService";
 import { getApplicationSettings } from "../services/settingsService";
 import ApplicationsClosedGuard from "../components/ApplicationsClosedGuard";
+import { LinearGradient } from "expo-linear-gradient";
+import { COLORS } from "../config/colors";
 
 const eligibility = [
   "Filipino Citizen",
@@ -513,7 +515,10 @@ export default function ProgramDetailScreen({ navigation, route }) {
   );
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#ffffff', COLORS.surfaceAlt]}
+      style={styles.container}
+    >
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color="#4c60d1" />
@@ -537,12 +542,12 @@ export default function ProgramDetailScreen({ navigation, route }) {
             ? renderVocationalContent()
             : renderTertiaryContent()}
       </ScrollView>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f6f8fb" },
+  container: { flex: 1, backgroundColor: "transparent" },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingBottom: 16, paddingHorizontal: 18 },
   backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
   bellBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#fff", justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
