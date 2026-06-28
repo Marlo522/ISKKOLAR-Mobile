@@ -37,11 +37,20 @@ export default function LoginScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.logoContainer}>
-          <Image
-            source={require("../../assets/images/logo.png")}
-            style={styles.loginLogo}
-            resizeMode="contain"
-          />
+          <View style={styles.logoCircle}>
+            <Image
+              source={require("../../assets/images/logo_symbol.png")}
+              style={styles.logoSymbol}
+              resizeMode="contain"
+            />
+          </View>
+          <View style={styles.logoTextContainer}>
+            <Image
+              source={require("../../assets/images/logo_text.png")}
+              style={styles.logoText}
+              resizeMode="contain"
+            />
+          </View>
         </View>
 
         <Text style={styles.header}>LOGIN</Text>
@@ -133,7 +142,7 @@ export default function LoginScreen({ navigation }) {
 
         {/* Sign up link */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
+          <Text style={styles.footerText}>{"Don't have an account? "}</Text>
           <TouchableOpacity onPress={() => navigation.navigate("Signup")}>
             <Text style={styles.footerLink}>Create Account</Text>
           </TouchableOpacity>
@@ -148,8 +157,42 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f5f5f5" },
   container: { padding: 24, flexGrow: 1, justifyContent: "center" },
-  logoContainer: { alignItems: "center", marginBottom: 18, marginTop: 10 },
-  loginLogo: { width: 260, height: 260 },
+  logoContainer: { alignItems: "center", marginBottom: 8, marginTop: 10 },
+  logoCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "#5b5f97",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+    shadowColor: "#5b5f97",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  logoSymbol: {
+    width: 72,
+    height: 72,
+  },
+  logoTextContainer: {
+    backgroundColor: "#5b5f97",
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 28,
+    alignSelf: "center",
+    marginBottom: 24,
+    shadowColor: "#5b5f97",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  logoText: {
+    width: 140,
+    height: 28,
+  },
   header: {
     fontSize: 28, fontWeight: "700", color: "#3d4076",
     textAlign: "center", marginBottom: 6,

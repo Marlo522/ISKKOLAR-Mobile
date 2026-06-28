@@ -96,12 +96,14 @@ export default function ScholarshipRenewalScreen({ navigation }) {
   const autoGwa = gradeComplianceLatest?.gwa || academicStatus?.latest_gwa || user?.gwa || '';
   const autoAcademicYear =
     eligibility?.detailedData?.latestComplianceAcademicYear ||
+    gradeComplianceLatest?.academicYear ||
     gradeComplianceLatest?.academic_year ||
     academicStatus?.latest_compliance_academic_year ||
-    (academicStatus?.academic_year
-      ? (["2nd Semester", "Summer", "3rd Trimester", "4th Quarter"].includes(gradeComplianceLatest?.term || academicStatus?.current_term)
-          ? getPrevAcademicYear(academicStatus.academic_year)
-          : academicStatus.academic_year)
+    academicStatus?.latestComplianceAcademicYear ||
+    (academicStatus?.academic_year || academicStatus?.academicYear
+      ? (["2nd Semester", "Summer", "3rd Trimester", "4th Quarter"].includes(gradeComplianceLatest?.term || academicStatus?.current_term || academicStatus?.currentTerm)
+          ? getPrevAcademicYear(academicStatus.academic_year || academicStatus.academicYear)
+          : (academicStatus.academic_year || academicStatus.academicYear))
       : null) ||
     getCurrentAcademicYear();
   const autoTerm = gradeComplianceLatest?.term || academicStatus?.current_term || user?.term || '';
@@ -176,43 +178,14 @@ export default function ScholarshipRenewalScreen({ navigation }) {
 
   // Keep form auto-filled values in sync if user context changes
   useEffect(() => {
-    setForm((prev) => {
-      // Helper to determine if a term or year is more "advanced" than another
-      // For academic year (e.g. "2025-2026" vs "2024-2025")
-      const getYearVal = (yr) => {
-        const match = /^(\d{4})/.exec(yr || '');
-        return match ? parseInt(match[1], 10) : 0;
-      };
-
-      const getTermVal = (t) => {
-        if (!t) return 0;
-        const termLower = t.toLowerCase();
-        if (termLower.includes('1st') || termLower.includes('first')) return 1;
-        if (termLower.includes('2nd') || termLower.includes('second')) return 2;
-        if (termLower.includes('3rd') || termLower.includes('third')) return 3;
-        if (termLower.includes('summer')) return 4;
-        return 0;
-      };
-
-      // Check if existing state has more advanced standing than incoming auto values
-      const currentYearVal = getYearVal(prev.academicYear);
-      const incomingYearVal = getYearVal(autoAcademicYear);
-
-      const currentTermVal = getTermVal(prev.term);
-      const incomingTermVal = getTermVal(autoTerm);
-
-      const shouldKeepCurrentYear = currentYearVal > incomingYearVal;
-      const shouldKeepCurrentTerm = currentYearVal === incomingYearVal && currentTermVal > incomingTermVal;
-
-      return {
-        ...prev,
-        school: prev.school || autoSchool,
-        program: prev.program || autoProgram,
-        gwa: prev.gwa || (autoGwa ? String(autoGwa) : ''),
-        academicYear: shouldKeepCurrentYear ? prev.academicYear : (autoAcademicYear || prev.academicYear),
-        term: shouldKeepCurrentTerm ? prev.term : (autoTerm || prev.term),
-      };
-    });
+    setForm((prev) => ({
+      ...prev,
+      school: autoSchool,
+      program: autoProgram,
+      gwa: autoGwa ? String(autoGwa) : "",
+      academicYear: autoAcademicYear,
+      term: autoTerm,
+    }));
   }, [autoSchool, autoProgram, autoGwa, autoAcademicYear, autoTerm]);
 
   // Fetch dynamic grade compliance terms to resolve gradeComplianceLatest

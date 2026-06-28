@@ -529,7 +529,7 @@ export default function GradeComplianceScreen({ navigation }) {
   const buildSubmissionPayload = () => {
     const isGraduating = selectedTerm?.isLastSemesterBeforeGraduation;
 
-    return {
+    const payload = {
       term: selectedTerm.term,
       scholarshipName: currentScholarship,
       remarks: "",
@@ -541,6 +541,38 @@ export default function GradeComplianceScreen({ navigation }) {
         cor: isGraduating ? null : corFile,
       },
     };
+
+    if (evaluationResult) {
+      const getVal = (paths) => {
+        for (const path of paths) {
+          let curr = evaluationResult;
+          for (const key of path) {
+            curr = curr?.[key];
+          }
+          if (curr !== undefined) return curr;
+        }
+        return undefined;
+      };
+
+      const aiSummary = getVal([['ai_summary'], ['grade_analysis', 'ai_summary'], ['data', 'ai_summary'], ['data', 'grade_analysis', 'ai_summary']]);
+      const extractedGwa = getVal([['grade_analysis', 'extracted_gwa'], ['data', 'grade_analysis', 'extracted_gwa']]);
+      const gwaDiscrepancy = getVal([['grade_analysis', 'gwa_discrepancy'], ['data', 'grade_analysis', 'gwa_discrepancy']]);
+      const hasInc = getVal([['grade_analysis', 'has_inc_subjects'], ['data', 'grade_analysis', 'has_inc_subjects']]);
+      const hasFailed = getVal([['grade_analysis', 'has_failed_subjects'], ['data', 'grade_analysis', 'has_failed_subjects']]);
+      const isGwaQualified = getVal([['grade_analysis', 'is_gwa_qualified'], ['data', 'grade_analysis', 'is_gwa_qualified']]);
+      const notes = getVal([['grade_analysis', 'grade_deficiency_notes'], ['data', 'grade_analysis', 'grade_deficiency_notes']]);
+
+      payload.preEvaluated = true;
+      payload.aiSummary = aiSummary !== undefined ? aiSummary : "";
+      payload.extractedGwa = extractedGwa;
+      payload.gwaDiscrepancy = gwaDiscrepancy;
+      payload.hasInc = hasInc;
+      payload.hasFailed = hasFailed;
+      payload.isGwaQualified = isGwaQualified;
+      payload.gradeDeficiencyNotes = notes ? JSON.stringify(notes) : "[]";
+    }
+
+    return payload;
   };
 
   const getAiSummary = (payload) => (
