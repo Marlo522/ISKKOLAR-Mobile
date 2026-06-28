@@ -33,6 +33,14 @@ const buildGradeComplianceFormData = ({
   nextTermEndDate,
   gwa,
   files,
+  preEvaluated,
+  aiSummary,
+  extractedGwa,
+  gwaDiscrepancy,
+  hasInc,
+  hasFailed,
+  isGwaQualified,
+  gradeDeficiencyNotes,
 }) => {
   const data = new FormData();
   data.append('term', term);
@@ -45,6 +53,31 @@ const buildGradeComplianceFormData = ({
 
   appendFile(data, 'gradeReport', files?.gradeReport, 'gradeReport.pdf', 'application/pdf');
   appendFile(data, 'cor', files?.cor, 'cor.pdf', 'application/pdf');
+
+  if (preEvaluated) {
+    data.append('preEvaluated', 'true');
+  }
+  if (aiSummary !== undefined && aiSummary !== null) {
+    data.append('aiSummary', aiSummary);
+  }
+  if (extractedGwa !== undefined && extractedGwa !== null) {
+    data.append('extractedGwa', String(extractedGwa));
+  }
+  if (gwaDiscrepancy !== undefined && gwaDiscrepancy !== null) {
+    data.append('gwaDiscrepancy', String(gwaDiscrepancy));
+  }
+  if (hasInc !== undefined && hasInc !== null) {
+    data.append('hasInc', String(hasInc));
+  }
+  if (hasFailed !== undefined && hasFailed !== null) {
+    data.append('hasFailed', String(hasFailed));
+  }
+  if (isGwaQualified !== undefined && isGwaQualified !== null) {
+    data.append('isGwaQualified', String(isGwaQualified));
+  }
+  if (gradeDeficiencyNotes !== undefined && gradeDeficiencyNotes !== null) {
+    data.append('gradeDeficiencyNotes', gradeDeficiencyNotes);
+  }
 
   return data;
 };
