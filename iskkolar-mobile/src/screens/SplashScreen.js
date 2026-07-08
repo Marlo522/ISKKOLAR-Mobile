@@ -113,10 +113,9 @@ export default function SplashScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
         <View style={styles.content}>
-          <Animated.Image
-            source={require("../../assets/images/logo.png")}
+          <Animated.View
             style={[
-              styles.logo,
+              styles.logoWrapper,
               {
                 opacity: fadeAnim,
                 transform: [
@@ -124,8 +123,22 @@ export default function SplashScreen() {
                 ]
               }
             ]}
-            resizeMode="contain"
-          />
+          >
+            <View style={styles.logoCircle}>
+              <Image
+                source={require("../../assets/images/logo_symbol.png")}
+                style={styles.logoSymbol}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.logoTextContainer}>
+              <Image
+                source={require("../../assets/images/logo_text.png")}
+                style={styles.logoText}
+                resizeMode="contain"
+              />
+            </View>
+          </Animated.View>
         </View>
       </View>
     );
@@ -149,11 +162,20 @@ export default function SplashScreen() {
           }
         ]}
       >
-        <Image
-          source={require("../../assets/images/logo.png")}
-          style={styles.logoSmall}
-          resizeMode="contain"
-        />
+        <View style={styles.logoCircle}>
+          <Image
+            source={require("../../assets/images/logo_symbol.png")}
+            style={styles.logoSymbol}
+            resizeMode="contain"
+          />
+        </View>
+        <View style={styles.logoTextContainer}>
+          <Image
+            source={require("../../assets/images/logo_text.png")}
+            style={styles.logoText}
+            resizeMode="contain"
+          />
+        </View>
         <Text style={styles.tagline}>
           75 Years of Faithful Mission,{"\n"}Changing Lives with Purpose and Compassion
         </Text>
@@ -201,10 +223,44 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 24,
   },
-  logo: {
-    width: 320,
-    height: 320,
-    marginBottom: 20,
+  logoWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "#5b5f97",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+    shadowColor: "#5b5f97",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  logoSymbol: {
+    width: 72,
+    height: 72,
+  },
+  logoTextContainer: {
+    backgroundColor: "#5b5f97",
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 28,
+    alignSelf: "center",
+    marginBottom: 24,
+    shadowColor: "#5b5f97",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  logoText: {
+    width: 140,
+    height: 28,
   },
   title: {
     fontSize: 32,
@@ -217,11 +273,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 32,
-  },
-  logoSmall: {
-    width: 220,
-    height: 220,
-    marginBottom: 18,
   },
   tagline: {
     textAlign: "center",

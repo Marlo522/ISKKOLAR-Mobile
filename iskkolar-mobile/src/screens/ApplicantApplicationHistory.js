@@ -417,24 +417,13 @@ const ApplicationCard = ({ application, onViewEvaluation, onViewSubmittedInfo })
 
         <View style={styles.btnStack}>
           <TouchableOpacity
-            style={styles.submittedInfoBtn}
+            style={styles.viewSubmittedInfoBtn}
             onPress={() => onViewSubmittedInfo(application)}
             activeOpacity={0.8}
           >
-            <Ionicons name="document-text-outline" size={18} color="#5b5f97" style={{ marginRight: 8 }} />
-            <Text style={styles.submittedInfoBtnText}>Submitted Information</Text>
+            <Ionicons name="eye-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.viewSubmittedInfoBtnText}>View</Text>
           </TouchableOpacity>
-
-          {application.aiEvaluation ? (
-            <TouchableOpacity
-              style={styles.viewEvaluationBtn}
-              onPress={() => onViewEvaluation(application.aiEvaluation)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="analytics-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={styles.viewEvaluationBtnText}>View AI Smart Evaluation Report</Text>
-            </TouchableOpacity>
-          ) : null}
         </View>
       </View>
     </View>
@@ -1462,35 +1451,24 @@ const styles = StyleSheet.create({
     marginTop: 16,
     width: "100%",
   },
-  submittedInfoBtn: {
+  viewSubmittedInfoBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
-    borderWidth: 1.5,
-    borderColor: "#5b5f97",
+    backgroundColor: "#5b5f97",
     borderRadius: 14,
     paddingVertical: 14,
     width: "100%",
+    shadowColor: "#5b5f97",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  submittedInfoBtnText: {
-    color: "#5b5f97",
-    fontWeight: "800",
-    fontSize: 14,
-  },
-  viewEvaluationBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#3d4076",
-    borderRadius: 14,
-    paddingVertical: 14,
-    width: "100%",
-  },
-  viewEvaluationBtnText: {
+  viewSubmittedInfoBtnText: {
     color: "#fff",
     fontWeight: "800",
-    fontSize: 14,
+    fontSize: 15,
   },
   reviewCard: {
     backgroundColor: "#f8f9fc",

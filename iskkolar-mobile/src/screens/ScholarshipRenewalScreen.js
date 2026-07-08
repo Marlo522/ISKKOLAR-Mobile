@@ -590,37 +590,33 @@ export default function ScholarshipRenewalScreen({ navigation }) {
                                 })}
                               </View>
 
-                              <View
-                                style={[
-                                  styles.verdictBox,
-                                  cannotSubmit
-                                    ? styles.verdictError
-                                    : eligibility?.isQualified
-                                      ? styles.verdictSuccess
-                                      : styles.verdictWarning,
-                                ]}
-                              >
-                                <Text
+                              {(cannotSubmit || !eligibility?.isQualified) && (
+                                <View
                                   style={[
-                                    styles.verdictText,
+                                    styles.verdictBox,
                                     cannotSubmit
-                                      ? styles.verdictTextError
-                                      : eligibility?.isQualified
-                                        ? styles.verdictTextSuccess
-                                        : styles.verdictTextWarning,
+                                      ? styles.verdictError
+                                      : styles.verdictWarning,
                                   ]}
                                 >
-                                  {cannotSubmit
-                                    ? (alreadySubmittedThisYear
-                                        ? '✗ Cannot submit renewal: You have already submitted a scholarship renewal this year.'
-                                        : missingGradeCompliance
-                                          ? '✗ Cannot submit renewal: You have not submitted any grade compliance records.'
-                                          : '✗ Cannot submit renewal: You have incomplete/failing grades or your GWA is below 85%.')
-                                    : (eligibility?.isQualified
-                                        ? '✓ You meet all requirements. Your renewal will be automatically approved upon submission.'
-                                        : '⚠ You have attendance or late submission flags. Your renewal will be submitted for manual review.')}
-                                </Text>
-                              </View>
+                                  <Text
+                                    style={[
+                                      styles.verdictText,
+                                      cannotSubmit
+                                        ? styles.verdictTextError
+                                        : styles.verdictTextWarning,
+                                    ]}
+                                  >
+                                    {cannotSubmit
+                                      ? (alreadySubmittedThisYear
+                                          ? '✗ Cannot submit renewal: You have already submitted a scholarship renewal this year.'
+                                          : missingGradeCompliance
+                                            ? '✗ Cannot submit renewal: You have not submitted any grade compliance records.'
+                                            : '✗ Cannot submit renewal: You have incomplete/failing grades or your GWA is below 85%.')
+                                      : '⚠ You have attendance or late submission flags. Your renewal will be submitted for manual review.'}
+                                  </Text>
+                                </View>
+                              )}
 
                               {eligibility.aiEvaluation && (
                                 <View style={styles.aiSummarySection}>
