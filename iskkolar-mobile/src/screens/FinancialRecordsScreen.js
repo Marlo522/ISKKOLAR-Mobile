@@ -1018,16 +1018,7 @@ export default function FinancialRecordsScreen({ navigation }) {
                           </View>
                         </View>
 
-                        {/* AI Summary Section */}
-                        <View style={styles.proofAiBox}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                            <Ionicons name="sparkles" size={14} color="#5b5f97" style={{ marginRight: 6 }} />
-                            <Text style={styles.proofAiTitle}>AI Verification Summary</Text>
-                          </View>
-                          <Text style={styles.proofAiText}>
-                            {submissionData.ai_summary || "AI verification is in progress. Please check back later."}
-                          </Text>
-                        </View>
+
 
                         {/* Receipts List */}
                         <View style={{ marginTop: 16 }}>
@@ -1041,22 +1032,7 @@ export default function FinancialRecordsScreen({ navigation }) {
                                 </View>
                                 <View style={{ alignItems: 'flex-end' }}>
                                   <Text style={styles.receiptItemAmount}>{formatCurrency(receipt.amount)}</Text>
-                                  {receipt.validation_status && (
-                                    <View style={[
-                                      styles.ocrPill, 
-                                      { backgroundColor: receipt.validation_status === 'matched' ? '#e6f7ef' : 
-                                                         receipt.validation_status === 'pending' ? '#f3f4f6' : '#fff1f1' }
-                                    ]}>
-                                      <Text style={[
-                                        styles.ocrPillText,
-                                        { color: receipt.validation_status === 'matched' ? '#0d7c47' : 
-                                                 receipt.validation_status === 'pending' ? '#6b7280' : '#e11d48' }
-                                      ]}>
-                                        {receipt.validation_status === 'matched' ? 'OCR MATCH' : 
-                                         receipt.validation_status === 'pending' ? 'UNVERIFIED' : 'OCR MISMATCH'}
-                                      </Text>
-                                    </View>
-                                  )}
+
                                 </View>
                               </View>
                             ))}

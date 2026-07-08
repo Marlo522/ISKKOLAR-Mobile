@@ -8,6 +8,7 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function ApplicationResultState({
   onViewApplications,
@@ -20,18 +21,25 @@ export default function ApplicationResultState({
       showsVerticalScrollIndicator={false}
     >
       {/* Purple Top Header */}
-      <View style={styles.headerBackground}>
+      <LinearGradient
+        colors={["#3d4076", "#5b5f97"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerBackground}
+      >
         <View style={styles.logoCapsule}>
           <Image
             source={require("../../assets/images/logo_symbol.png")}
             style={styles.capsuleLogoSymbol}
             resizeMode="contain"
           />
-          <Text style={styles.capsuleLogoText}>
-            IS<Text style={{ color: "#fdeb12" }}>KK</Text>OLAR
-          </Text>
+          <Image
+            source={require("../../assets/images/logo_text.png")}
+            style={styles.capsuleLogoText}
+            resizeMode="contain"
+          />
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Main Body with Card */}
       <View style={styles.body}>
@@ -109,10 +117,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   capsuleLogoText: {
-    color: "#ffffff",
-    fontWeight: "900",
-    fontSize: 16,
-    letterSpacing: 1,
+    width: 90,
+    height: 18,
   },
   body: {
     flex: 1,

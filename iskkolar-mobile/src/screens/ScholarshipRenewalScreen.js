@@ -501,36 +501,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
                         >
                           <Text style={styles.evalHeaderIcon}>📋</Text>
                           <Text style={styles.evalHeaderTitle}>Status Evaluation</Text>
-                          {!loadingEligibility && eligibility?.aiEvaluation && (
-                            <View
-                              style={[
-                                styles.aiBadge,
-                                eligibility.aiEvaluation.recommended_action === 'Approve'
-                                  ? styles.aiBadgeSuccess
-                                  : eligibility.aiEvaluation.recommended_action === 'Reject'
-                                    ? styles.aiBadgeError
-                                    : styles.aiBadgeWarning,
-                              ]}
-                            >
-                              <Text
-                                style={[
-                                  styles.aiBadgeText,
-                                  eligibility.aiEvaluation.recommended_action === 'Approve'
-                                    ? styles.aiBadgeTextSuccess
-                                    : eligibility.aiEvaluation.recommended_action === 'Reject'
-                                      ? styles.aiBadgeTextError
-                                      : styles.aiBadgeTextWarning,
-                                ]}
-                              >
-                                {eligibility.aiEvaluation.recommended_action === 'Approve'
-                                  ? '✓ '
-                                  : eligibility.aiEvaluation.recommended_action === 'Reject'
-                                    ? '✗ '
-                                    : '⚠ '}
-                                AI: {eligibility.aiEvaluation.recommended_action}
-                              </Text>
-                            </View>
-                          )}
+
                         </View>
 
                         <View style={styles.evalBody}>
@@ -618,18 +589,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
                                 </View>
                               )}
 
-                              {eligibility.aiEvaluation && (
-                                <View style={styles.aiSummarySection}>
-                                  <Text style={styles.evalSubHeader}>🤖 AI SMART EVALUATION</Text>
-                                  <Text style={styles.aiSummaryText}>{eligibility.aiEvaluation.summary}</Text>
-                                  {eligibility.aiEvaluation.reasoning && (
-                                    <Text style={styles.aiReasoningText}>
-                                      <Text style={styles.aiReasoningLabel}>Basis: </Text>
-                                      {eligibility.aiEvaluation.reasoning}
-                                    </Text>
-                                  )}
-                                </View>
-                              )}
+
                             </>
                           ) : (
                             <Text style={styles.evalLoadingText}>Eligibility feedback unavailable right now.</Text>
