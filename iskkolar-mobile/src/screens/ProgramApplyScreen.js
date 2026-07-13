@@ -172,7 +172,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
   const [completeStage, setCompleteStage] = useState("none");
   const [selectVisible, setSelectVisible] = useState(false);
   const [selectContext, setSelectContext] = useState(null);
-  const [declarations, setDeclarations] = useState({ agree1: false, agree2: false, agree3: false });
+  const [declarations, setDeclarations] = useState({ agree1: false, agree2: false, agree3: false, agree4: false });
   const [termsModalVisible, setTermsModalVisible] = useState(false);
   const [verifiedStaffId, setVerifiedStaffId] = useState("");
   const [isCheckingApplication, setIsCheckingApplication] = useState(true);
@@ -2293,7 +2293,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
                 activeOpacity={0.7}
                 onPress={() => setDeclarations((d) => {
                   const nextVal = !d.agree1;
-                  return { agree1: nextVal, agree2: nextVal, agree3: nextVal };
+                  return { agree1: nextVal, agree2: nextVal, agree3: nextVal, agree4: nextVal };
                 })}
                 style={[styles.modernCheckbox, declarations.agree1 && styles.modernCheckboxChecked, { marginTop: 2 }]}
               >
@@ -2303,7 +2303,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
               <Text style={[styles.declarationText, { marginLeft: 10 }]}>
                 <Text onPress={() => setDeclarations((d) => {
                   const nextVal = !d.agree1;
-                  return { agree1: nextVal, agree2: nextVal, agree3: nextVal };
+                  return { agree1: nextVal, agree2: nextVal, agree3: nextVal, agree4: nextVal };
                 })}>
                   By ticking, you are confirming that you have read, understood and agree to KKFI{" "}
                 </Text>
@@ -2355,7 +2355,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
                     <Text style={styles.modalNumberText}>2</Text>
                   </View>
                   <Text style={styles.modalTermText}>
-                    I agree to provide any additional documentation requested by KKFI and to comply with all scholarship terms and conditions.
+                    I agree to provide any additional documents requested by KKFI and to comply with all scholarship policies, terms, and conditions.
                   </Text>
                 </View>
 
@@ -2365,7 +2365,17 @@ export default function ProgramApplyScreen({ navigation, route }) {
                     <Text style={styles.modalNumberText}>3</Text>
                   </View>
                   <Text style={styles.modalTermText}>
-                    I have read and agree to the Data Privacy Notice. I consent to the collection, processing, and storage of my personal data for scholarship evaluation and related program administration.
+                    I consent to the collection, processing, and storage of my personal information for scholarship evaluation and program administration in accordance with the Data Privacy Act of 2012.
+                  </Text>
+                </View>
+
+                {/* Term 4 */}
+                <View style={styles.modalTermRow}>
+                  <View style={styles.modalNumberCircle}>
+                    <Text style={styles.modalNumberText}>4</Text>
+                  </View>
+                  <Text style={styles.modalTermText}>
+                    I understand that my uploaded documents may be reviewed using AI-assisted tools and by authorized personnel for scholarship evaluation and verification. My personal information will be handled securely and used only for scholarship-related purposes in accordance with the Data Privacy Act of 2012.
                   </Text>
                 </View>
               </ScrollView>
@@ -2375,7 +2385,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
                 style={styles.modalAgreeBtn}
                 activeOpacity={0.85}
                 onPress={() => {
-                  setDeclarations({ agree1: true, agree2: true, agree3: true });
+                  setDeclarations({ agree1: true, agree2: true, agree3: true, agree4: true });
                   setTermsModalVisible(false);
                 }}
               >
@@ -2429,7 +2439,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
     return null;
   };
 
-  const allDeclared = declarations.agree1 && declarations.agree2 && declarations.agree3;
+  const allDeclared = declarations.agree1 && declarations.agree2 && declarations.agree3 && declarations.agree4;
 
   if (isCheckingApplication) {
     return (

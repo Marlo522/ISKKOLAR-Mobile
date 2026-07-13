@@ -501,36 +501,7 @@ export default function ScholarshipRenewalScreen({ navigation }) {
                         >
                           <Text style={styles.evalHeaderIcon}>📋</Text>
                           <Text style={styles.evalHeaderTitle}>Status Evaluation</Text>
-                          {!loadingEligibility && eligibility?.aiEvaluation && (
-                            <View
-                              style={[
-                                styles.aiBadge,
-                                eligibility.aiEvaluation.recommended_action === 'Approve'
-                                  ? styles.aiBadgeSuccess
-                                  : eligibility.aiEvaluation.recommended_action === 'Reject'
-                                    ? styles.aiBadgeError
-                                    : styles.aiBadgeWarning,
-                              ]}
-                            >
-                              <Text
-                                style={[
-                                  styles.aiBadgeText,
-                                  eligibility.aiEvaluation.recommended_action === 'Approve'
-                                    ? styles.aiBadgeTextSuccess
-                                    : eligibility.aiEvaluation.recommended_action === 'Reject'
-                                      ? styles.aiBadgeTextError
-                                      : styles.aiBadgeTextWarning,
-                                ]}
-                              >
-                                {eligibility.aiEvaluation.recommended_action === 'Approve'
-                                  ? '✓ '
-                                  : eligibility.aiEvaluation.recommended_action === 'Reject'
-                                    ? '✗ '
-                                    : '⚠ '}
-                                AI: {eligibility.aiEvaluation.recommended_action}
-                              </Text>
-                            </View>
-                          )}
+
                         </View>
 
                         <View style={styles.evalBody}>
@@ -590,50 +561,35 @@ export default function ScholarshipRenewalScreen({ navigation }) {
                                 })}
                               </View>
 
-                              <View
-                                style={[
-                                  styles.verdictBox,
-                                  cannotSubmit
-                                    ? styles.verdictError
-                                    : eligibility?.isQualified
-                                      ? styles.verdictSuccess
-                                      : styles.verdictWarning,
-                                ]}
-                              >
-                                <Text
+                              {(cannotSubmit || !eligibility?.isQualified) && (
+                                <View
                                   style={[
-                                    styles.verdictText,
+                                    styles.verdictBox,
                                     cannotSubmit
-                                      ? styles.verdictTextError
-                                      : eligibility?.isQualified
-                                        ? styles.verdictTextSuccess
-                                        : styles.verdictTextWarning,
+                                      ? styles.verdictError
+                                      : styles.verdictWarning,
                                   ]}
                                 >
-                                  {cannotSubmit
-                                    ? (alreadySubmittedThisYear
-                                        ? '✗ Cannot submit renewal: You have already submitted a scholarship renewal this year.'
-                                        : missingGradeCompliance
-                                          ? '✗ Cannot submit renewal: You have not submitted any grade compliance records.'
-                                          : '✗ Cannot submit renewal: You have incomplete/failing grades or your GWA is below 85%.')
-                                    : (eligibility?.isQualified
-                                        ? '✓ You meet all requirements. Your renewal will be automatically approved upon submission.'
-                                        : '⚠ You have attendance or late submission flags. Your renewal will be submitted for manual review.')}
-                                </Text>
-                              </View>
-
-                              {eligibility.aiEvaluation && (
-                                <View style={styles.aiSummarySection}>
-                                  <Text style={styles.evalSubHeader}>🤖 AI SMART EVALUATION</Text>
-                                  <Text style={styles.aiSummaryText}>{eligibility.aiEvaluation.summary}</Text>
-                                  {eligibility.aiEvaluation.reasoning && (
-                                    <Text style={styles.aiReasoningText}>
-                                      <Text style={styles.aiReasoningLabel}>Basis: </Text>
-                                      {eligibility.aiEvaluation.reasoning}
-                                    </Text>
-                                  )}
+                                  <Text
+                                    style={[
+                                      styles.verdictText,
+                                      cannotSubmit
+                                        ? styles.verdictTextError
+                                        : styles.verdictTextWarning,
+                                    ]}
+                                  >
+                                    {cannotSubmit
+                                      ? (alreadySubmittedThisYear
+                                          ? '✗ Cannot submit renewal: You have already submitted a scholarship renewal this year.'
+                                          : missingGradeCompliance
+                                            ? '✗ Cannot submit renewal: You have not submitted any grade compliance records.'
+                                            : '✗ Cannot submit renewal: You have incomplete/failing grades or your GWA is below 85%.')
+                                      : '⚠ You have attendance or late submission flags. Your renewal will be submitted for manual review.'}
+                                  </Text>
                                 </View>
                               )}
+
+
                             </>
                           ) : (
                             <Text style={styles.evalLoadingText}>Eligibility feedback unavailable right now.</Text>

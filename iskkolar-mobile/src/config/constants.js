@@ -10,7 +10,7 @@ const getLocalhostIp = () => {
 };
 
 const localIp = getLocalhostIp();
-export const API_URL = 'https://iskkolar-backend.onrender.com/api';
+export const API_URL = `http://${localIp}:5000/api`;
 
 
 
