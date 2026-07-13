@@ -9,8 +9,7 @@ const getLocalhostIp = () => {
   return Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 };
 
-const localIp = getLocalhostIp();
-export const API_URL = `http://${localIp}:5000/api`;
+export const API_URL = 'https://iskkolar-backend.onrender.com/api';
 
 
 
