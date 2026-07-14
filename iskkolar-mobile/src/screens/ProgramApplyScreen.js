@@ -2375,7 +2375,7 @@ export default function ProgramApplyScreen({ navigation, route }) {
                     <Text style={styles.modalNumberText}>4</Text>
                   </View>
                   <Text style={styles.modalTermText}>
-                    I understand that my uploaded documents may be reviewed using AI-assisted tools and by authorized personnel for scholarship evaluation and verification. My personal information will be handled securely and used only for scholarship-related purposes in accordance with the Data Privacy Act of 2012.
+                    I understand that my uploaded documents may be initially checked by AI-assisted tools based on evaluation rules by the organization, and will also be reviewed by authorized personnel for scholarship evaluation and verification. My personal information will be handled securely and used only for scholarship-related purposes in accordance with the Data Privacy Act of 2012.
                   </Text>
                 </View>
               </ScrollView>
